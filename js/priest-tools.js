@@ -32,6 +32,10 @@
     const luknoUnpaid = (data.families || []).filter((f) => FC && !FC.currentYearStatus(f, y).paid).length;
     const upcomingBaptisms = (data.baptisms || []).filter((b) => b.baptismDate && b.baptismDate >= today).length;
     const debtsUnpaid = global.PastoralDebts ? global.PastoralDebts.getUnpaidCount(data) : unpaidNakane + luknoUnpaid;
+    const remindersCount = global.PastoralReminders ? global.PastoralReminders.getCount(data) : 0;
+    const visitsDue = (data.visits || []).filter((v) => !v.done && v.scheduled && v.scheduled <= today).length;
+    const me = global.PastoralStaffMessages?.staffUserFromSession?.() || "";
+    const unreadMessages = global.PastoralStaffMessages ? global.PastoralStaffMessages.unreadCount(data, me) : 0;
     return {
       novaPrijave,
       unpaidNakane,
@@ -40,8 +44,11 @@
       dueTodayTasks,
       luknoUnpaid,
       debtsUnpaid,
+      remindersCount,
+      visitsDue,
       openTasks: (data.tasks || []).filter((t) => !t.done).length,
       upcomingBaptisms,
+      unreadMessages,
     };
   }
 
@@ -66,8 +73,11 @@
       "javne-prijave.html": stats.novaPrijave,
       "nakane.html": stats.unpaidNakane,
       "dugovanja.html": stats.debtsUnpaid,
+      "podsjetnici.html": stats.remindersCount,
+      "posjete.html": stats.visitsDue,
       "zadaci.html": stats.overdueTasks + stats.dueTodayTasks,
       "obitelji.html": stats.luknoUnpaid > 0 ? stats.luknoUnpaid : 0,
+    "poruke.html": stats.unreadMessages > 0 ? stats.unreadMessages : 0,
     };
     document.querySelectorAll(".sidebar .nav a").forEach((a) => {
       const href = a.getAttribute("href") || "";
@@ -82,6 +92,21 @@
         a.appendChild(b);
       }
     });
+  }
+
+  function ensurePrezentacijaInTopbar() {
+    const actions = document.querySelector(".app-shell .topbar .topbar-actions");
+    if (!actions || document.getElementById("btn-demo-present")) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn btn-secondary btn-sm";
+    btn.id = "btn-demo-present";
+    btn.textContent = "Prezentacija";
+    btn.addEventListener("click", () => {
+      global.PastoralDemo?.openSalesStory?.({ showToast: api.showToast, pageUrl: api.pageUrl });
+    });
+    actions.insertBefore(btn, actions.firstChild);
+    global.PastoralTheme?.repositionInTopbar?.();
   }
 
   function injectGlobalQuickBar() {
@@ -214,6 +239,8 @@
       size: "md",
       body: `
         <div class="priest-help">
+          <h3>Prezentacija (prodaja / demo)</h3>
+          <p>Gumb <strong>Prezentacija</strong> na ploči — kratka priča za župnika (5 min). Otvorite i <strong>Portal vjernika</strong> u novom prozoru. URL: <code>app.html?prezentacija=1</code> automatski pokreće priču.</p>
           <h3>Uvod u aplikaciju</h3>
           <p>Prvi put nakon prijave kreće obilazak <strong>ekran po ekran</strong> kroz aplikaciju. Ponovno: <strong>Postavke → Ponovi uvod u aplikaciju</strong>.</p>
           <h3>Brzi pristup</h3>
@@ -319,11 +346,26 @@
             <strong>Raspored misa</strong>
             <small>tjedni plan</small>
           </a>
-          <a href="${api.pageUrl("pages/dokumenti.html")}" class="priest-action-tile">
-            <span class="priest-action-ico">📄</span>
-            <strong>Dokumenti</strong>
-            <small>predlošci i ispis</small>
+          <a href="${api.pageUrl("pages/podsjetnici.html")}" class="priest-action-tile ${stats.remindersCount ? "priest-action-tile--alert" : ""}">
+            <span class="priest-action-ico">🔔</span>
+            <strong>Podsjetnici</strong>
+            <small>${stats.remindersCount || 0} stavki</small>
           </a>
+          <a href="${api.pageUrl("pages/potvrde.html")}" class="priest-action-tile">
+            <span class="priest-action-ico">📜</span>
+            <strong>Potvrde</strong>
+            <small>ispis iz evidencije</small>
+          </a>
+          <a href="${api.pageUrl("pages/dugovanja.html")}" class="priest-action-tile">
+            <span class="priest-action-ico">€</span>
+            <strong>Dugovanja</strong>
+            <small>lukno, nakane…</small>
+          </a>
+          <button type="button" class="priest-action-tile priest-action-tile--demo" id="priest-demo-story">
+            <span class="priest-action-ico">✦</span>
+            <strong>Prezentacija</strong>
+            <small>priča za župu (5 min)</small>
+          </button>
         </div>
       </section>`;
   }
@@ -397,7 +439,9 @@
     const data = api.getData();
     const stats = getOfficeStats(data);
     enhanceNavBadges(stats);
+    ensurePrezentacijaInTopbar();
     injectGlobalQuickBar();
+    global.PastoralTheme?.repositionInTopbar?.();
     bindKeyboardShortcuts();
     return stats;
   }

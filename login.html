@@ -6,16 +6,23 @@
   <title>Prijava — Pastoral</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  <script src="js/login-reveal.js"></script>
+  <script src="js/path-base.js"></script>
   <script src="js/parish-config.js"></script>
+  <script src="js/security-engine.js"></script>
+  <script src="js/gdpr-engine.js"></script>
   <script src="js/theme-picker.js"></script>
   <script>try{PastoralTheme.applyFromSettings(PastoralParish.loadSettings())}catch(e){}</script>
   <script src="js/data-seed.js"></script>
+  <script src="js/permissions-engine.js"></script>
+  <script src="js/otp-mail-config.js"></script>
+  <script src="js/otp-auth-engine.js"></script>
 </head>
 <body data-page="login" class="auth-page">
-  <div class="auth-card" style="max-width:400px">
+  <div class="auth-card fx-auth-glow" style="max-width:400px">
     <div style="text-align:center;margin-bottom:20px" id="login-logo"></div>
-    <h1>Župna administracija</h1>
-    <p style="color:var(--text-muted);font-size:0.9rem;margin:0">Župa Blažene Djevice Marije · Slavonski Brod</p>
+    <h1>Župni ured</h1>
+        <p style="color:var(--text-muted);font-size:0.9rem;margin:0">Prijava · grupe određuju pristup modulima</p>
     <form id="login-form" style="margin-top:24px">
       <div class="form-group">
         <label for="login-email">E-mail</label>
@@ -30,8 +37,14 @@
           <option value="kateheta">Kateheta</option>
         </select>
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%">Uđi u administraciju</button>
+      <div id="login-gdpr-mount"></div>
+      <div id="login-otp-mount"></div>
+      <button type="submit" class="btn btn-primary fx-btn-shine" style="width:100%" id="login-submit-btn">Pošalji kod za prijavu</button>
+      <p style="margin-top:12px;text-align:center;font-size:0.85rem">
+        <a href="#" id="login-forgot">Zaboravljeno korisničko ime ili lozinka</a>
+      </p>
     </form>
+    <div id="login-security-mount" style="margin-top:16px"></div>
     <p style="margin-top:20px;text-align:center;font-size:0.9rem;color:var(--text-muted)">
       <a href="public/index.html">Javni obrasci</a> — krizma, krštenje, pričest, ukop
     </p>

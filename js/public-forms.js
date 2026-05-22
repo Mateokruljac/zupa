@@ -126,7 +126,8 @@
       </header>
       <form id="public-form" class="public-form card">
         ${fields}
-        <button type="submit" class="btn btn-primary">Pošalji prijavu</button>
+        ${global.PastoralGdpr ? global.PastoralGdpr.renderPublicConsentBlock(parish.name) : ""}
+        <button type="submit" class="btn btn-primary fx-btn-shine">Pošalji prijavu</button>
       </form>
       <p class="public-footer card-sub">Hitno? <a href="tel:${escapeHtml((parish.phone || "").replace(/\s/g, ""))}">${escapeHtml(parish.phone || "župni ured")}</a></p>`;
   }

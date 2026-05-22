@@ -191,6 +191,7 @@
       panel.hidden = open;
       toggle.setAttribute("aria-expanded", String(!open));
       toggle.classList.toggle("is-open", !open);
+      mount.classList.toggle("is-open", !open);
     });
 
     document.addEventListener("click", (e) => {
@@ -198,6 +199,7 @@
         panel.hidden = true;
         toggle.setAttribute("aria-expanded", "false");
         toggle.classList.remove("is-open");
+        mount.classList.remove("is-open");
       }
     });
 
@@ -206,6 +208,7 @@
     panel.querySelector(".theme-picker-close")?.addEventListener("click", () => {
       panel.hidden = true;
       toggle.classList.remove("is-open");
+      mount.classList.remove("is-open");
     });
 
     panel.querySelectorAll("[data-preset]").forEach((btn) => {
@@ -263,35 +266,65 @@
     setTimeout(() => el.remove(), 2200);
   }
 
-  /** Mount u topbar-actions ili fixed (login) */
+  function getAdminTopbarActions() {
+    const topbar = document.querySelector(".app-shell .topbar");
+    if (!topbar) return null;
+    let actions = topbar.querySelector(".topbar-actions");
+    if (!actions) {
+      actions = document.createElement("div");
+      actions.className = "topbar-actions";
+      topbar.appendChild(actions);
+    }
+    return actions;
+  }
+
+  /** U topbaru odmah iza gumba Prezentacija (navbar), ili fixed samo na loginu */
+  function placeInTopbar(mount) {
+    const actions = getAdminTopbarActions();
+    if (!actions) return false;
+    mount.classList.remove("theme-picker-root--fixed");
+    const prez = document.getElementById("btn-demo-present");
+    if (prez && actions.contains(prez)) {
+      if (mount.previousElementSibling !== prez) {
+        prez.insertAdjacentElement("afterend", mount);
+      }
+    } else if (mount.parentElement !== actions) {
+      actions.insertBefore(mount, actions.firstChild);
+    }
+    return true;
+  }
+
+  function repositionInTopbar() {
+    const mount = document.getElementById("theme-picker-root");
+    if (!mount || mount.classList.contains("theme-picker-root--fixed")) return;
+    placeInTopbar(mount);
+  }
+
+  /** @param {{ fixed?: boolean }} opts — fixed samo login / stranice bez app-shell */
   function initThemePicker(opts = {}) {
     const P = global.PastoralParish;
     if (!P) return;
     const settings = P.loadSettings();
     applyFromSettings(settings);
 
+    const useFixed = !!opts.fixed;
     let mount = document.getElementById("theme-picker-root");
     if (!mount) {
       mount = document.createElement("div");
       mount.id = "theme-picker-root";
-      mount.className = opts.fixed ? "theme-picker-root theme-picker-root--fixed" : "theme-picker-root";
-      let actions = document.querySelector(".topbar-actions");
-      const topbar = document.querySelector(".topbar");
-      if (!actions && topbar && !opts.fixed) {
-        actions = document.createElement("div");
-        actions.className = "topbar-actions";
-        topbar.appendChild(actions);
-      }
-      if (actions && !opts.fixed) {
-        mount.innerHTML = renderTriggerHtml() + renderPanelHtml(settings);
-        actions.insertBefore(mount, actions.firstChild);
-      } else {
-        mount.innerHTML = renderTriggerHtml() + renderPanelHtml(settings);
-        document.body.appendChild(mount);
-      }
+      mount.className = useFixed ? "theme-picker-root theme-picker-root--fixed" : "theme-picker-root";
     } else {
-      mount.innerHTML = renderTriggerHtml() + renderPanelHtml(settings);
+      mount.className = useFixed ? "theme-picker-root theme-picker-root--fixed" : "theme-picker-root";
     }
+
+    mount.innerHTML = renderTriggerHtml() + renderPanelHtml(settings);
+
+    if (useFixed) {
+      document.body.appendChild(mount);
+    } else if (!placeInTopbar(mount)) {
+      document.body.appendChild(mount);
+    }
+
     bindPicker(mount);
   }
 
@@ -301,5 +334,7 @@
     applyFromSettings,
     saveTheme,
     initThemePicker,
+    repositionInTopbar,
+    placeInTopbar,
   };
 })(typeof window !== "undefined" ? window : global);

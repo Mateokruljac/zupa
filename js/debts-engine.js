@@ -349,12 +349,28 @@
           </div>
           <div class="debts-cat-chips" role="group" aria-label="Kategorija">${catChips}</div>
         </div>
-        <div class="kpi-row debts-kpi-row">
+        ${
+          global.PastoralKpi
+            ? global.PastoralKpi.stack(
+                global.PastoralKpi.row(
+                  [
+                    {
+                      tone: "alert",
+                      label: "Neplaćeno (filtar)",
+                      value: summary.unpaidCount,
+                      sub: `${summary.totalUnpaid.toFixed(2)} €`,
+                    },
+                    { tone: "success", label: "Plaćeno u prikazu", value: summary.paidCount },
+                  ],
+                  { noStack: true }
+                ) + (catSummary ? `<section class="card wide debts-cat-summary">${catSummary}</section>` : "")
+              )
+            : `<div class="page-kpi-stack"><div class="kpi-row debts-kpi-row">
           <article class="card kpi-card"><p class="card-label">Neplaćeno (filtar)</p><p class="card-value">${summary.unpaidCount}</p><p class="card-sub">${summary.totalUnpaid.toFixed(2)} €</p></article>
           <article class="card kpi-card"><p class="card-label">Plaćeno u prikazu</p><p class="card-value">${summary.paidCount}</p></article>
-          ${catSummary ? `<section class="card wide debts-cat-summary">${catSummary}</section>` : ""}
-        </div>
-        <section class="card">
+        </div>${catSummary ? `<section class="card wide debts-cat-summary">${catSummary}</section>` : ""}</div>`
+        }
+        <section class="card page-table-section">
           <div id="debts-table-mount"></div>
         </section>`;
 
@@ -372,7 +388,7 @@
           actions: r.paid
             ? (r.link ? `<a href="${api.pageUrl(r.link)}" class="btn btn-ghost btn-sm">Otvori</a>` : "")
             : `<button type="button" class="btn btn-primary btn-sm" data-mark-paid="${esc(r.id)}">Označi plaćeno</button>
-               <a href="${api.pageUrl(`pages/racuni.html?novi=1&platitelj=${encodeURIComponent(r.contact || r.label)}&opis=${encodeURIComponent(r.label)}&iznos=${r.amount}&kat=${r.category}`)}" class="btn btn-ghost btn-sm">Račun</a>
+               <button type="button" class="btn btn-ghost btn-sm" data-create-invoice="${esc(r.id)}">Izdaj račun</button>
                ${r.category === "nakane" ? `<button type="button" class="btn btn-ghost btn-sm" data-pay-nakana="${esc(r.id)}">Plati</button>` : ""}
                ${r.link ? `<a href="${api.pageUrl(r.link)}" class="btn btn-ghost btn-sm">Detalj</a>` : ""}`,
         };
@@ -423,8 +439,22 @@
         root.addEventListener("click", (ev) => {
           const mark = ev.target.closest("[data-mark-paid]");
           const pay = ev.target.closest("[data-pay-nakana]");
+          const invBtn = ev.target.closest("[data-create-invoice]");
           const data = api.getData();
           const all = collectDebts(data, { onlyUnpaid: false });
+          if (invBtn && global.PastoralInvoices) {
+            const row = all.find((r) => r.id === invBtn.dataset.createInvoice);
+            if (row) {
+              const inv = global.PastoralInvoices.createFromDebt(data, row, {
+                name: row.contact || row.label,
+                address: "",
+              });
+              api.saveData(data);
+              api.showToast(`Račun ${inv.number} izdan`);
+              location.href = api.pageUrl("pages/racuni.html");
+            }
+            return;
+          }
           if (mark) {
             const row = all.find((r) => r.id === mark.dataset.markPaid);
             if (row && markDebtPaid(data, row.source)) {

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vijeća — Pastoral</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="../js/parish-config.js"></script>
+  <script src="../js/theme-picker.js"></script>
+  <script>try{PastoralTheme.applyFromSettings(PastoralParish.loadSettings())}catch(e){}</script>
+  <script src="../js/data-seed.js"></script>
+</head>
+<body data-page="vijeca">
+  <div class="app-shell">
+    <aside class="sidebar"><div id="sidebar-logo"></div><p class="sidebar-tenant-meta" id="sidebar-tenant-meta"></p><ul class="nav"></ul><div class="sidebar-footer"><button type="button" class="btn btn-ghost btn-sm" id="btn-logout" style="width:100%">Odjava</button></div></aside>
+    <div class="main">
+      <header class="topbar">
+        <div><h1>ŽPV i ŽEV</h1><p>Župno pastoralno i ekonomsko vijeće — kan. 536–537</p></div>
+        <a href="zadaci.html" class="btn btn-ghost btn-sm">Zadaci</a>
+        <a href="blagajna.html" class="btn btn-ghost btn-sm">Blagajna</a>
+      </header>
+      <main class="content" id="page-root"></main>
+    </div>
+  </div>
+  <script src="../js/canon-compliance.js"></script>
+  <script src="../js/modal-kit.js"></script>
+  <script src="../js/onboarding-tour.js"></script>
+  <script src="../js/priest-tools.js"></script>
+  <script src="../js/crud-modals.js"></script>
+  <script src="../js/app.js"></script>
+</body>
+</html>

@@ -94,9 +94,10 @@
       const start = (page - 1) * pageSize;
       const pageRows = filtered.slice(start, start + pageSize);
 
+      const hideSearch = opts.hideToolbarSearch === true;
       opts.mount.innerHTML = `
-        <div class="table-kit-toolbar">
-          <input type="search" class="table-kit-search" placeholder="Pretraži…" value="${escapeHtml(search)}" />
+        <div class="table-kit-toolbar${hideSearch ? " table-kit-toolbar--compact" : ""}">
+          ${hideSearch ? "" : `<input type="search" class="table-kit-search" placeholder="Pretraži…" value="${escapeHtml(search)}" />`}
           <span class="table-kit-meta">${filtered.length} zapisa · str. ${page}/${totalPages}</span>
           <div class="table-kit-actions">
             <button type="button" class="btn btn-ghost btn-sm" data-tk-prev ${page <= 1 ? "disabled" : ""}>‹</button>
@@ -106,7 +107,7 @@
             </select>
             <button type="button" class="btn btn-secondary btn-sm" data-tk-export-csv">CSV</button>
             <button type="button" class="btn btn-secondary btn-sm" data-tk-export-xlsx">Excel</button>
-            <label class="btn btn-ghost btn-sm" style="cursor:pointer">Import<input type="file" data-tk-import hidden accept=".csv,.xlsx,.xls,text/csv" /></label>
+            ${opts.hideImport ? "" : '<label class="btn btn-ghost btn-sm table-kit-import-label">Import<input type="file" data-tk-import hidden accept=".csv,.xlsx,.xls,text/csv" /></label>'}
           </div>
         </div>
         <div class="table-wrap"><table class="data-table"><thead><tr>${opts.columns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join("")}</tr></thead>
@@ -149,9 +150,15 @@
         render();
       });
 
-      mount.querySelector("[data-tk-export-csv]")?.addEventListener("click", () => {
+      mount.querySelector("[data-tk-export-csv]")?.addEventListener("click", async () => {
+        const filtered = getFiltered();
+        const GDPR = global.PastoralGdpr;
+        if (GDPR) {
+          const ok = await GDPR.confirmBeforeExport(opts.exportName || "export", filtered.length);
+          if (!ok) return;
+        }
         const labels = opts.columns.map((c) => c.label);
-        const exportRows = getFiltered().map((row) => {
+        const exportRows = filtered.map((row) => {
           const o = {};
           opts.columns.forEach((c) => {
             o[c.label] = row[c.key];
@@ -161,12 +168,18 @@
         downloadText(`${opts.exportName || "export"}.csv`, rowsToCsv(labels, exportRows));
       });
 
-      mount.querySelector("[data-tk-export-xlsx]")?.addEventListener("click", () => {
+      mount.querySelector("[data-tk-export-xlsx]")?.addEventListener("click", async () => {
         if (!global.XLSX) {
           alert("Učitaj stranicu s Excel podrškom ili koristi CSV.");
           return;
         }
-        const data = getFiltered().map((row) => {
+        const filtered = getFiltered();
+        const GDPR = global.PastoralGdpr;
+        if (GDPR) {
+          const ok = await GDPR.confirmBeforeExport(opts.exportName || "export", filtered.length);
+          if (!ok) return;
+        }
+        const data = filtered.map((row) => {
           const o = {};
           opts.columns.forEach((c) => { o[c.label] = row[c.key]; });
           return o;

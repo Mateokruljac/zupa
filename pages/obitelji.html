@@ -10,6 +10,8 @@
   <script src="../js/theme-picker.js"></script>
   <script>try{PastoralTheme.applyFromSettings(PastoralParish.loadSettings())}catch(e){}</script>
   <script src="../js/data-seed.js"></script>
+  <script src="../js/matica-lookup-engine.js"></script>
+  <script src="../js/family-list-engine.js"></script>
   <script src="../js/family-crud.js"></script>
   <script src="../js/table-kit.js"></script>
 </head>
@@ -17,7 +19,16 @@
   <div class="app-shell">
     <aside class="sidebar"><div id="sidebar-logo"></div><p class="sidebar-tenant-meta" id="sidebar-tenant-meta"></p><ul class="nav"></ul><div class="sidebar-footer"><button type="button" class="btn btn-ghost btn-sm" id="btn-logout" style="width:100%">Odjava</button></div></aside>
     <div class="main">
-      <header class="topbar"><div><h1>Obitelji</h1><p>Karton domaćinstva — članovi, sakramenti, pastoralne bilješke</p></div></header>
+      <header class="topbar">
+        <div>
+          <h1>Obitelji</h1>
+          <p>Karton domaćinstva — članovi, sakramenti, lukno i pastoralne bilješke</p>
+        </div>
+        <div class="topbar-actions">
+          <a href="ulice.html" class="btn btn-ghost btn-sm">Ulice i kvartovi</a>
+          <button type="button" class="btn btn-primary btn-sm" id="obitelji-new-top">+ Nova obitelj</button>
+        </div>
+      </header>
       <main class="content" id="page-root"></main>
     </div>
   </div>

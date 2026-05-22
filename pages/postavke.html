@@ -16,7 +16,11 @@
     <aside class="sidebar"><div id="sidebar-logo"></div><p class="sidebar-tenant-meta" id="sidebar-tenant-meta"></p><ul class="nav"></ul><div class="sidebar-footer"><button type="button" class="btn btn-ghost btn-sm" id="btn-logout" style="width:100%">Odjava</button></div></aside>
     <div class="main">
       <header class="topbar"><div><h1>Postavke župe</h1><p>Naziv, logo, kontakt</p></div></header>
-      <main class="content">
+      <main class="content" id="page-root">
+        <section class="card" style="margin-bottom:20px">
+          <h2 class="section-title">Izbornik</h2>
+          <p class="card-sub">Svi moduli su u bočnom izborniku. Sekcije (Pregled, Župa, Sakramenti…) možete sklopiti klikom na naslov — stanje se pamti. Na dnu izbornika: <strong>Razvij sve</strong> / <strong>Skupi sve</strong>.</p>
+        </section>
         <section class="card" style="margin-bottom:20px">
           <div class="branding-preview" id="branding-preview"></div>
           <div class="form-grid" style="margin-top:16px">
@@ -29,9 +33,30 @@
           <button type="button" class="btn btn-primary" id="settings-save">Spremi</button>
         </section>
         <section class="card" style="margin-bottom:20px">
+          <h2 class="section-title">Župa (kan. 515–519)</h2>
+          <div id="settings-parish-decree"></div>
+          <a href="admin-paket.html" class="btn btn-primary btn-sm">Uredbe i dokumentacija</a>
+          <a href="vijeca.html" class="btn btn-ghost btn-sm">ŽPV / ŽEV</a>
+          <a href="maticne-knjige.html" class="btn btn-ghost btn-sm">Matične knjige</a>
+        </section>
+        <section class="card" style="margin-bottom:20px">
+          <h2 class="section-title">Korisnici i dozvole</h2>
+          <p class="card-sub">Grupe (Svećenici župe, upravitelj, katehete, vijeća) i korisnici aplikacije — tko vidi financije, matice, postavke.</p>
+          <a href="korisnici.html" class="btn btn-primary btn-sm">Korisnici i grupe</a>
+        </section>
+        <section class="card" style="margin-bottom:20px" id="settings-security-mount">
+          <h2 class="section-title">Sigurnost (za demo)</h2>
+        </section>
+        <section class="card" style="margin-bottom:20px">
           <h2 class="section-title">Pomoć i uvod</h2>
           <p class="card-sub">Vodi vas ekran po ekran kroz aplikaciju (nadzorna ploča, obitelji, nakane…). Možete preskočiti bilo koji ekran.</p>
           <button type="button" class="btn btn-primary btn-sm" id="settings-onboarding-restart">Ponovi uvod u aplikaciju</button>
+        </section>
+        <section class="card" style="margin-bottom:20px">
+          <h2 class="section-title">Postavke ispisa (financije)</h2>
+          <p class="card-sub">Font rukopisa za blagajnu i izvješća — kao u župni-ured.</p>
+          <label class="card-sub"><input type="checkbox" id="settings-handwriting-font"> Koristi font rukopisa pri ispisu</label>
+          <div class="form-group" style="margin-top:12px"><label>Printer (za formular)</label><input id="settings-printer" type="text" placeholder="npr. HP LaserJet"></div>
         </section>
         <section class="card">
           <h2 class="section-title">Podaci</h2>

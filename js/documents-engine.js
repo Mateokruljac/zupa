@@ -68,6 +68,89 @@
       </div>`,
     },
     {
+      id: "izvjestaj_dekanska_vizitacija",
+      name: "Izvješće o dekanskoj vizitaciji",
+      category: "ured",
+      fields: ["godina", "stanje_zupe", "preporuke", "zupnik", "zupa", "danas"],
+      body: `<div class="print-doc">
+        <h2 style="text-align:center">IZVJEŠĆE O DEKANSKOJ VIZITACIJI</h2>
+        <p>Župa: <strong>{{zupa}}</strong> · Godina: {{godina}}</p>
+        <p><strong>Stanje župe:</strong></p><p>{{stanje_zupe}}</p>
+        <p><strong>Preporuke dekana:</strong></p><p>{{preporuke}}</p>
+        <p style="margin-top:2em">{{zupa}}, {{danas}}</p>
+        <p>Župnik: {{zupnik}}</p>
+      </div>`,
+    },
+    {
+      id: "zapisnik_kanonska_vizitacija",
+      name: "Zapisnik kanonske vizitacije",
+      category: "ured",
+      fields: ["datum", "prisutni", "dnevni_red", "zakljucci", "zupnik", "zupa"],
+      body: `<div class="print-doc">
+        <h2 style="text-align:center">ZAPISNIK KANONSKE VIZITACIJE</h2>
+        <p>Župa: {{zupa}} · Datum: {{datum}}</p>
+        <p><strong>Prisutni:</strong> {{prisutni}}</p>
+        <p><strong>Tijek vizitacije:</strong></p><p>{{dnevni_red}}</p>
+        <p><strong>Zaključci i nalozi:</strong></p><p>{{zakljucci}}</p>
+        <p style="margin-top:2em">Potpis župnika: {{zupnik}}</p>
+      </div>`,
+    },
+    {
+      id: "pregled_zupnog_ureda",
+      name: "Pregled župnog ureda",
+      category: "ured",
+      fields: ["godina", "zupnik", "zupa", "danas"],
+      body: `<div class="print-doc">
+        <h2 style="text-align:center">PREGLED ŽUPNOG UREDA</h2>
+        <p>Župa: {{zupa}} · {{godina}}</p>
+        <ul style="line-height:1.8">
+          <li>Matične knjige — evidencija i arhiv</li>
+          <li>Obiteljski kartoni i pastoralne bilješke</li>
+          <li>Blagajna (plavi/crveni dnevnik) i ŽEV izvješća</li>
+          <li>ŽPV / ŽEV — zapisnici i plan</li>
+          <li>Javni portal i zaštita podataka (GDPR)</li>
+        </ul>
+        <p style="margin-top:2em">Potvrđuje: {{zupnik}}, {{danas}}</p>
+      </div>`,
+    },
+    {
+      id: "program_zupne_kateheze",
+      name: "Program župne kateheze",
+      category: "pastoral",
+      fields: ["godina", "program_sadrzaj", "kateheta", "zupnik", "zupa"],
+      body: `<div class="print-doc">
+        <h2 style="text-align:center">PROGRAM ŽUPNE KATEHEZE</h2>
+        <p>Župa: {{zupa}} · Školska godina / godina: {{godina}}</p>
+        <p><strong>Kateheta:</strong> {{kateheta}}</p>
+        <p><strong>Sadržaj:</strong></p><p>{{program_sadrzaj}}</p>
+        <p style="margin-top:2em">Župnik: {{zupnik}} · {{danas}}</p>
+      </div>`,
+    },
+    {
+      id: "pastoralni_plan_godisnji",
+      name: "Godišnji pastoralni plan",
+      category: "pastoral",
+      fields: ["godina", "program_sadrzaj", "zupnik", "zupa"],
+      body: `<div class="print-doc">
+        <h2 style="text-align:center">GODIŠNJI PASTORALNI PLAN ŽUPE</h2>
+        <p>Župa: {{zupa}} · {{godina}}</p>
+        <p>{{program_sadrzaj}}</p>
+        <p style="margin-top:2em">Usvojio ŽPV · Potpis župnika: {{zupnik}}</p>
+      </div>`,
+    },
+    {
+      id: "evidencija_vjeronauk_skola",
+      name: "Evidencija vjeronauka u školi",
+      category: "pastoral",
+      fields: ["skola", "razred", "broj_ucenika", "kateheta", "godina", "zupa"],
+      body: `<div class="print-doc">
+        <h2 style="text-align:center">EVIDENCIJA KATOLIČKOG VJERONAUKA</h2>
+        <p>Župa: {{zupa}} · Škola: {{skola}} · Razred: {{razred}}</p>
+        <p>Broj polaznika: {{broj_ucenika}} · Kateheta: {{kateheta}} · Godina: {{godina}}</p>
+        <p style="margin-top:2em">Napomena: sporazum s ustanovom čuva se u arhivu župe.</p>
+      </div>`,
+    },
+    {
       id: "potvrda_vjencanja",
       name: "Potvrda o vjenčanju",
       category: "vjenčanje",

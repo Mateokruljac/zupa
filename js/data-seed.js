@@ -139,8 +139,12 @@
           status: "aktivna",
           preferredMass: "09:00",
           pastoralNotes: "Redoviti prispjeci. Ana — ŽPV. Djeca u krizmi 2026.",
+          originPlace: "Slavonski Brod",
           lastVisit: addDays(-30),
           tags: ["ŽPV", "krizma 2026"],
+          husband: { name: "Petar Horvat", birthYear: "1983", birthPlace: "Slavonski Brod", baptismDate: "1983-06-12", baptismPlace: "SB", weddingChurch: "1998", weddingCivil: "1998", notes: "" },
+          wife: { name: "Ana Horvat", birthYear: "1985", birthPlace: "Slavonski Brod", baptismDate: "1985-04-20", baptismPlace: "SB", weddingChurch: "1998", weddingCivil: "1998", notes: "ŽPV" },
+          relatives: [{ id: "rel1", name: "Stjepan Horvat", relation: "rođak", birthYear: "1950", notes: "Povremeni posjet" }],
           contributions: [
             { id: "yc1_24", year: 2024, luknoPaid: true, luknoAmount: 140, luknoPaidAt: "2024-02-10", churchDonation: 400, donationDate: "2024-12-20", notes: "" },
             { id: "yc1_25", year: 2025, luknoPaid: true, luknoAmount: 150, luknoPaidAt: "2025-01-08", churchDonation: 350, donationDate: "2025-11-05", notes: "" },
@@ -238,14 +242,123 @@
         { id: "e1", title: "Župna korizmena obnova", date: addDays(10), place: "Župna dvorana", type: "pastoral" },
         { id: "e2", title: "Sastanak ministranata", date: addDays(4), place: "Sakristija", type: "liturgija" },
       ],
-      liturgicalRoles: [
-        { id: "lr1", name: "Ana Horvat", role: "lektor", sunday: "09:00", phone: "091 111 1111" },
-        { id: "lr2", name: "Petar K.", role: "ministrant", sunday: "11:00", phone: "" },
-      ],
       announcements: [
         { id: "an1", title: "Upis krizmanika 2026", body: "Župa bl. Djevice Marije, Slavonski Brod — prijava u župnom uredu ili putem obrasca do 15. ožujka.", at: new Date().toISOString() },
       ],
+      zupniListicTemplate: null,
+      zupniListicIssues: [],
       publicSubmissions: [],
+      visits: [
+        {
+          id: "vis1",
+          scheduled: addDays(2),
+          type: "kucna-pricest",
+          person: "Marija Babić",
+          familyId: "fam4",
+          address: "Bolnička ulica 12",
+          priest: "vlč. Krunoslav Karas",
+          purpose: "Kućna sv. Pričest",
+          done: false,
+          report: "",
+        },
+        {
+          id: "vis2",
+          scheduled: addDays(-14),
+          type: "obitelj",
+          person: "Obitelj Kovač",
+          familyId: "fam2",
+          address: "Kovačeva ulica 8",
+          priest: "vlč. Krunoslav Karas",
+          purpose: "Pastoralni posjet — lukno",
+          done: true,
+          report: "Razgovor o luknu 2025.",
+        },
+      ],
+      cashbook: [
+        { id: "cb1", date: addDays(-20), type: "ulaz", category: "lukno", ledger: "plavi", description: "Lukno Horvat 2026", amount: 150, paymentMethod: "gotovina", reportCode: "A-1" },
+        { id: "cb2", date: addDays(-15), type: "ulaz", category: "nakane", ledger: "plavi", description: "Stipendiji — siječanj", amount: 180, paymentMethod: "žiro", reportCode: "A-1" },
+        { id: "cb3", date: addDays(-5), type: "izlaz", category: "materijal", ledger: "plavi", description: "Materijal za katehezu", amount: 85, paymentMethod: "gotovina", reportCode: "C-1" },
+        { id: "cb4", date: addDays(-12), type: "izlaz", category: "nadbiskupija", ledger: "crveni", description: "Nadbiskupiji BIH", amount: 125, paymentMethod: "žiro", reportCode: "D-1" },
+      ],
+      registryBooks: [
+        {
+          id: "rk1",
+          type: "krštenja",
+          title: "Knjiga rođenih i krštenih",
+          location: "Župni arhiv — sef",
+          lastEntry: addDays(-14),
+          lastNo: "2026/12",
+          custodian: "vlč. Krunoslav Karas",
+          status: "u župi",
+          notes: "Kan. 535 §2 · izvadci samo iz knjige",
+        },
+        {
+          id: "rk2",
+          type: "vjenčanja",
+          title: "Knjiga vjenčanih",
+          location: "Župni arhiv — sef",
+          lastEntry: "2024-09-12",
+          lastNo: "2024/08",
+          custodian: "župni ured",
+          status: "u župi",
+          notes: "",
+        },
+        {
+          id: "rk3",
+          type: "umrli",
+          title: "Knjiga umrlih",
+          location: "Župni arhiv",
+          lastEntry: addDays(-1),
+          lastNo: "2026/03",
+          custodian: "župni ured",
+          status: "u župi",
+          notes: "",
+        },
+        {
+          id: "rk4",
+          type: "krizma",
+          title: "Knjiga krizmanika",
+          location: "Župni arhiv",
+          lastEntry: "2025-05-18",
+          lastNo: "2025/41",
+          custodian: "župni ured",
+          status: "u župi",
+          notes: "Digitalna evidencija usklađena s knjigom 2025",
+        },
+      ],
+      pastoralCouncil: {
+        established: "2008-09-01",
+        lastMeeting: addDays(-30),
+        nextMeeting: addDays(7),
+        members: [
+          { id: "zpv1", name: "vlč. Krunoslav Karas", role: "župnik / predsjednik", confirmed: true },
+          { id: "zpv2", name: "Ana Horvat", role: "laik — predstavnik", confirmed: true },
+          { id: "zpv3", name: "Marija Kovač", role: "kateheta", confirmed: true },
+          { id: "zpv4", name: "Ivan Perić", role: "laik", confirmed: true },
+          { id: "zpv5", name: "Petar Novak", role: "laik", confirmed: true },
+          { id: "zpv6", name: "Josip Marić", role: "laik — ŽEV", confirmed: true },
+          { id: "zpv7", name: "Marta Burić", role: "laik", confirmed: false },
+        ],
+      },
+      economicCouncil: {
+        budgetYear: 2026,
+        lastReview: addDays(-60),
+        nextReview: addDays(5),
+        members: [
+          { id: "zev1", name: "Josip Marić", role: "predsjednik", confirmed: true },
+          { id: "zev2", name: "Ana Horvat", role: "član", confirmed: true },
+          { id: "zev3", name: "Marko Babić", role: "član", confirmed: true },
+        ],
+      },
+      parishDecree: {
+        name: "Župa Blažene Djevice Marije",
+        established: "—",
+        territory: "Slavonski Brod (centar)",
+        decreeRef: "Prema kan. 515–519 · II. sinoda đ.-srij. 2008",
+      },
+      appGroups: [],
+      appUsers: [],
+      parishPriests: [],
     };
   }
 
@@ -297,7 +410,12 @@
     });
     if (global.PastoralFamilyCrud) global.PastoralFamilyCrud.migrateAllFamilies(data);
     if (data.luknoDefaultAmount == null) data.luknoDefaultAmount = 150;
-    delete data.visits;
+    if (!Array.isArray(data.visits)) data.visits = defaultData().visits || [];
+    if (!Array.isArray(data.cashbook)) data.cashbook = defaultData().cashbook || [];
+    if (global.PastoralVisits) global.PastoralVisits.migrate(data);
+    if (global.PastoralCashbook) global.PastoralCashbook.migrate(data);
+    if (global.PastoralMessages) global.PastoralMessages.migrate(data);
+    if (global.PastoralPreparation) global.PastoralPreparation.migrateAll(data);
     data.intentions?.forEach((n) => {
       if (n.paid && !n.paymentId) n.paymentId = n.paymentId || "LEGACY-PAID";
     });
@@ -323,6 +441,21 @@
     if (!Array.isArray(data.parishDebts)) data.parishDebts = [];
     if (!Array.isArray(data.invoices)) data.invoices = [];
     if (global.PastoralInvoices) global.PastoralInvoices.migrate(data);
+    if (!Array.isArray(data.registryBooks)) data.registryBooks = defaultData().registryBooks || [];
+    if (!data.pastoralCouncil?.members?.length) data.pastoralCouncil = defaultData().pastoralCouncil;
+    if (!data.economicCouncil?.members?.length) data.economicCouncil = defaultData().economicCouncil;
+    if (!data.parishDecree) data.parishDecree = defaultData().parishDecree;
+    if (global.PastoralFinanceAdv) global.PastoralFinanceAdv.migrate(data);
+    if (global.PastoralStaffMessages) global.PastoralStaffMessages.migrate(data);
+    if (global.PastoralAdminDocs) global.PastoralAdminDocs.migrate(data);
+    if (global.PastoralZupniListic) {
+      const settings = global.PastoralParish?.loadSettings?.() || {};
+      global.PastoralZupniListic.migrate(data, settings);
+    }
+    (data.families || []).forEach((f) => {
+      if (global.PastoralFamilyList) global.PastoralFamilyList.migrateFamily(f);
+    });
+    if (global.PastoralPermissions) global.PastoralPermissions.migrate(data);
     return data;
   }
 

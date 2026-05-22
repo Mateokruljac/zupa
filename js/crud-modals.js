@@ -42,6 +42,7 @@
       <div class="form-group"><label>Prezime *</label><input name="surname" value="${api.escapeHtml(fam?.surname || "")}" required /></div>
       <div class="form-group"><label>Ulica</label><select name="streetId">${streetOptions(streets, fam?.streetId)}</select></div>
       <div class="form-group form-wide"><label>Adresa (kućni br.)</label><input name="address" value="${api.escapeHtml(fam?.address || "")}" /></div>
+      <div class="form-group form-wide"><label>Podrijetlo obitelji</label><input name="originPlace" value="${api.escapeHtml(fam?.originPlace || "")}" placeholder="Odakle je obitelj došla" /></div>
       <div class="form-group"><label>Telefon</label><input name="phone" value="${api.escapeHtml(fam?.phone || "")}" /></div>
       <div class="form-group"><label>E-mail</label><input name="email" type="email" value="${api.escapeHtml(fam?.email || "")}" /></div>
       ${
@@ -105,7 +106,11 @@
             status: "aktivna",
             preferredMass: "",
             pastoralNotes: "",
+            originPlace: fd.get("originPlace")?.trim() || "",
             tags: [],
+            relatives: [],
+            husband: null,
+            wife: null,
             members: [],
             contributions: [],
           };
@@ -143,6 +148,7 @@
           fam.status = fd.get("status");
           fam.preferredMass = fd.get("preferredMass")?.trim() || "";
           fam.pastoralNotes = fd.get("pastoralNotes")?.trim() || "";
+          fam.originPlace = fd.get("originPlace")?.trim() || "";
           fam.tags = fd.get("tags")?.trim()
             ? fd.get("tags").split(",").map((t) => t.trim()).filter(Boolean)
             : [];
@@ -264,6 +270,48 @@
           api.saveData(data);
           api.showToast(st ? "Ulica ažurirana" : "Ulica dodana");
           onDone?.();
+        },
+      });
+    },
+
+    openGregorianNakana(onDone) {
+      const data = api.getData();
+      const times = data.massSchedule.map((ms) => ms.time);
+      const opts = ["07:30", "09:00", "11:00", "18:00", ...times].filter((v, i, a) => a.indexOf(v) === i);
+      openForm({
+        title: "Gregorijanska serija (30 misa)",
+        size: "lg",
+        body: `
+          <p class="card-sub form-wide">Kreira 30 uzastopnih nakana — jedna namjera, isti sat misa svaki dan.</p>
+          <div class="form-group"><label>Početni datum *</label><input name="startDate" type="date" required /></div>
+          <div class="form-group"><label>Misa (sat)</label><select name="massTime">${opts.map((t) => `<option>${t}</option>`).join("")}</select></div>
+          <div class="form-group form-wide"><label>Namjera *</label><input name="intentionFor" required placeholder="Pokoj duše…" /></div>
+          <div class="form-group"><label>Naručitelj</label><input name="requestedBy" /></div>
+          <div class="form-group"><label>Stipendij po misi (€)</label><input name="stipend" type="number" min="0" value="30" /></div>`,
+        onSubmit: (form) => {
+          const fd = new FormData(form);
+          const startDate = fd.get("startDate");
+          const intentionFor = fd.get("intentionFor")?.trim();
+          if (!startDate || !intentionFor) {
+            api.showToast("Unesite datum i namjeru");
+            return false;
+          }
+          if (global.PastoralGregorian?.createSeries) {
+            const d = api.getData();
+            global.PastoralGregorian.createSeries(d, {
+              startDate,
+              massTime: fd.get("massTime"),
+              intentionFor,
+              requestedBy: fd.get("requestedBy")?.trim() || "",
+              stipend: Number(fd.get("stipend")) || 0,
+            });
+            api.saveData(d);
+            api.showToast("30 nakana dodano (Gregorijanska serija)");
+            onDone?.();
+            return;
+          }
+          api.showToast("Modul nije učitan");
+          return false;
         },
       });
     },

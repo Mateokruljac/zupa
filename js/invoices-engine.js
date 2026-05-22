@@ -188,12 +188,20 @@
       if (statusFilter !== "all") list = list.filter((i) => i.status === statusFilter);
 
       root.innerHTML = `
-        <div class="kpi-row">
+        ${
+          global.PastoralKpi
+            ? global.PastoralKpi.row([
+                { tone: "neutral", label: "Računa (filtar)", value: summary.count },
+                { tone: "alert", label: "Otvoreno", value: summary.open, sub: `${summary.unpaidSum.toFixed(2)} €` },
+                { tone: "success", label: "Plaćeno (filtar)", value: `${summary.paidSum.toFixed(2)} €` },
+              ])
+            : `<div class="kpi-row">
           <article class="card kpi-card"><p class="card-label">Računa (filtar)</p><p class="card-value">${summary.count}</p></article>
           <article class="card kpi-card"><p class="card-label">Otvoreno</p><p class="card-value">${summary.open}</p><p class="card-sub">${summary.unpaidSum.toFixed(2)} €</p></article>
           <article class="card kpi-card"><p class="card-label">Plaćeno (filtar)</p><p class="card-value">${summary.paidSum.toFixed(2)} €</p></article>
-        </div>
-        <section class="card">
+        </div>`
+        }
+        <section class="card page-table-section">
           <div class="racuni-toolbar">
             <button type="button" class="btn btn-primary btn-sm" id="inv-add-btn">+ Novi račun</button>
             <a href="${api.pageUrl("pages/dugovanja.html")}" class="btn btn-ghost btn-sm">Iz dugovanja</a>

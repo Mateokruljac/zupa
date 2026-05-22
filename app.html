@@ -3,16 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#5c2e3a">
+  <link rel="manifest" href="manifest.json">
   <title>Nadzorna ploča — Pastoral</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  <script src="js/login-reveal.js"></script>
+  <script src="js/path-base.js"></script>
   <script src="js/parish-config.js"></script>
+  <script src="js/security-engine.js"></script>
   <script src="js/theme-picker.js"></script>
   <script>try{PastoralTheme.applyFromSettings(PastoralParish.loadSettings())}catch(e){}</script>
   <script src="js/data-seed.js"></script>
   <script src="js/family-crud.js"></script>
+  <script src="js/preparation-engine.js"></script>
+  <script src="js/reminders-engine.js"></script>
+  <script src="js/debts-engine.js"></script>
   <script src="js/analytics-engine.js"></script>
   <script src="js/liturgical-api.js"></script>
+  <script src="js/demo-present-engine.js"></script>
 </head>
 <body data-page="dashboard">
   <div class="app-shell">
@@ -27,8 +36,8 @@
     <div class="main">
       <header class="topbar">
         <div>
-          <h1>Nadzorna ploča</h1>
-          <p>Pregled župnog ureda — danas i nadolazeće obaveze</p>
+          <h1>Početna</h1>
+          <p>Što danas radite u župi</p>
         </div>
         <div class="topbar-actions">
           <a href="pages/nakane.html" class="btn btn-primary btn-sm">+ Nakana</a>
@@ -41,6 +50,7 @@
   <script src="js/onboarding-tour.js"></script>
   <script src="js/priest-tools.js"></script>
   <script src="js/crud-modals.js"></script>
+  <script src="js/canon-compliance.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

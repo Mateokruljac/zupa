@@ -53,6 +53,7 @@
   }
 
   function migrateFamily(fam) {
+    if (global.PastoralFamilyList) global.PastoralFamilyList.migrateFamily(fam);
     ensureContributions(fam);
     if (!fam.contributions.length) {
       const y = new Date().getFullYear();
