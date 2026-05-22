@@ -25,13 +25,17 @@ npx serve -l 3340
 
 **Sigurnost na demu:** stranica **Sigurnost** u izborniku + trust traka na nadzornoj ploči + prijava s ulogom i sesijom (8 h).
 
-### OTP prijava (e-mail)
+### OTP prijava (demo na portalu)
 
-1. Na `login.html` unesite e-mail i ulogu → **Pošalji kod za prijavu**.
-2. Kod (6 znamenki) — Netlify funkcija `send-otp` (simulacija ili Resend).
+1. Na `login.html` unesite e-mail i ulogu → **Prikaži kod za prijavu**.
+2. Kod (6 znamenki) **prikazuje se na istoj stranici** (veliki okvir) — ne treba Netlify ni e-mail.
 3. Unesite kod → **Potvrdi kod i uđi**.
 
-**Da radi nakon deploya na Netlify:**
+U `js/otp-mail-config.js` je `provider: "demo"` (zadano). Za produkciju: `netlify` ili `emailjs` + slanje na `OTP_RECIPIENT`.
+
+**Šifriranje baze (demo):** stranica **Sigurnost** → gumb **Pokreni demo šifriranje** (AES-256-GCM, Web Crypto u pregledniku).
+
+**Opcionalno — Netlify e-mail nakon deploya:**
 
 | Postavka | Vrijednost |
 |----------|------------|
@@ -53,7 +57,7 @@ U **simulaciji** (bez `RESEND_API_KEY`): pravi Gmail ne dobiva mail, ali prijava
 
 **Lokalno testiranje kao na Netlifyu:** u mapi `pastoral-zupa` pokreni `npm install` pa `npm run dev` (ne samo `npx serve`).
 
-U `js/otp-mail-config.js` je `provider: "netlify"` — na `*.netlify.app` to se automatski koristi.
+Za Netlify postavite `provider: "netlify"` u `otp-mail-config.js`.
 
 Ako su podaci prazni ili stari (multitenant): Postavke → **Vrati demo podatke**.
 

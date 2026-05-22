@@ -98,6 +98,7 @@
         <p class="card-sub">Za župu su osobni podaci vjernika i financije osjetljivi. Pastoral je građen da to bude jasno i jednostavno.</p>
         <p>${sessionLine}</p>
       </section>
+      <div id="encryption-demo-mount"></div>
       <div class="security-grid">
         ${PILLARS.map(
           (p) => `
@@ -115,7 +116,7 @@
         <table class="data-table">
           <thead><tr><th></th><th>Demo (sada)</th><th>Produkcija</th></tr></thead>
           <tbody>
-            <tr><td>Prijava</td><td>Bilo koji e-mail, uloga iz padajućeg izbornika</td><td>Lozinka + HTTPS</td></tr>
+            <tr><td>Prijava</td><td>OTP kod na stranici (demo)</td><td>OTP e-mail + HTTPS</td></tr>
             <tr><td>Podaci</td><td>Preglednik (localStorage)</td><td>Server EU, backup</td></tr>
             <tr><td>Javni portal</td><td>Isti podaci u pregledniku</td><td>Odvojen URL, CAPTCHA, rate limit</td></tr>
             <tr><td>Financije</td><td>Simulacija plaćanja</td><td>Bez spremanja kartice; žiro/Blagajna</td></tr>
@@ -134,6 +135,11 @@
       </section>`;
 
     global.PastoralGdpr?.mountGdprOnSecurityPage(root, api);
+
+    const encMount = root.querySelector("#encryption-demo-mount");
+    if (encMount && global.PastoralEncryptionDemo) {
+      global.PastoralEncryptionDemo.mountEncryptionDemo(encMount, api);
+    }
 
     root.querySelector("#sec-copy-pitch")?.addEventListener("click", async () => {
       const text = root.querySelector(".security-pitch")?.innerText || "";
@@ -165,12 +171,11 @@
   }
 
   function enhanceLoginHtml() {
-    const recipient = global.PastoralOtpMailConfig?.otpRecipient || "mateokruljac123@gmail.com";
     return `
       <p class="login-security-note card-sub">
-        <strong>Prijava s OTP:</strong> kod stiže na <strong>${recipient}</strong> (jednokratno, ~10 min).
+        <strong>Demo prijava:</strong> OTP kod prikazuje se na stranici nakon klika.
         <strong>GDPR:</strong> podaci župljana povjerljivi.
-        <a href="pages/sigurnost.html" id="login-security-link">Sigurnost</a> ·
+        <a href="pages/sigurnost.html" id="login-security-link">Sigurnost i šifriranje baze</a> ·
         <button type="button" class="gdpr-inline-link" id="login-gdpr-privacy-btn">Privatnost</button>
       </p>`;
   }

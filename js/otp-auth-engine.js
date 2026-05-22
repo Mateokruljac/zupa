@@ -27,6 +27,7 @@
 
   function resolveProvider() {
     const c = cfg();
+    if (c.provider === "demo" || c.demoAlwaysShowOnPortal) return "demo";
     if (c.provider === "emailjs") return "emailjs";
     if (c.provider === "netlify") return "netlify";
     if (typeof location === "undefined") return "demo";
@@ -257,15 +258,17 @@
 
     root.innerHTML = `
       <div id="login-step-credentials" class="login-step ${pending ? "hidden" : ""}">
-        <p class="login-otp-hint card-sub">Za pristup potreban je jednokratni kod poslan na <strong>${esc(recipient)}</strong>.</p>
+        <p class="login-otp-hint card-sub">Demo prijava: nakon klika prikazat će se <strong>jednokratni kod na ovoj stranici</strong> (produkcija: e-mail na ${esc(recipient)}).</p>
       </div>
       <div id="login-step-otp" class="login-step login-otp-panel ${pending ? "" : "hidden"}">
-        <div class="login-otp-sent card-sub">
-          <span class="login-otp-icon" aria-hidden="true">✉</span>
-          <p>Kod za prijavu poslan je na <strong>${esc(recipient)}</strong>. Provjerite inbox (i spam).</p>
+        <div class="login-otp-portal card" role="status" aria-live="polite">
+          <p class="login-otp-portal-label">Vaš kod za prijavu (demo)</p>
+          <p class="login-otp-portal-code" id="login-otp-portal-code">——</p>
+          <p class="login-otp-portal-sub card-sub">Unesite isti kod u polje ispod. Vrijedi ${cfg().otpTtlMinutes || 10} min.</p>
+          <button type="button" class="btn btn-ghost btn-sm" id="login-otp-copy">Kopiraj kod</button>
         </div>
         <div class="form-group">
-          <label for="login-otp-input">Jednokratni kod (OTP)</label>
+          <label for="login-otp-input">Upišite kod</label>
           <input type="text" id="login-otp-input" class="login-otp-input" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000" />
         </div>
         <div id="login-otp-demo-box" class="login-otp-demo hidden" role="status"></div>
@@ -277,7 +280,7 @@
         </div>
       </div>`;
 
-    if (pending) showOtpStep(api, pending.demoCode);
+    if (pending) showOtpStep(api, pending.code);
   }
 
   function showCredentialsStep() {
@@ -285,22 +288,35 @@
     document.getElementById("login-step-otp")?.classList.add("hidden");
     const submit = document.getElementById("login-submit-btn");
     if (submit) {
-      submit.textContent = "Pošalji kod za prijavu";
+      submit.textContent = "Prikaži kod za prijavu";
       submit.disabled = false;
     }
   }
 
-  function showOtpStep(api, demoCode) {
+  function showOtpStep(api, code) {
     document.getElementById("login-step-credentials")?.classList.add("hidden");
     document.getElementById("login-step-otp")?.classList.remove("hidden");
     const submit = document.getElementById("login-submit-btn");
     if (submit) submit.classList.add("hidden");
 
+    const displayCode = code || loadPending()?.code || "";
+    const portalCode = document.getElementById("login-otp-portal-code");
+    if (portalCode) portalCode.textContent = displayCode;
+
+    const copyBtn = document.getElementById("login-otp-copy");
+    if (copyBtn) {
+      copyBtn.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(displayCode);
+          api.showToast("Kod kopiran");
+        } catch {
+          api.showToast("Kopiraj ručno");
+        }
+      };
+    }
+
     const demoBox = document.getElementById("login-otp-demo-box");
-    if (demoBox && demoCode && cfg().demoShowCodeWhenNoEmailjs) {
-      demoBox.classList.remove("hidden");
-      demoBox.innerHTML = `<p class="card-sub" style="margin:0 0 6px"><strong>Netlify simulacija:</strong> kod za test (vidi i Functions log):</p><p class="login-otp-demo-code">${esc(demoCode)}</p>`;
-    } else if (demoBox) {
+    if (demoBox) {
       demoBox.classList.add("hidden");
       demoBox.innerHTML = "";
     }
@@ -366,23 +382,13 @@
     const submit = document.getElementById("login-submit-btn");
     if (submit) {
       submit.disabled = true;
-      submit.textContent = "Šaljem kod…";
+      submit.textContent = "Generiram kod…";
     }
-
-    const sendResult = await sendOtpEmail({
-      otp: code,
-      userEmail: email,
-      roleLabel,
-      ttlMinutes: ttlMin,
-    });
 
     if (submit) {
       submit.disabled = false;
-      submit.textContent = "Pošalji kod za prijavu";
+      submit.textContent = "Prikaži kod za prijavu";
     }
-
-    const demoCode =
-      !sendResult.ok && cfg().demoShowCodeWhenNoEmailjs ? sendResult.demoCode || code : null;
 
     savePending({
       code,
@@ -391,23 +397,15 @@
       expiresAt: now + ttlMin * 60 * 1000,
       sentAt: now,
       attempts: 0,
-      demoCode: demoCode || null,
     });
 
-    if (sendResult.ok) {
-      if (sendResult.simulated) {
-        api.showToast(sendResult.message || `Simulirano — kod za ${sendResult.recipient}`);
-      } else {
-        api.showToast(`Kod poslan na ${sendResult.recipient}`);
-      }
-    } else if (demoCode) {
-      api.showToast("Kod prikazan za demo (slanje nije aktivno)");
-    } else {
-      api.showToast("Slanje nije uspjelo. Pokrenite netlify dev ili provjerite postavke.");
-      return;
+    api.showToast("Kod je prikazan na portalu — unesite ga ispod");
+
+    if (cfg().provider !== "demo") {
+      sendOtpEmail({ otp: code, userEmail: email, roleLabel, ttlMinutes: ttlMin }).catch(() => {});
     }
 
-    showOtpStep(api, demoCode);
+    showOtpStep(api, code);
   }
 
   function verifyOtp(api) {
@@ -455,7 +453,7 @@
     const submit = form.querySelector('button[type="submit"]');
     if (submit) {
       submit.id = "login-submit-btn";
-      submit.textContent = loadPending() ? "" : "Pošalji kod za prijavu";
+      submit.textContent = loadPending() ? "" : "Prikaži kod za prijavu";
     }
 
     form.addEventListener("submit", (e) => {
@@ -474,7 +472,7 @@
       showCredentialsStep();
       if (submit) {
         submit.classList.remove("hidden");
-        submit.textContent = "Pošalji kod za prijavu";
+        submit.textContent = "Prikaži kod za prijavu";
       }
     });
     document.getElementById("login-otp-resend")?.addEventListener("click", () => {
@@ -491,7 +489,7 @@
 
     if (loadPending()) {
       const p = loadPending();
-      showOtpStep(api, p?.demoCode);
+      showOtpStep(api, p?.code);
       if (submit) submit.classList.add("hidden");
     }
   }

@@ -7,17 +7,16 @@
     otpRecipient: "mateokruljac123@gmail.com",
 
     /**
-     * netlify — poziva /.netlify/functions/send-otp (simulacija ili Resend)
-     * emailjs — slanje iz preglednika (treba ključeve)
-     * auto   — netlify na netlify.app / localhost:8888, inače emailjs ili demo
+     * demo — kod se uvijek prikazuje na portalu (preporučeno dok Netlify ne radi)
+     * netlify / emailjs / auto — opcionalno u pozadini
      */
-    provider: "netlify",
+    provider: "demo",
 
-    /** URL funkcije (prazno = automatski) */
+    /** Uvijek prikaži OTP na stranici prijave */
+    demoAlwaysShowOnPortal: true,
+
     netlifyFunctionUrl: "",
-
-    /** Lokalno: `npm run dev` (netlify dev na :8888) umjesto samo serve */
-    useNetlifyDevLocally: true,
+    useNetlifyDevLocally: false,
 
     emailjs: {
       publicKey: "",
