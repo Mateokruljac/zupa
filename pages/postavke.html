@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Postavke — Pastoral</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="../js/parish-config.js"></script>
+  <script src="../js/theme-picker.js"></script>
+  <script>try{PastoralTheme.applyFromSettings(PastoralParish.loadSettings())}catch(e){}</script>
+  <script src="../js/data-seed.js"></script>
+</head>
+<body data-page="postavke">
+  <div class="app-shell">
+    <aside class="sidebar"><div id="sidebar-logo"></div><p class="sidebar-tenant-meta" id="sidebar-tenant-meta"></p><ul class="nav"></ul><div class="sidebar-footer"><button type="button" class="btn btn-ghost btn-sm" id="btn-logout" style="width:100%">Odjava</button></div></aside>
+    <div class="main">
+      <header class="topbar"><div><h1>Postavke župe</h1><p>Naziv, logo, kontakt</p></div></header>
+      <main class="content">
+        <section class="card" style="margin-bottom:20px">
+          <div class="branding-preview" id="branding-preview"></div>
+          <div class="form-grid" style="margin-top:16px">
+            <div class="form-group"><label>Naziv župe</label><input id="settings-name" type="text"></div>
+            <div class="form-group"><label>Župnik</label><input id="settings-pastor" type="text"></div>
+            <div class="form-group"><label>Telefon ureda</label><input id="settings-phone" type="tel"></div>
+            <div class="form-group"><label>E-mail</label><input id="settings-email" type="email"></div>
+            <div class="form-group form-wide"><label>URL logotipa</label><input id="settings-logo" type="url" placeholder="https://.../grb.png"></div>
+          </div>
+          <button type="button" class="btn btn-primary" id="settings-save">Spremi</button>
+        </section>
+        <section class="card" style="margin-bottom:20px">
+          <h2 class="section-title">Pomoć i uvod</h2>
+          <p class="card-sub">Vodi vas ekran po ekran kroz aplikaciju (nadzorna ploča, obitelji, nakane…). Možete preskočiti bilo koji ekran.</p>
+          <button type="button" class="btn btn-primary btn-sm" id="settings-onboarding-restart">Ponovi uvod u aplikaciju</button>
+        </section>
+        <section class="card">
+          <h2 class="section-title">Podaci</h2>
+          <button type="button" class="btn btn-secondary btn-sm" id="settings-export">Izvezi JSON</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="settings-reset">Vrati demo podatke</button>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script src="../js/modal-kit.js"></script>
+  <script src="../js/onboarding-tour.js"></script>
+  <script src="../js/priest-tools.js"></script>
+  <script src="../js/crud-modals.js"></script>
+  <script src="../js/app.js"></script>
+</body>
+</html>

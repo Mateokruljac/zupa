@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Misne nakane — Pastoral</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="../js/parish-config.js"></script>
+  <script src="../js/theme-picker.js"></script>
+  <script>try{PastoralTheme.applyFromSettings(PastoralParish.loadSettings())}catch(e){}</script>
+  <script src="../js/data-seed.js"></script>
+  <script src="../js/payment-sim.js"></script>
+</head>
+<body data-page="nakane">
+  <div class="app-shell">
+    <aside class="sidebar"><div id="sidebar-logo"></div><p class="sidebar-tenant-meta" id="sidebar-tenant-meta"></p><ul class="nav"></ul><div class="sidebar-footer"><button type="button" class="btn btn-ghost btn-sm" id="btn-logout" style="width:100%">Odjava</button></div></aside>
+    <div class="main">
+      <header class="topbar">
+        <div><h1>Kalendar misnih nakana</h1><p>Upis nakan po danu i misi — stipendiji i plaćanje</p></div>
+        <a href="mise.html" class="btn btn-ghost btn-sm">Raspored misa</a>
+      </header>
+      <main class="content nakane-layout">
+        <section class="card" id="nakane-calendar"></section>
+        <div id="nakane-day-panel"></div>
+      </main>
+    </div>
+  </div>
+  <script src="../js/liturgical-api.js"></script>
+  <script src="../js/modal-kit.js"></script>
+  <script src="../js/onboarding-tour.js"></script>
+  <script src="../js/priest-tools.js"></script>
+  <script src="../js/crud-modals.js"></script>
+  <script src="../js/app.js"></script>
+</body>
+</html>
