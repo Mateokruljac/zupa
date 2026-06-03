@@ -119,7 +119,7 @@
             <tr><td>Prijava</td><td>OTP kod na stranici (demo)</td><td>OTP e-mail + HTTPS</td></tr>
             <tr><td>Podaci</td><td>Preglednik (localStorage)</td><td>Server EU, backup</td></tr>
             <tr><td>Javni portal</td><td>Isti podaci u pregledniku</td><td>Odvojen URL, CAPTCHA, rate limit</td></tr>
-            <tr><td>Financije</td><td>Simulacija plaćanja</td><td>Bez spremanja kartice; žiro/Blagajna</td></tr>
+            <tr><td>Financije</td><td>Evidencija uplate (gotovina/žiro)</td><td>Blagajna, žiro račun</td></tr>
           </tbody>
         </table>
       </section>

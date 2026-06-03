@@ -59,14 +59,6 @@
       ],
       app: ["Kalendar", "Plaćanje / platiti kasnije", "Župni list"],
     },
-    mise: {
-      title: "Bogoslužje župe",
-      canons: "393, 528",
-      synod: "587",
-      intro: "Stalni raspored sv. misa objavljen je vjernicima; nakane vezane uz termine.",
-      required: ["Tjedni raspored misa", "Poveznica na kalendar nakana"],
-      app: ["Raspored misa", "Link na nakane"],
-    },
     "zupni-listic": {
       title: "Župni listić",
       canons: "393, 528",

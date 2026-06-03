@@ -14,13 +14,15 @@
     const today = new Date().toISOString().slice(0, 10);
     return {
       massSchedule: [
-        { id: "ms1", day: "Nedjelja", time: "07:30" },
-        { id: "ms2", day: "Nedjelja", time: "09:00" },
-        { id: "ms3", day: "Nedjelja", time: "11:00" },
-        { id: "ms4", day: "Nedjelja", time: "18:00" },
-        { id: "ms5", day: "Pon–Pet", time: "07:30" },
-        { id: "ms6", day: "Subota", time: "18:00" },
+        { id: "ms1", day: "Nedjelja", time: "07:30", weekdays: [0], celebrant: "vlč. Krunoslav Karas", location: "Župna crkva", notes: "" },
+        { id: "ms2", day: "Nedjelja", time: "09:00", weekdays: [0], celebrant: "vlč. Krunoslav Karas", location: "Župna crkva", notes: "" },
+        { id: "ms3", day: "Nedjelja", time: "11:00", weekdays: [0], celebrant: "", location: "Župna crkva", notes: "Djeca i obitelji" },
+        { id: "ms4", day: "Nedjelja", time: "18:00", weekdays: [0], celebrant: "", location: "Župna crkva", notes: "" },
+        { id: "ms5", day: "Pon–Pet", time: "07:30", weekdays: [1, 2, 3, 4, 5], celebrant: "", location: "Župna crkva", notes: "" },
+        { id: "ms6", day: "Subota", time: "18:00", weekdays: [6], celebrant: "", location: "Župna crkva", notes: "" },
       ],
+      massExceptions: [],
+      massScheduleLog: [],
       intentions: [
         { id: "n1", date: today, massTime: "18:00", requestedBy: "Ana Horvat", intentionFor: "Pokoj duše Ivana H.", stipend: 50, paid: true, notes: "" },
         { id: "n2", date: addDays(1), massTime: "07:30", requestedBy: "Petar Kovač", intentionFor: "Zdravlje obitelji", stipend: 30, paid: false, notes: "" },
@@ -456,6 +458,7 @@
       if (global.PastoralFamilyList) global.PastoralFamilyList.migrateFamily(f);
     });
     if (global.PastoralPermissions) global.PastoralPermissions.migrate(data);
+    if (global.PastoralMise) global.PastoralMise.migrate(data);
     return data;
   }
 

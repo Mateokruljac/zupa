@@ -124,7 +124,7 @@
               <div class="form-group"><label>Kategorija</label><input name="category" placeholder="lukno, nakane, župni fond…" /></div>
               <div class="form-group"><label>Iznos (€)</label><input name="amount" type="number" min="0" step="0.01" required /></div>
               <div class="form-group form-wide"><label>Opis</label><input name="description" required /></div>
-              <div class="form-group"><label>Način</label><select name="paymentMethod"><option>gotovina</option><option>žiro</option><option>kartica</option></select></div>
+              <div class="form-group"><label>Način</label><select name="paymentMethod"><option>gotovina</option><option>žiro</option></select></div>
             </div>`,
           onSubmit: (form) => {
             const fd = new FormData(form);

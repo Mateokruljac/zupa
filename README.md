@@ -69,7 +69,7 @@ Ako su podaci prazni ili stari (multitenant): Postavke → **Vrati demo podatke*
 |----------|----------|
 | **Nadzorna ploča** | KPI, današnje nakane, sakramenti, zadaci + **analitika** (nakane po mjesecima, sakramenti) |
 | **Uredbe i dokumentacija** | HBK pravilnici (str. 8–16), obrasci vizitacija, evidencija imovine, ugovori, programi kateheze — povezano na module |
-| **Misne nakane** | Kalendar — upis nakane; **plaćanje odmah** (simulacija kartice) ili **platiti kasnije** + „Plati sada” |
+| **Misne nakane** | Kalendar — upis nakane; **zabilježiti plaćeni stipendij** (gotovina/žiro) ili **platiti kasnije** + „Plati sada” |
 | **Raspored misa** | Stalni termini misa |
 | **Krštenja** | Matična evidencija, kumovi |
 | **Prva pričest** | Skupine po godini, prvopričesnici, katehete |

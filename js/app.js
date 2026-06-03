@@ -167,6 +167,301 @@ const NAV = [
 
 let calendarMonth = new Date();
 let selectedCalendarDay = null;
+let nakaneTableSort = { key: "date", dir: "asc" };
+let nakaneTableFilter = { search: "", status: "all" };
+let nakaneCharts = [];
+
+const NAKANE_VIEW_MODES = ["today", "calendar", "evidence"];
+
+function getNakaneViewMode() {
+  try {
+    const m = sessionStorage.getItem("nakane-view-mode");
+    if (NAKANE_VIEW_MODES.includes(m)) return m;
+  } catch {
+    /* ignore */
+  }
+  return "today";
+}
+
+function applyNakaneViewMode() {
+  const layout = document.querySelector(".nakane-layout");
+  if (!layout) return;
+  const mode = getNakaneViewMode();
+  layout.classList.remove("nakane-mode-today", "nakane-mode-calendar", "nakane-mode-evidence");
+  layout.classList.add(`nakane-mode-${mode}`);
+}
+
+function setNakaneViewMode(mode, opts = {}) {
+  if (!NAKANE_VIEW_MODES.includes(mode)) return;
+  try {
+    sessionStorage.setItem("nakane-view-mode", mode);
+  } catch {
+    /* ignore */
+  }
+  if (mode === "today") {
+    selectedCalendarDay = new Date().toISOString().slice(0, 10);
+    calendarMonth = new Date();
+  }
+  applyNakaneViewMode();
+  refreshNakanePage();
+  if (opts.scrollTo) {
+    requestAnimationFrame(() => {
+      document.getElementById(opts.scrollTo)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+}
+
+function getNakaneDaySummary(iso) {
+  const list = getData().intentions.filter((n) => n.date === iso);
+  return { list, count: list.length, unpaid: list.filter((n) => !n.paid).length };
+}
+
+function getNextMassHint(iso, list) {
+  if (window.PastoralMise?.getNextMassHint) {
+    return window.PastoralMise.getNextMassHint(getData(), iso);
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  if (iso !== today) return "";
+  const d = getData();
+  const schedule = [...(d.massSchedule || []).map((m) => m.time), "07:30", "09:00", "11:00", "18:00"].filter(
+    (v, i, a) => a.indexOf(v) === i
+  );
+  const nowMins = new Date().getHours() * 60 + new Date().getMinutes();
+  const toMins = (t) => {
+    const [h, m] = String(t || "0:0").split(":").map(Number);
+    return h * 60 + m;
+  };
+  const upcoming = schedule.filter((t) => toMins(t) >= nowMins - 30).sort((a, b) => toMins(a) - toMins(b))[0];
+  if (!upcoming) return "Sve mise za danas su prošle.";
+  const massCount = list.filter((n) => n.massTime === upcoming).length;
+  return `Sljedeća misa: ${upcoming} — ${massCount} nakana`;
+}
+
+function mountNakaneCommandBar() {
+  const layout = document.querySelector(".nakane-layout");
+  if (!layout || document.getElementById("nakane-command-bar")) return;
+  const bar = document.createElement("section");
+  bar.id = "nakane-command-bar";
+  bar.className = "card nakane-command-bar";
+  layout.insertBefore(bar, layout.firstChild);
+}
+
+function renderNakaneCommandBar() {
+  mountNakaneCommandBar();
+  const bar = document.getElementById("nakane-command-bar");
+  if (!bar) return;
+  const mode = getNakaneViewMode();
+  const today = new Date().toISOString().slice(0, 10);
+  if (mode === "today") selectedCalendarDay = today;
+  const activeIso = mode === "today" ? today : selectedCalendarDay || today;
+  const { count, unpaid, list } = getNakaneDaySummary(activeIso);
+  const pageStats = mode === "evidence" ? computeNakanePageStats(getData()) : null;
+  const nextHint =
+    mode === "today" || activeIso === today ? getNextMassHint(mode === "today" ? today : activeIso, list) : "";
+
+  const metaBlock =
+    mode === "evidence"
+      ? `<strong class="nakane-command-date">Evidencija</strong>
+         <span class="card-sub">${pageStats.total} nakana · ${pageStats.unpaid} neplaćeno · ${pageStats.stipendTotal} €</span>`
+      : `<strong class="nakane-command-date">${escapeHtml(fmtDate(activeIso))}</strong>
+         <span class="card-sub">${count} nakana${unpaid ? ` · ${unpaid} neplaćeno` : ""}</span>
+         ${nextHint ? `<span class="nakane-next-mass">${escapeHtml(nextHint)}</span>` : ""}`;
+
+  bar.innerHTML = `
+    <div class="nakane-command-inner">
+      <div class="nakane-mode-tabs" role="tablist" aria-label="Prikaz nakana">
+        ${[
+          ["today", "Danas"],
+          ["calendar", "Kalendar"],
+          ["evidence", "Evidencija"],
+        ]
+          .map(
+            ([id, label]) =>
+              `<button type="button" class="nakane-mode-tab${mode === id ? " is-active" : ""}" data-nakane-mode="${id}" role="tab" aria-selected="${mode === id}">${label}</button>`
+          )
+          .join("")}
+      </div>
+      <div class="nakane-command-meta">${metaBlock}</div>
+      <div class="nakane-command-actions">
+        ${mode !== "evidence" ? `<button type="button" class="btn btn-secondary btn-sm" id="nakane-cmd-print">🖨 Ispis</button>` : ""}
+        <button type="button" class="btn btn-primary btn-sm" id="nakane-cmd-add">+ Nova nakana</button>
+      </div>
+    </div>`;
+
+  bar.querySelectorAll("[data-nakane-mode]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const next = btn.dataset.nakaneMode;
+      setNakaneViewMode(next, { scrollTo: next === "evidence" ? "nakane-evidence" : "nakane-workspace" });
+    });
+  });
+  bar.querySelector("#nakane-cmd-print")?.addEventListener("click", () => printNakaneDay(activeIso));
+  bar.querySelector("#nakane-cmd-add")?.addEventListener("click", () => {
+    if (mode === "evidence" && !selectedCalendarDay) selectedCalendarDay = today;
+    window.PastoralCrudModals?.openNakana(refreshNakanePage);
+  });
+}
+
+function goToNakaneToday() {
+  setNakaneViewMode("today", { scrollTo: "nakane-workspace" });
+}
+
+function normNakanaText(s) {
+  return String(s ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function findNakanaDuplicates(data, fields, excludeId) {
+  const sameMass = (data.intentions || []).filter(
+    (n) => n.id !== excludeId && n.date === fields.date && n.massTime === fields.massTime
+  );
+  if (!sameMass.length) return null;
+  const sameText = sameMass.filter((n) => normNakanaText(n.intentionFor) === normNakanaText(fields.intentionFor));
+  const req = normNakanaText(fields.requestedBy);
+  const sameTextAndRequester =
+    req && sameText.filter((n) => normNakanaText(n.requestedBy) === req);
+  return { sameMass, sameText, sameTextAndRequester };
+}
+
+async function confirmNakanaIfDuplicate(fields, excludeId) {
+  const dup = findNakanaDuplicates(getData(), fields, excludeId);
+  if (!dup) return true;
+  let message = `Za misu u ${fields.massTime} već postoji ${dup.sameMass.length} nakana toga dana.`;
+  if (dup.sameText.length) {
+    message += `\n\nIsta namjera („${fields.intentionFor}”) već je upisana ${dup.sameText.length}× na tu misu.`;
+  }
+  if (dup.sameTextAndRequester?.length) {
+    message += `\n\nIsti naručitelj (${fields.requestedBy}) s istom namjerom — vjerojatno duplikat.`;
+  }
+  message += "\n\nSvejedno spremiti?";
+  return modalConfirm(message, { title: "Upozorenje — mogući duplikat" });
+}
+
+function updateNakana(id, fields) {
+  const data = getData();
+  const row = data.intentions.find((n) => n.id === id);
+  if (!row) return false;
+  row.date = fields.date;
+  row.massTime = fields.massTime;
+  row.intentionFor = fields.intentionFor;
+  row.requestedBy = fields.requestedBy || "";
+  row.stipend = Number(fields.stipend) || 0;
+  row.notes = fields.notes || "";
+  saveData(data);
+  return true;
+}
+
+function printNakaneDay(iso, massTimeFilter) {
+  const settings = window.PastoralParish?.loadSettings?.() || {};
+  const dateLabel = new Date(iso + "T12:00:00").toLocaleDateString("hr-HR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  let list = getData().intentions.filter((n) => n.date === iso);
+  if (massTimeFilter) list = list.filter((n) => n.massTime === massTimeFilter);
+  list = list.slice().sort((a, b) => String(a.massTime || "").localeCompare(String(b.massTime || "")));
+  const title = massTimeFilter ? `Nakane — ${dateLabel} · misa ${massTimeFilter}` : `Nakane — ${dateLabel}`;
+
+  const html = `<!DOCTYPE html><html lang="hr"><head><meta charset="UTF-8"><title>${escapeHtml(title)}</title>
+    <style>
+      body{font-family:Georgia,serif;padding:24px;color:#222;max-width:720px;margin:0 auto}
+      h1{font-size:1.35rem;margin:0 0 4px} .meta{color:#555;font-size:0.85rem;margin-bottom:20px}
+      table{width:100%;border-collapse:collapse;font-size:0.92rem;margin-top:12px}
+      th,td{border:1px solid #ddd;padding:8px;text-align:left;vertical-align:top}
+      th{background:#f5f0e8}
+      .mass-head{font-size:1rem;margin:20px 0 6px;border-bottom:1px solid #ccc;padding-bottom:4px}
+      @media print{body{padding:12px}.no-print{display:none}}
+    </style></head><body>
+    <h1>${escapeHtml(settings.name || "Župa")}</h1>
+    <p class="meta">${escapeHtml(title)}${massTimeFilter ? "" : ` · ${list.length} nakana`}</p>
+    ${
+      list.length
+        ? (massTimeFilter
+            ? `<table><thead><tr><th>Za koga</th><th>Naručitelj</th><th>Stipendij</th><th>Plaćeno</th><th>Bilješka</th></tr></thead><tbody>
+              ${list
+                .map(
+                  (n) =>
+                    `<tr><td>${escapeHtml(n.intentionFor)}</td><td>${escapeHtml(n.requestedBy || "—")}</td><td>${Number(n.stipend) || 0} €</td><td>${n.paid ? "da" : "ne"}</td><td>${escapeHtml(n.notes || "—")}</td></tr>`
+                )
+                .join("")}</tbody></table>`
+            : (() => {
+                const byMass = {};
+                list.forEach((n) => {
+                  const t = n.massTime || "—";
+                  if (!byMass[t]) byMass[t] = [];
+                  byMass[t].push(n);
+                });
+                return Object.keys(byMass)
+                  .sort()
+                  .map(
+                    (t) => `<h2 class="mass-head">Misa ${escapeHtml(t)}</h2>
+                    <table><thead><tr><th>Za koga</th><th>Naručitelj</th><th>Stipendij</th><th>Plaćeno</th><th>Bilješka</th></tr></thead><tbody>
+                    ${byMass[t]
+                      .map(
+                        (n) =>
+                          `<tr><td>${escapeHtml(n.intentionFor)}</td><td>${escapeHtml(n.requestedBy || "—")}</td><td>${Number(n.stipend) || 0} €</td><td>${n.paid ? "da" : "ne"}</td><td>${escapeHtml(n.notes || "—")}</td></tr>`
+                      )
+                      .join("")}</tbody></table>`
+                  )
+                  .join("");
+              })())
+        : "<p>Nema nakana za ispis.</p>"
+    }
+    <p class="meta no-print" style="margin-top:28px">Pastoral · ${new Date().toLocaleString("hr-HR")}</p>
+    <p class="no-print"><button onclick="window.print()">Ispis / PDF</button></p>
+    </body></html>`;
+
+  const w = window.open("", "_blank");
+  if (!w) {
+    showToast("Omogućite skočne prozore za ispis");
+    return;
+  }
+  w.document.write(html);
+  w.document.close();
+}
+
+function renderNakaneDayListHtml(list) {
+  if (!list.length) return '<p class="empty-state">Nema nakana za ovaj dan.</p>';
+  const byMass = {};
+  list.forEach((n) => {
+    const t = n.massTime || "—";
+    if (!byMass[t]) byMass[t] = [];
+    byMass[t].push(n);
+  });
+  return Object.keys(byMass)
+    .sort()
+    .map((massTime) => {
+      const items = byMass[massTime];
+      return `<div class="nakane-mass-group">
+        <div class="nakane-mass-group-head">
+          <h3 class="nakane-mass-time">Misa ${escapeHtml(massTime)}</h3>
+          <button type="button" class="btn btn-ghost btn-sm" data-print-mass="${escapeHtml(massTime)}" title="Ispis samo ove mise">🖨</button>
+        </div>
+        ${items
+          .map(
+            (n) => `<div class="list-item nakane-day-item" data-intent-id="${n.id}">
+          <div>
+            <strong>${escapeHtml(n.intentionFor)}</strong>${n.gregorianDay ? ` <span class="badge">Gregorijanska ${n.gregorianDay}/30</span>` : ""}
+            <br><small>${escapeHtml(n.requestedBy || "—")} · ${Number(n.stipend) || 0} €</small>
+            ${n.notes ? `<br><small class="nakane-day-notes">📝 ${escapeHtml(n.notes)}</small>` : ""}
+            ${n.paid && n.paymentId ? `<br><small class="card-sub">Ref: ${escapeHtml(n.paymentId)}</small>` : ""}
+          </div>
+          <div class="nakana-item-actions">
+            ${n.paid ? '<span class="badge badge-done">plaćeno</span>' : '<span class="badge badge-urgent">neplaćeno</span>'}
+            <button type="button" class="btn btn-ghost btn-sm" data-edit-intent="${n.id}" title="Uredi">✎</button>
+            ${!n.paid ? `<button type="button" class="btn btn-primary btn-sm" data-pay-intent="${n.id}">Plati</button>` : ""}
+            <button type="button" class="btn btn-ghost btn-sm" data-del-intent="${n.id}">×</button>
+          </div>
+        </div>`
+          )
+          .join("")}
+      </div>`;
+    })
+    .join("");
+}
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -316,6 +611,8 @@ function initCrudModalsApi() {
       addNakanaUnpaid(fields);
       onDone?.();
     },
+    updateNakana,
+    confirmNakanaIfDuplicate,
   });
 }
 
@@ -485,14 +782,20 @@ function initShell() {
   setTimeout(runOnboardingAfterShell, 300);
 
   if (window.PastoralLiturgical) {
-    window.PastoralLiturgical.loadLitcalYear(new Date().getFullYear()).catch(() => {});
+    const now = new Date();
+    const L = window.PastoralLiturgical;
+    if (L.loadLitcalYearsForMonth) {
+      L.loadLitcalYearsForMonth(now.getFullYear(), now.getMonth()).catch(() => {});
+    } else {
+      L.loadLitcalYear(now.getFullYear()).catch(() => {});
+    }
     if (!document.body.dataset.liturgicalListen) {
       document.body.dataset.liturgicalListen = "1";
       document.addEventListener("pastoral-liturgical-ready", () => {
         const page = document.body.dataset.page;
         if (page === "nakane") {
           renderNakaneCalendar();
-          renderNakaneDayPanel();
+          if (selectedCalendarDay) renderNakaneDayPanel();
         }
       });
     }
@@ -654,31 +957,363 @@ function buildMonthGrid(year, month) {
   return cells;
 }
 
-function mountNakaneKpiStrip() {
-  const layout = document.querySelector(".nakane-layout");
-  const K = window.PastoralKpi;
-  if (!layout || !K || document.getElementById("nakane-kpi-strip")) return;
-  const content = layout.parentElement;
+function computeNakanePageStats(data) {
+  const intentions = data.intentions || [];
+  const total = intentions.length;
+  const paid = intentions.filter((n) => n.paid).length;
+  const unpaid = total - paid;
+  const paidPct = total ? Math.round((paid / total) * 100) : 0;
+  const stipendTotal = intentions.reduce((s, n) => s + (Number(n.stipend) || 0), 0);
+  const stipendUnpaid = intentions.filter((n) => !n.paid).reduce((s, n) => s + (Number(n.stipend) || 0), 0);
+  const now = new Date();
+  const last6 = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    last6.push({
+      label: d.toLocaleDateString("hr-HR", { month: "short" }),
+      count: intentions.filter((n) => n.date?.startsWith(mk)).length,
+    });
+  }
+  return { total, paid, unpaid, paidPct, stipendTotal, stipendUnpaid, last6 };
+}
+
+function destroyNakaneCharts() {
+  nakaneCharts.forEach((c) => c.destroy());
+  nakaneCharts = [];
+}
+
+function paintNakaneCharts(stats) {
+  if (!window.Chart) return;
+  destroyNakaneCharts();
+  const paidCanvas = document.getElementById("chart-nakane-paid");
+  const monthsCanvas = document.getElementById("chart-nakane-months");
+  if (paidCanvas && stats.total) {
+    nakaneCharts.push(
+      new window.Chart(paidCanvas, {
+        type: "doughnut",
+        data: {
+          labels: ["Plaćeno", "Neplaćeno"],
+          datasets: [
+            {
+              data: [stats.paid, stats.unpaid],
+              backgroundColor: ["#2d6a4f", "#9b3d3d"],
+              borderWidth: 0,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: "62%",
+          plugins: {
+            legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } },
+          },
+        },
+      })
+    );
+  }
+  if (monthsCanvas) {
+    nakaneCharts.push(
+      new window.Chart(monthsCanvas, {
+        type: "bar",
+        data: {
+          labels: stats.last6.map((x) => x.label),
+          datasets: [
+            {
+              label: "Nakane",
+              data: stats.last6.map((x) => x.count),
+              backgroundColor: "color-mix(in srgb, #3d5a80 75%, transparent)",
+              borderRadius: 4,
+              maxBarThickness: 28,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+            y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: "rgba(0,0,0,0.06)" } },
+          },
+        },
+      })
+    );
+  }
+}
+
+function renderNakaneStats() {
+  const el = document.getElementById("nakane-stats");
+  if (!el) return;
   const d = getData();
-  const today = new Date().toISOString().slice(0, 10);
-  const todayCount = d.intentions.filter((n) => n.date === today).length;
-  const unpaid = d.intentions.filter((n) => !n.paid).length;
-  const weekUnpaid = d.intentions.filter((n) => {
-    const start = window.PastoralBulletin?.weekStartFrom?.(today) || today;
-    const end = new Date(start + "T12:00:00");
-    end.setDate(end.getDate() + 6);
-    const endIso = end.toISOString().slice(0, 10);
-    return n.date >= start && n.date <= endIso && !n.paid;
-  }).length;
-  const wrap = document.createElement("div");
-  wrap.id = "nakane-kpi-strip";
-  wrap.innerHTML = K.row([
-    { tone: "liturgy", label: "Danas", value: todayCount },
-    { tone: "alert", label: "Neplaćeno (sve)", value: unpaid },
-    { tone: "finance", label: "Neplaćeno (tjedan)", value: weekUnpaid },
-  ]);
-  if (content) content.insertBefore(wrap, layout);
-  else layout.insertBefore(wrap, layout.firstChild);
+  const stats = computeNakanePageStats(d);
+
+  el.innerHTML = `
+    <div class="nakane-stats-head">
+      <div>
+        <h2 class="section-title">Pregled i statistika</h2>
+        <p class="card-sub">Ukupna evidencija nakana — tablicu ispod sortirajte i filtrirajte.</p>
+      </div>
+    </div>
+    <div class="nakane-kpi-grid">
+      <article class="nakane-kpi-tile nakane-kpi-tile--total">
+        <p class="nakane-kpi-label">Ukupno</p>
+        <p class="nakane-kpi-value">${stats.total}</p>
+        <p class="nakane-kpi-sub">svih nakana u evidenciji</p>
+      </article>
+      <article class="nakane-kpi-tile nakane-kpi-tile--paid">
+        <p class="nakane-kpi-label">Plaćeno</p>
+        <p class="nakane-kpi-value">${stats.paid}</p>
+        <p class="nakane-kpi-sub">${stats.paidPct}% od ukupnog broja</p>
+      </article>
+      <article class="nakane-kpi-tile nakane-kpi-tile--unpaid">
+        <p class="nakane-kpi-label">Neplaćeno</p>
+        <p class="nakane-kpi-value">${stats.unpaid}</p>
+        <p class="nakane-kpi-sub">${stats.stipendUnpaid} € stipendija</p>
+      </article>
+      <article class="nakane-kpi-tile nakane-kpi-tile--stipend">
+        <p class="nakane-kpi-label">Stipendiji</p>
+        <p class="nakane-kpi-value">${stats.stipendTotal} €</p>
+        <p class="nakane-kpi-sub">ukupno u evidenciji</p>
+      </article>
+    </div>
+    <div class="nakane-charts-grid">
+      <article class="analytics-stat card-section--finance">
+        <p class="card-label">Evidencija plaćenih i neplaćenih misnih nakana</p>
+        <div class="chart-wrap chart-wrap--md"><canvas id="chart-nakane-paid"></canvas></div>
+        ${stats.total ? "" : '<p class="empty-state">Nema nakana za prikaz.</p>'}
+      </article>
+      <article class="analytics-stat card-section--liturgy">
+        <p class="card-label">Nakane — zadnjih 6 mjeseci</p>
+        <div class="chart-wrap chart-wrap--md"><canvas id="chart-nakane-months"></canvas></div>
+      </article>
+    </div>`;
+
+  loadChartJs().then(() => paintNakaneCharts(stats));
+}
+
+function clearNakaneLitTopbar() {
+  document.getElementById("nakane-lit-swatch-corner")?.remove();
+  document.getElementById("nakane-topbar-lit")?.remove();
+}
+
+function renderCalNakaneList(nakane, maxVisible = 3) {
+  if (!nakane?.length) return "";
+  const shown = nakane.slice(0, maxVisible);
+  const rest = nakane.length - shown.length;
+  return `<div class="cal-nakane-list">
+    ${shown.map((n) => `<span class="cal-nakane-item" title="${escapeHtml(n.intentionFor)}">${escapeHtml(n.intentionFor)}</span>`).join("")}
+    ${rest > 0 ? `<span class="cal-nakane-more">+ ${rest} više</span>` : ""}
+  </div>`;
+}
+
+function sortNakaneRows(rows, sort) {
+  const mul = sort.dir === "desc" ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    let va;
+    let vb;
+    switch (sort.key) {
+      case "massTime":
+        va = a.massTime || "";
+        vb = b.massTime || "";
+        break;
+      case "intentionFor":
+        va = a.intentionFor || "";
+        vb = b.intentionFor || "";
+        break;
+      case "requestedBy":
+        va = a.requestedBy || "";
+        vb = b.requestedBy || "";
+        break;
+      case "stipend":
+        va = Number(a.stipend) || 0;
+        vb = Number(b.stipend) || 0;
+        return (va - vb) * mul;
+      case "paid":
+        va = a.paid ? 1 : 0;
+        vb = b.paid ? 1 : 0;
+        return (va - vb) * mul;
+      case "date":
+      default:
+        va = a.date || "";
+        vb = b.date || "";
+        break;
+    }
+    return String(va).localeCompare(String(vb), "hr") * mul;
+  });
+}
+
+function renderNakaneTable() {
+  const mount = document.getElementById("nakane-table");
+  if (!mount) return;
+  const d = getData();
+  const allRows = d.intentions || [];
+  const q = nakaneTableFilter.search.trim().toLowerCase();
+  let filtered = allRows.filter((n) => {
+    if (nakaneTableFilter.status === "paid" && !n.paid) return false;
+    if (nakaneTableFilter.status === "unpaid" && n.paid) return false;
+    if (!q) return true;
+    return [n.date, n.massTime, n.intentionFor, n.requestedBy, String(n.stipend)]
+      .some((v) => String(v ?? "").toLowerCase().includes(q));
+  });
+  filtered = sortNakaneRows(filtered, nakaneTableSort);
+
+  const cols = [
+    { key: "date", label: "Datum" },
+    { key: "massTime", label: "Misa" },
+    { key: "intentionFor", label: "Nakana" },
+    { key: "requestedBy", label: "Naručitelj" },
+    { key: "stipend", label: "Stipendij" },
+    { key: "paid", label: "Status" },
+    { key: "_actions", label: "" },
+  ];
+
+  mount.innerHTML = `
+    <h2 class="section-title">Sve nakane</h2>
+    <p class="card-sub">Kliknite red za otvaranje dana u kalendaru. Sortirajte klikom na zaglavlje.</p>
+    <div class="nakane-table-toolbar">
+      <input type="search" class="nakane-table-search" placeholder="Pretraži nakane…" value="${escapeHtml(nakaneTableFilter.search)}" />
+      <select class="nakane-table-filter" data-nakane-status>
+        <option value="all" ${nakaneTableFilter.status === "all" ? "selected" : ""}>Sve</option>
+        <option value="paid" ${nakaneTableFilter.status === "paid" ? "selected" : ""}>Plaćeno</option>
+        <option value="unpaid" ${nakaneTableFilter.status === "unpaid" ? "selected" : ""}>Neplaćeno</option>
+      </select>
+      <button type="button" class="btn btn-ghost btn-sm${nakaneTableFilter.status === "unpaid" ? " btn-secondary" : ""}" data-nakane-unpaid-quick>Neplaćeno</button>
+      <span class="table-kit-meta">${filtered.length} / ${allRows.length} nakana</span>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr>${cols
+          .map((c) => {
+            const sorted = nakaneTableSort.key === c.key;
+            const cls = `nakane-th-sort${sorted ? " is-sorted" : ""}${sorted && nakaneTableSort.dir === "desc" ? " is-desc" : ""}`;
+            return `<th class="${cls}" data-sort-key="${c.key}">${c.label}</th>`;
+          })
+          .join("")}</tr></thead>
+        <tbody>${filtered.length
+          ? filtered
+              .map((n) => {
+                const sel = n.date === selectedCalendarDay ? " is-selected" : "";
+                return `<tr class="nakane-table-row${sel}" data-nakana-row="${n.id}" data-nakana-date="${escapeHtml(n.date)}">
+                  <td>${escapeHtml(fmtDate(n.date))}</td>
+                  <td>${escapeHtml(n.massTime || "—")}</td>
+                  <td><strong>${escapeHtml(n.intentionFor || "—")}</strong>${n.gregorianDay ? ` <span class="badge">G${n.gregorianDay}/30</span>` : ""}</td>
+                  <td>${escapeHtml(n.requestedBy || "—")}</td>
+                  <td>${Number(n.stipend) || 0} €</td>
+                  <td>${n.paid ? '<span class="badge badge-done">plaćeno</span>' : '<span class="badge badge-urgent">neplaćeno</span>'}</td>
+                  <td class="nakane-table-actions">
+                    <button type="button" class="btn btn-ghost btn-sm" data-edit-intent="${n.id}" title="Uredi">✎</button>
+                    ${!n.paid ? `<button type="button" class="btn btn-primary btn-sm" data-pay-intent="${n.id}">Plati</button>` : ""}
+                    <button type="button" class="btn btn-ghost btn-sm" data-del-intent="${n.id}">×</button>
+                  </td>
+                </tr>`;
+              })
+              .join("")
+          : `<tr><td colspan="8" class="empty-state">Nema nakana za prikaz.</td></tr>`}</tbody>
+      </table>
+    </div>`;
+
+  mount.querySelector(".nakane-table-search")?.addEventListener("input", (e) => {
+    nakaneTableFilter.search = e.target.value;
+    renderNakaneTable();
+  });
+  mount.querySelector("[data-nakane-status]")?.addEventListener("change", (e) => {
+    nakaneTableFilter.status = e.target.value;
+    renderNakaneTable();
+  });
+  mount.querySelector("[data-nakane-unpaid-quick]")?.addEventListener("click", () => {
+    nakaneTableFilter.status = nakaneTableFilter.status === "unpaid" ? "all" : "unpaid";
+    renderNakaneTable();
+  });
+  mount.querySelectorAll("[data-sort-key]").forEach((th) => {
+    th.addEventListener("click", () => {
+      const key = th.dataset.sortKey;
+      if (nakaneTableSort.key === key) {
+        nakaneTableSort.dir = nakaneTableSort.dir === "asc" ? "desc" : "asc";
+      } else {
+        nakaneTableSort.key = key;
+        nakaneTableSort.dir = "asc";
+      }
+      renderNakaneTable();
+    });
+  });
+  mount.querySelectorAll("[data-nakana-row]").forEach((tr) => {
+    tr.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return;
+      const iso = tr.dataset.nakanaDate;
+      if (!iso) return;
+      selectedCalendarDay = iso;
+      calendarMonth = new Date(iso + "T12:00:00");
+      try {
+        sessionStorage.setItem("nakane-view-mode", "calendar");
+      } catch {
+        /* ignore */
+      }
+      applyNakaneViewMode();
+      refreshNakanePage();
+      requestAnimationFrame(() => {
+        document.getElementById("nakane-workspace")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+  });
+  bindNakanaRowActions(mount);
+}
+
+function bindNakanaRowActions(root) {
+  root.querySelectorAll("[data-edit-intent]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.PastoralCrudModals?.openEditNakana(btn.dataset.editIntent, refreshNakanePage);
+    });
+  });
+  root.querySelectorAll("[data-print-mass]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (selectedCalendarDay) printNakaneDay(selectedCalendarDay, btn.dataset.printMass);
+    });
+  });
+  root.querySelectorAll("[data-pay-intent]").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const data = getData();
+      const n = data.intentions.find((x) => x.id === btn.dataset.payIntent);
+      if (!n) return;
+      runNakanaPayment(n, () => {
+        showToast("Plaćanje zabilježeno");
+        refreshNakanePage();
+      });
+    });
+  });
+  root.querySelectorAll("[data-del-intent]").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const ok = await modalConfirm("Obrisati ovu nakanu?", { danger: true, title: "Brisanje nakane" });
+      if (!ok) return;
+      const data = getData();
+      data.intentions = data.intentions.filter((n) => n.id !== btn.dataset.delIntent);
+      saveData(data);
+      showToast("Nakana obrisana");
+      refreshNakanePage();
+    });
+  });
+}
+
+function refreshNakanePage() {
+  applyNakaneViewMode();
+  renderNakaneCommandBar();
+  const mode = getNakaneViewMode();
+  if (mode === "today") {
+    selectedCalendarDay = new Date().toISOString().slice(0, 10);
+    renderNakaneDayPanel();
+  } else if (mode === "calendar") {
+    if (!selectedCalendarDay) selectedCalendarDay = new Date().toISOString().slice(0, 10);
+    renderNakaneCalendar();
+    renderNakaneDayPanel();
+  } else {
+    renderNakaneStats();
+    renderNakaneTable();
+  }
 }
 
 function renderNakaneCalendar() {
@@ -694,52 +1329,61 @@ function renderNakaneCalendar() {
   });
 
   const calEl = document.getElementById("nakane-calendar");
-  const panelEl = document.getElementById("nakane-day-panel");
   if (!calEl) return;
 
   const L = window.PastoralLiturgical;
   const litSummaries = L ? L.summariesForMonth(y, m) : {};
+  const litLoaded = Object.values(litSummaries).some((s) => s.loaded);
+  const litWarn =
+    L && !litLoaded
+      ? `<p class="card-sub cal-lit-warn">Liturgijski kalendar se učitava… Ako ostane prazno, pokrenite stranicu preko <code>npx serve .</code> (ne <code>file://</code>).</p>`
+      : "";
   const weekDays = ["Pon", "Uto", "Sri", "Čet", "Pet", "Sub", "Ned"];
   calEl.innerHTML = `
+    <h2 class="section-title">Kalendar misnih nakana</h2>
+    ${litWarn}
+    <p class="card-sub cal-lit-legend">Svaki dan: liturgijska boja, rang, svetac/blagdan (LitCal API). Kliknite dan — detalj desno.</p>
     <div class="cal-header">
       <button type="button" class="btn btn-ghost btn-sm" id="cal-prev">‹</button>
       <strong class="cal-month-title">${escapeHtml(monthLabel)}</strong>
       <button type="button" class="btn btn-ghost btn-sm" id="cal-next">›</button>
       <button type="button" class="btn btn-secondary btn-sm" id="cal-today">Danas</button>
     </div>
-    <p class="card-sub cal-lit-legend">U svakom danu: blagdan/svetac i poveznica <strong>Liturgija</strong> (HILP).</p>
     <div class="cal-weekdays">${weekDays.map((w) => `<span>${w}</span>`).join("")}</div>
     <div class="cal-grid cal-grid--lit">${cells
       .map((iso) => {
         if (!iso) return '<div class="cal-cell cal-empty"></div>';
-        const count = (byDate[iso] || []).length;
         const sel = selectedCalendarDay === iso ? " cal-selected" : "";
         const isToday = iso === new Date().toISOString().slice(0, 10) ? " cal-today" : "";
         const sum = L ? litSummaries[iso] || L.getSummarySync(iso) : null;
+        const litBgCls = sum?.loaded && sum?.color && L ? L.liturgicalCellClass(sum.color) : "";
         const litHtml = L ? L.renderCellLiturgy(sum) : "";
-        return `<button type="button" class="cal-cell cal-cell--lit${sel}${isToday}" data-cal-day="${iso}">
+        const cellTip = sum?.loaded
+          ? [sum.title, sum.rankLabel || sum.rank, sum.colorLabel, sum.subtitle].filter(Boolean).join(" · ")
+          : "Liturgijski dan";
+        return `<button type="button" class="cal-cell cal-cell--lit ${litBgCls}${sel}${isToday}" data-cal-day="${iso}" title="${escapeHtml(cellTip)}">
           <span class="cal-day-num">${parseInt(iso.slice(8), 10)}</span>
           ${litHtml}
-          ${count ? `<span class="cal-dots">${count} nakana</span>` : ""}
+          ${renderCalNakaneList((byDate[iso] || []).slice().sort((a, b) => String(a.massTime || "").localeCompare(String(b.massTime || ""))))}
         </button>`;
       })
-      .join("")}</div>`;
+      .join("")}</div>
+    ${L ? L.renderCalColorLegend() : ""}`;
 
   document.getElementById("cal-prev")?.addEventListener("click", () => {
     calendarMonth = new Date(y, m - 1, 1);
-    window.PastoralLiturgical?.loadLitcalYear(calendarMonth.getFullYear()).catch(() => {});
-    renderNakaneCalendar();
+    paintNakaneCalendarMonth();
   });
   document.getElementById("cal-next")?.addEventListener("click", () => {
     calendarMonth = new Date(y, m + 1, 1);
-    window.PastoralLiturgical?.loadLitcalYear(calendarMonth.getFullYear()).catch(() => {});
-    renderNakaneCalendar();
+    paintNakaneCalendarMonth();
   });
   document.getElementById("cal-today")?.addEventListener("click", () => {
     calendarMonth = new Date();
     selectedCalendarDay = new Date().toISOString().slice(0, 10);
     renderNakaneCalendar();
     renderNakaneDayPanel();
+    document.getElementById("nakane-day-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   calEl.querySelectorAll("[data-cal-day]").forEach((btn) => {
@@ -747,13 +1391,68 @@ function renderNakaneCalendar() {
       selectedCalendarDay = btn.dataset.calDay;
       renderNakaneCalendar();
       renderNakaneDayPanel();
+      document.getElementById("nakane-day-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
   });
 
   if (!selectedCalendarDay) {
     selectedCalendarDay = new Date().toISOString().slice(0, 10);
-    renderNakaneDayPanel();
   }
+}
+
+async function loadNakaneLitDetail(iso) {
+  const L = window.PastoralLiturgical;
+  if (!L || iso !== selectedCalendarDay) return;
+  const slot = document.getElementById("nakane-lit-detail");
+  if (!slot) return;
+  try {
+    const day = await L.getDay(iso);
+    if (iso !== selectedCalendarDay) return;
+    slot.outerHTML = L.renderNakaneDayLiturgy(day);
+  } catch {
+    if (iso !== selectedCalendarDay) return;
+    slot.outerHTML = L.renderNakaneDayLiturgy({
+      source: "offline",
+      date: iso,
+      title: null,
+      hilpUrl: L.hilpUrlForDate(iso),
+    });
+  }
+}
+
+function renderNakaneDayPanel() {
+  const panelEl = document.getElementById("nakane-day-panel");
+  if (!panelEl || !selectedCalendarDay) return;
+  const d = getData();
+  const list = d.intentions.filter((n) => n.date === selectedCalendarDay);
+  const L = window.PastoralLiturgical;
+  const litLoading = L ? L.renderNakaneLitLoading(selectedCalendarDay) : "";
+
+  panelEl.innerHTML = `
+    <section class="card nakane-day-card">
+      ${litLoading}
+      <div class="nakane-day-list">${renderNakaneDayListHtml(list)}</div>
+    </section>`;
+
+  loadNakaneLitDetail(selectedCalendarDay);
+
+  bindNakanaRowActions(panelEl);
+}
+
+function paintNakaneCalendarMonth() {
+  const y = calendarMonth.getFullYear();
+  const m = calendarMonth.getMonth();
+  const done = () => renderNakaneCalendar();
+  const L = window.PastoralLiturgical;
+  if (L?.loadLitcalYearsForMonth) {
+    L.loadLitcalYearsForMonth(y, m).finally(done);
+    return;
+  }
+  if (L?.loadLitcalYear) {
+    L.loadLitcalYear(y).finally(done);
+    return;
+  }
+  done();
 }
 
 function saveIntentionAfterPayment(fields, payment) {
@@ -767,8 +1466,7 @@ function saveIntentionAfterPayment(fields, payment) {
   });
   saveData(data);
   showToast("Nakana dodana i plaćena");
-  renderNakaneCalendar();
-  renderNakaneDayPanel();
+  refreshNakanePage();
 }
 
 function addNakanaUnpaid(fields) {
@@ -782,17 +1480,16 @@ function addNakanaUnpaid(fields) {
   });
   saveData(data);
   showToast("Nakana spremljena — plaćanje kasnije");
-  renderNakaneCalendar();
-  renderNakaneDayPanel();
+  refreshNakanePage();
 }
 
 function runNakanaPayment(intent, onDone) {
   const Pay = window.PastoralPayment;
   if (!Pay) {
-    showToast("Modul plaćanja nije učitan");
+    showToast("Modul evidencije uplate nije učitan");
     return;
   }
-  Pay.runSimulation({
+  Pay.recordPayment({
     amount: intent.stipend,
     title: intent.intentionFor,
     subtitle: `${intent.massTime} · ${intent.requestedBy || "—"}`,
@@ -810,82 +1507,39 @@ function runNakanaPayment(intent, onDone) {
   });
 }
 
-function renderNakaneDayPanel() {
-  const panelEl = document.getElementById("nakane-day-panel");
-  if (!panelEl || !selectedCalendarDay) return;
-  const d = getData();
-  const list = d.intentions.filter((n) => n.date === selectedCalendarDay);
-
-  const L = window.PastoralLiturgical;
-  const litStrip = L ? L.renderDayStrip(L.getSummarySync(selectedCalendarDay), { date: selectedCalendarDay }) : "";
-
-  panelEl.innerHTML = `
-    <section class="card">
-      ${litStrip ? `<div id="nakane-lit-strip">${litStrip}</div>` : ""}
-      <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">
-        <h2 class="section-title" style="margin:0">${fmtDate(selectedCalendarDay)} — misne nakane</h2>
-        <button type="button" class="btn btn-primary btn-sm" id="nakana-add-btn">+ Nova nakana</button>
-      </div>
-      <div class="nakane-day-list">${list.length
-        ? list
-            .map(
-              (n) => `<div class="list-item" data-intent-id="${n.id}">
-          <div><strong>${escapeHtml(n.intentionFor)}</strong>${n.gregorianDay ? ` <span class="badge">Gregorijanska ${n.gregorianDay}/30</span>` : ""}<br><small>${escapeHtml(n.massTime)} · ${escapeHtml(n.requestedBy || "—")} · ${n.stipend} €</small>
-          ${n.paid && n.paymentId ? `<br><small class="card-sub">Ref: ${escapeHtml(n.paymentId)}</small>` : ""}</div>
-          <div class="nakana-item-actions">
-            ${n.paid ? '<span class="badge badge-done">plaćeno</span>' : '<span class="badge badge-urgent">neplaćeno</span>'}
-            ${!n.paid ? `<button type="button" class="btn btn-primary btn-sm" data-pay-intent="${n.id}">Plati sada</button>` : ""}
-            <button type="button" class="btn btn-ghost btn-sm" data-del-intent="${n.id}">×</button>
-          </div>
-        </div>`
-            )
-            .join("")
-        : '<p class="empty-state">Nema nakana za ovaj dan.</p>'}</div>
-    </section>`;
-
-  const stripEl = panelEl.querySelector("#nakane-lit-strip");
-  if (stripEl && L) L.hydrateDayStrip(stripEl, selectedCalendarDay);
-
-  document.getElementById("nakana-add-btn")?.addEventListener("click", () => {
-    window.PastoralCrudModals?.openNakana(() => {
-      renderNakaneCalendar();
-      renderNakaneDayPanel();
-    });
-  });
-
-  panelEl.querySelectorAll("[data-pay-intent]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const data = getData();
-      const n = data.intentions.find((x) => x.id === btn.dataset.payIntent);
-      if (!n) return;
-      runNakanaPayment(n, () => {
-        showToast("Plaćanje zabilježeno");
-        renderNakaneCalendar();
-        renderNakaneDayPanel();
-      });
-    });
-  });
-
-  panelEl.querySelectorAll("[data-del-intent]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const ok = await modalConfirm("Obrisati ovu nakanu?", { danger: true, title: "Brisanje nakane" });
-      if (!ok) return;
-      const data = getData();
-      data.intentions = data.intentions.filter((n) => n.id !== btn.dataset.delIntent);
-      saveData(data);
-      showToast("Nakana obrisana");
-      renderNakaneCalendar();
-      renderNakaneDayPanel();
-    });
-  });
-}
-
 function initNakanePage() {
+  clearNakaneLitTopbar();
   const params = new URLSearchParams(location.search);
-  if (params.get("date") === "today") {
+  const dateParam = params.get("date");
+  const modeParam = params.get("mode");
+  if (dateParam === "today") {
+    selectedCalendarDay = new Date().toISOString().slice(0, 10);
+    calendarMonth = new Date();
+    try {
+      sessionStorage.setItem("nakane-view-mode", "today");
+    } catch {
+      /* ignore */
+    }
+  } else if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+    selectedCalendarDay = dateParam;
+    calendarMonth = new Date(dateParam + "T12:00:00");
+    try {
+      sessionStorage.setItem("nakane-view-mode", "calendar");
+    } catch {
+      /* ignore */
+    }
+  } else {
     selectedCalendarDay = new Date().toISOString().slice(0, 10);
     calendarMonth = new Date();
   }
+  if (modeParam === "evidence" || modeParam === "calendar" || modeParam === "today") {
+    try {
+      sessionStorage.setItem("nakane-view-mode", modeParam);
+    } catch {
+      /* ignore */
+    }
+  }
+  applyNakaneViewMode();
   const topbar = document.querySelector(".topbar");
   if (topbar && !document.getElementById("nakane-extra-tools")) {
     const wrap = document.createElement("div");
@@ -900,23 +1554,57 @@ function initNakanePage() {
       showToast,
     });
     document.getElementById("nakana-gregorian-btn")?.addEventListener("click", () => {
-      window.PastoralCrudModals?.openGregorianNakana(() => {
-        renderNakaneCalendar();
-        renderNakaneDayPanel();
-      });
+      window.PastoralCrudModals?.openGregorianNakana(refreshNakanePage);
     });
   }
   const y = calendarMonth.getFullYear();
+  const m = calendarMonth.getMonth();
   const finish = () => {
-    mountNakaneKpiStrip();
-    renderNakaneCalendar();
-    renderNakaneDayPanel();
+    refreshNakanePage();
   };
+  if (window.PastoralLiturgical?.loadLitcalYearsForMonth) {
+    window.PastoralLiturgical.loadLitcalYearsForMonth(y, m).finally(finish);
+    return;
+  }
   if (window.PastoralLiturgical) {
     window.PastoralLiturgical.loadLitcalYear(y).finally(finish);
     return;
   }
   finish();
+}
+
+function initMisePage() {
+  const mount = document.getElementById("page-root");
+  if (!mount || !window.PastoralMise) return;
+  const start = () => {
+    window.PastoralMise.mountMisePage(mount, {
+      getData,
+      saveData,
+      showToast,
+      fmtDate,
+      pageUrl,
+      confirm: (message, opts) => modalConfirm(message, opts),
+      printNakaneDay: (iso, massTime) => printNakaneDay(iso, massTime),
+      openNakanaForDate: (iso, massTime, onDone) => {
+        selectedCalendarDay = iso;
+        calendarMonth = new Date(iso + "T12:00:00");
+        try {
+          sessionStorage.setItem("nakane-view-mode", iso === new Date().toISOString().slice(0, 10) ? "today" : "calendar");
+        } catch {
+          /* ignore */
+        }
+        window.PastoralCrudModals?.openNakana(() => {
+          onDone?.();
+        });
+      },
+    });
+  };
+  const L = window.PastoralLiturgical;
+  if (L?.loadLitcalYear) {
+    L.loadLitcalYear(new Date().getFullYear()).finally(start);
+    return;
+  }
+  start();
 }
 
 function renderKrizmaPage() {
@@ -2301,15 +2989,7 @@ async function initPage() {
   if (page === "krsenja") renderBaptismsPage();
   if (page === "vjencanja") renderWeddingsPage();
   if (page === "pogrebi") renderFuneralsPage();
-  if (page === "mise") {
-    const d = getData();
-    const el = document.getElementById("page-root");
-    if (el) {
-      el.innerHTML = `<section class="card"><h2 class="section-title">Tjedni raspored misa</h2>
-        <div class="mass-schedule">${d.massSchedule.map((m) => `<div class="mass-chip"><strong>${escapeHtml(m.time)}</strong> ${escapeHtml(m.day)}</div>`).join("")}</div>
-        <p class="card-sub">Nakane se upisuju u <a href="${pageUrl("pages/nakane.html")}">kalendar misnih nakana</a>.</p></section>`;
-    }
-  }
+  if (page === "mise") initMisePage();
   if (page === "pomazanje") {
     const d = getData();
     const el = document.getElementById("page-root");

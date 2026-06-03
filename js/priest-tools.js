@@ -14,10 +14,14 @@
     return new Date().toISOString().slice(0, 10);
   }
 
-  function getMassesForToday(schedule) {
+  function getMassesForToday(dataOrSchedule) {
+    if (global.PastoralMise?.getMassesForDate && dataOrSchedule?.intentions !== undefined) {
+      return global.PastoralMise.getMassesForDate(dataOrSchedule, todayIso());
+    }
+    const schedule = Array.isArray(dataOrSchedule) ? dataOrSchedule : dataOrSchedule?.massSchedule || [];
     const dow = new Date().getDay();
     const label = dow === 0 ? "Nedjelja" : dow === 6 ? "Subota" : "Pon–Pet";
-    return (schedule || []).filter((m) => m.day === label);
+    return schedule.filter((m) => m.day === label).map((m) => ({ time: m.time, celebrant: m.celebrant || "" }));
   }
 
   function getOfficeStats(data) {
@@ -254,7 +258,9 @@
           <h3>Obitelji</h3>
           <p>Klik na red u tablici otvara karton obitelji. Zatvaranje kartona — samo gumb ×. Nedavno otvorene obitelji nalaze se na ploči.</p>
           <h3>Nakane</h3>
-          <p>Nova nakana: unos u modalu, zatim plaćanje odmah ili kasnije. Kalendar pokazuje broj nakana po danu.</p>
+          <p>Tri prikaza: <strong>Danas</strong> (jutarnji ritual), <strong>Kalendar</strong> (planiranje po danima), <strong>Evidencija</strong> (tablica i statistika). Akcije su u traci na vrhu.</p>
+          <h3>Raspored misa</h3>
+          <p><strong>Danas</strong> — mise s nakana po terminu; <strong>Tjedni raspored</strong> — mreža; <strong>Upravljanje</strong> — termini, blagdanske iznimke, kopiranje za listić.</p>
           <h3>Javni obrasci</h3>
           <p>Prijave s web stranice župe pregledajte pod Javne prijave → Preuzmi u evidenciju.</p>
         </div>`,
@@ -264,7 +270,7 @@
   function printTodaySheet(data) {
     const today = todayIso();
     const settings = api.getSettings?.() || {};
-    const masses = getMassesForToday(data.massSchedule);
+    const masses = getMassesForToday(data);
     const intentions = (data.intentions || []).filter((n) => n.date === today);
     const tasks = (data.tasks || []).filter((t) => !t.done && (t.due === today || (t.due && t.due < today)));
     const dateLabel = new Date(today + "T12:00:00").toLocaleDateString("hr-HR", {
@@ -341,7 +347,7 @@
             <strong>Zadaci</strong>
             <small>${stats.openTasks} otvorenih</small>
           </a>
-          <a href="${api.pageUrl("pages/mise.html")}" class="priest-action-tile">
+          <a href="${api.pageUrl("pages/mise.html")}?mode=today" class="priest-action-tile">
             <span class="priest-action-ico">◉</span>
             <strong>Raspored misa</strong>
             <small>tjedni plan</small>
@@ -371,15 +377,21 @@
   }
 
   function renderTodayMassesHtml(data) {
-    const masses = getMassesForToday(data.massSchedule);
+    const masses = getMassesForToday(data);
     const today = todayIso();
     const dayLabel = new Date(today + "T12:00:00").toLocaleDateString("hr-HR", { weekday: "long" });
     return `
       <section class="card">
         <h2 class="section-title">Mise danas — ${esc(dayLabel)}</h2>
         ${masses.length
-          ? `<div class="mass-schedule">${masses.map((m) => `<div class="mass-chip mass-chip--today"><strong>${esc(m.time)}</strong></div>`).join("")}</div>`
+          ? `<div class="mass-schedule">${masses
+              .map(
+                (m) =>
+                  `<div class="mass-chip mass-chip--today"><strong>${esc(m.time)}</strong>${m.celebrant ? `<br><small>${esc(m.celebrant)}</small>` : ""}</div>`
+              )
+              .join("")}</div>`
           : '<p class="empty-state">Nema upisanih misa za ovaj dan u tjednom rasporedu.</p>'}
+        <a href="${api.pageUrl("pages/mise.html")}?mode=today" class="btn btn-secondary btn-sm">Raspored misa</a>
         <a href="${api.pageUrl("pages/nakane.html")}?date=today" class="btn btn-primary btn-sm">Nakane za danas</a>
       </section>`;
   }

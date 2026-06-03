@@ -158,15 +158,7 @@
 
   function renderAdminBanner(api) {
     if (bannerDismissed()) return "";
-    return `
-      <div class="gdpr-admin-banner fx-glass" role="status" id="gdpr-admin-banner" data-no-stagger>
-        <span class="gdpr-shield gdpr-shield--pulse" aria-hidden="true">🛡</span>
-        <div class="gdpr-admin-banner-text">
-          <strong>Osobni podaci župljana</strong> — povjerljivo. Izvoz i ispis samo za službenu svrhu.
-          <a href="${api.pageUrl("pages/sigurnost.html")}#gdpr">Prava vjernika</a>
-        </div>
-        <button type="button" class="btn btn-ghost btn-sm" id="gdpr-banner-dismiss" aria-label="Zatvori">×</button>
-      </div>`;
+    return ``;
   }
 
   function mountAdminBanner(api) {

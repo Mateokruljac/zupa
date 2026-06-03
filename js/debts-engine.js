@@ -467,10 +467,10 @@
             const row = all.find((r) => r.id === pay.dataset.payNakana);
             const n = data.intentions?.find((x) => x.id === row?.source?.id);
             if (!n || !global.PastoralPayment) {
-              api.showToast("Modul plaćanja nije dostupan");
+              api.showToast("Modul evidencije uplate nije dostupan");
               return;
             }
-            global.PastoralPayment.runSimulation({
+            global.PastoralPayment.recordPayment({
               amount: Number(n.stipend) || 0,
               title: n.intentionFor,
               subtitle: `${n.date} · ${n.massTime}`,

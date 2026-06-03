@@ -60,6 +60,49 @@
       ${luknoBlock}`;
   }
 
+  function nakanaFormBody(record, times, defaultDate, { editableDate = false } = {}) {
+    const massOpts = times
+      .map((t) => `<option ${record?.massTime === t ? "selected" : ""}>${t}</option>`)
+      .join("");
+    return `
+      ${editableDate ? `<div class="form-group"><label>Datum *</label><input name="date" type="date" value="${defaultDate || ""}" required /></div>` : ""}
+      <div class="form-group"><label>Misa (sat)</label><select name="massTime">${massOpts}</select></div>
+      <div class="form-group form-wide"><label>Za koga / namjera *</label><input name="intentionFor" required placeholder="Pokoj duše…" value="${api.escapeHtml(record?.intentionFor || "")}" /></div>
+      <div class="form-group"><label>Naručitelj</label><input name="requestedBy" placeholder="Ime i prezime" value="${api.escapeHtml(record?.requestedBy || "")}" /></div>
+      <div class="form-group"><label>Stipendij (€)</label><input name="stipend" type="number" min="0" value="${record?.stipend ?? 30}" /></div>
+      <div class="form-group form-wide"><label>Bilješka (samo za svećenika)</label><input name="notes" placeholder="Interna bilješka…" value="${api.escapeHtml(record?.notes || "")}" /></div>
+      ${record ? "" : `<p class="card-sub form-wide">Nakon spremanja označite je li stipendij već primljen.</p>`}`;
+  }
+
+  function readNakanaFormFields(form, defaultDate, { editableDate = false } = {}) {
+    const fd = new FormData(form);
+    const intentionFor = fd.get("intentionFor")?.trim();
+    if (!intentionFor) {
+      api.showToast("Unesite namjeru molitve");
+      return null;
+    }
+    const date = editableDate ? fd.get("date") : defaultDate;
+    if (!date) {
+      api.showToast("Unesite datum");
+      return null;
+    }
+    return {
+      date,
+      massTime: fd.get("massTime"),
+      intentionFor,
+      requestedBy: fd.get("requestedBy")?.trim() || "",
+      stipend: Number(fd.get("stipend")) || 0,
+      notes: fd.get("notes")?.trim() || "",
+    };
+  }
+
+  function getMassTimeOptions(data, day) {
+    const Mise = global.PastoralMise;
+    const times = Mise?.getMassTimesForDate?.(data, day) || [];
+    const fallback = (data.massSchedule || []).map((ms) => ms.time);
+    return [...times, "07:30", "09:00", "11:00", "18:00", ...fallback].filter((v, i, a) => a.indexOf(v) === i);
+  }
+
   function memberFormBody(m) {
     return `
       <div class="form-group"><label>Ime *</label><input name="name" value="${api.escapeHtml(m?.name || "")}" required /></div>
@@ -276,8 +319,7 @@
 
     openGregorianNakana(onDone) {
       const data = api.getData();
-      const times = data.massSchedule.map((ms) => ms.time);
-      const opts = ["07:30", "09:00", "11:00", "18:00", ...times].filter((v, i, a) => a.indexOf(v) === i);
+      const opts = getMassTimeOptions(data);
       openForm({
         title: "Gregorijanska serija (30 misa)",
         size: "lg",
@@ -319,61 +361,76 @@
     openNakana(onDone) {
       const data = api.getData();
       const day = api.getSelectedCalendarDay();
-      const times = data.massSchedule.map((ms) => ms.time);
-      const opts = ["07:30", "09:00", "11:00", "18:00", ...times].filter((v, i, a) => a.indexOf(v) === i);
+      const opts = getMassTimeOptions(data, day);
       openForm({
         title: `Nova nakana — ${api.fmtDate(day)}`,
         size: "lg",
-        body: `
-          <div class="form-group"><label>Misa (sat)</label><select name="massTime">${opts.map((t) => `<option>${t}</option>`).join("")}</select></div>
-          <div class="form-group form-wide"><label>Za koga / namjera *</label><input name="intentionFor" required placeholder="Pokoj duše…" /></div>
-          <div class="form-group"><label>Naručitelj</label><input name="requestedBy" placeholder="Ime i prezime" /></div>
-          <div class="form-group"><label>Stipendij (€)</label><input name="stipend" type="number" min="0" value="30" /></div>
-          <div class="form-group form-wide"><label>Bilješka</label><input name="notes" placeholder="Gregorian…" /></div>
-          <p class="card-sub form-wide">Nakon spremanja odaberite način plaćanja u sljedećem koraku.</p>`,
+        body: nakanaFormBody(null, opts, day),
         submitLabel: "Nastavi",
         onSubmit: (form) => {
-          const fd = new FormData(form);
-          const intentionFor = fd.get("intentionFor")?.trim();
-          if (!intentionFor) {
-            api.showToast("Unesite namjeru molitve");
-            return false;
-          }
-          const fields = {
-            date: day,
-            massTime: fd.get("massTime"),
-            intentionFor,
-            requestedBy: fd.get("requestedBy")?.trim() || "",
-            stipend: Number(fd.get("stipend")) || 0,
-            notes: fd.get("notes")?.trim() || "",
-          };
-          M().close();
-          M().confirm({
-            title: "Plaćanje nakane",
-            message: "Kako želite zabilježiti stipendij?",
-            confirmLabel: "Plaćanje odmah",
-            onConfirm: () => {
-              const Pay = global.PastoralPayment;
-              if (!Pay) {
-                api.showToast("Modul plaćanja nije učitan");
-                return;
-              }
-              Pay.runSimulation({
-                amount: fields.stipend,
-                title: fields.intentionFor,
-                subtitle: `${fields.massTime} · ${fields.requestedBy || "—"}`,
-                onSuccess: (payment) => api.saveIntentionPaid(fields, payment, onDone),
-              });
-            },
-            onCancel: () => {
-              M().confirm({
-                title: "Platiti kasnije",
-                message: "Spremiti nakanu bez plaćanja?",
-                confirmLabel: "Spremi neplaćeno",
-                onConfirm: () => api.saveIntentionUnpaid(fields, onDone),
-              });
-            },
-          });
+          const fields = readNakanaFormFields(form, day);
+          if (!fields) return false;
+          (async () => {
+            const ok = await api.confirmNakanaIfDuplicate?.(fields, null);
+            if (ok === false) return;
+            M().close();
+            M().confirm({
+              title: "Stipendij nakane",
+              message: "Je li stipendij već primljen (gotovina ili žiro)?",
+              confirmLabel: "Plaćeno — zabilježi",
+              onConfirm: () => {
+                const Pay = global.PastoralPayment;
+                if (!Pay) {
+                  api.showToast("Modul evidencije uplate nije učitan");
+                  return;
+                }
+                Pay.recordPayment({
+                  amount: fields.stipend,
+                  title: fields.intentionFor,
+                  subtitle: `${fields.massTime} · ${fields.requestedBy || "—"}`,
+                  onSuccess: (payment) => api.saveIntentionPaid(fields, payment, onDone),
+                });
+              },
+              onCancel: () => {
+                M().confirm({
+                  title: "Platiti kasnije",
+                  message: "Spremiti nakanu bez plaćanja?",
+                  confirmLabel: "Spremi neplaćeno",
+                  onConfirm: () => api.saveIntentionUnpaid(fields, onDone),
+                });
+              },
+            });
+          })();
+          return false;
+        },
+      });
+    },
+
+    openEditNakana(recordId, onDone) {
+      const data = api.getData();
+      const record = (data.intentions || []).find((n) => n.id === recordId);
+      if (!record) {
+        api.showToast("Nakana nije pronađena");
+        return;
+      }
+      const opts = [...getMassTimeOptions(data, record.date), record.massTime].filter((v, i, a) => a.indexOf(v) === i);
+      openForm({
+        title: `Uredi nakanu — ${api.fmtDate(record.date)}`,
+        size: "lg",
+        body: `${nakanaFormBody(record, opts, record.date, { editableDate: true })}
+          ${record.paid ? `<p class="card-sub form-wide">Plaćeno${record.paymentId ? ` · ref. ${api.escapeHtml(record.paymentId)}` : ""}. Status plaćanja se ovdje ne mijenja.</p>` : ""}`,
+        submitLabel: "Spremi",
+        onSubmit: (form) => {
+          const fields = readNakanaFormFields(form, record.date, { editableDate: true });
+          if (!fields) return false;
+          (async () => {
+            const ok = await api.confirmNakanaIfDuplicate?.(fields, record.id);
+            if (ok === false) return;
+            api.updateNakana?.(record.id, fields);
+            M().close();
+            api.showToast("Nakana ažurirana");
+            onDone?.();
+          })();
           return false;
         },
       });
