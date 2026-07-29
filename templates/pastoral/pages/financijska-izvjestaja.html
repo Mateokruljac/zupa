@@ -1,0 +1,58 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block topbar_actions %}
+<a href="{% page_url 'blagajna' %}" class="btn btn-ghost btn-sm">Blagajna</a>
+{% endblock %}
+
+{% block content %}
+<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+  <div class="form-group">
+    <label>Godina</label>
+    <input type="number" name="year" value="{{ report_year }}" min="2020" max="2035" class="form-control" style="width:100px">
+  </div>
+  <div class="form-group">
+    <label>Kvartal</label>
+    <select name="q">
+      <option value="1" {% if report_quarter == 1 %}selected{% endif %}>Q1</option>
+      <option value="2" {% if report_quarter == 2 %}selected{% endif %}>Q2</option>
+      <option value="3" {% if report_quarter == 3 %}selected{% endif %}>Q3</option>
+      <option value="4" {% if report_quarter == 4 %}selected{% endif %}>Q4</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary btn-sm">Prikaži</button>
+</form>
+
+<div class="kpi-row" style="margin-bottom:16px">
+  <article class="card kpi-card"><p class="card-label">Godišnji ulaz</p><p class="card-value">{{ year_summary.in_sum|money_eur }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Godišnji izlaz</p><p class="card-value">{{ year_summary.out_sum|money_eur }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Godišnji saldo</p><p class="card-value">{{ year_summary.balance|money_eur }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Q{{ report_quarter }} saldo</p><p class="card-value">{{ quarter_summary.balance|money_eur }}</p></article>
+</div>
+
+<section class="card" style="margin-bottom:16px">
+  <h2 class="section-title">Kvartal Q{{ report_quarter }} / {{ report_year }}</h2>
+  <p class="card-sub">Plavi dnevnik — {{ quarter_summary.count }} unosa · ulaz {{ quarter_summary.in_sum|money_eur }} · izlaz {{ quarter_summary.out_sum|money_eur }}</p>
+</section>
+
+<section class="card" style="margin-bottom:16px">
+  <h2 class="section-title">Župna statistika</h2>
+  <div class="kpi-row">
+    <article class="card kpi-card"><p class="card-label">Nakane ovaj mjesec</p><p class="card-value">{{ stats.intentionsMonth }}</p></article>
+    <article class="card kpi-card"><p class="card-label">Plaćeno nakana</p><p class="card-value">{{ stats.paidPct }}%</p></article>
+    <article class="card kpi-card"><p class="card-label">Lukno plaćeno</p><p class="card-value">{{ stats.luknoPaid }}</p></article>
+    <article class="card kpi-card"><p class="card-label">Lukno duguje</p><p class="card-value">{{ stats.luknoUnpaid }}</p></article>
+  </div>
+</section>
+
+{% if stats.debtCategories %}
+<section class="card">
+  <h2 class="section-title">Neplaćena dugovanja po kategoriji</h2>
+  <div style="display:flex;flex-wrap:wrap;gap:8px">
+    {% for c in stats.debtCategories %}
+    <span class="badge">{{ c.label }}: {{ c.count }}</span>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

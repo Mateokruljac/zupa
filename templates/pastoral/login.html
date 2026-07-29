@@ -1,0 +1,85 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prijava — Pastoral</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <script src="{% static 'js/theme-init.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <script src="{% static 'js/parish-config.js' %}"></script>
+  <script src="{% static 'js/theme-picker.js' %}"></script>
+  <style>:root { --tenant-primary: #5c2e3a; --tenant-accent: #b8922a; }</style>
+</head>
+<body data-page="login" class="auth-page"{% if otp_mode %} data-otp-mode="1"{% endif %}>
+  {% if messages %}
+  <div style="max-width:400px;margin:24px auto 0">
+    {% for message in messages %}<p class="card" style="padding:12px">{{ message }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="auth-card fx-auth-glow" style="max-width:400px">
+    <div style="text-align:center;margin-bottom:20px">
+      <span class="tenant-logo tenant-logo-lg" style="color:var(--tenant-primary)">
+        <svg viewBox="0 0 48 48" class="tenant-logo-svg"><rect width="48" height="48" rx="10" fill="currentColor" opacity="0.12"/><path d="M24 10v28M16 20h16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+      </span>
+    </div>
+    <h1>Župni ured</h1>
+    <p style="color:var(--text-muted);font-size:0.9rem;margin:0">Prijava</p>
+
+    <div id="login-step-otp" class="login-step{% if not otp_mode %} hidden{% endif %}" style="margin-top:24px">
+      <p id="login-otp-status" class="card-sub{% if not otp_mode %} hidden{% endif %}" style="margin:0 0 12px">
+        {% if otp_mode %}
+        Kod je poslan na e-mail{% if otp_recipient %} ({{ otp_recipient }}){% endif %}. Unesite ga ispod.
+        {% endif %}
+      </p>
+      <p id="login-otp-error" class="login-otp-error hidden"></p>
+
+      <form method="post" id="login-otp-form" class="login-otp-panel">
+        {% csrf_token %}
+        <div class="form-group">
+          {{ otp_form.code.label_tag }}
+          {{ otp_form.code }}
+          {% if otp_form.code.errors %}<p class="form-error">{{ otp_form.code.errors.0 }}</p>{% endif %}
+        </div>
+        <button type="submit" class="btn btn-primary fx-btn-shine" style="width:100%">Potvrdi kod i uđi</button>
+      </form>
+      <div class="login-otp-actions" style="margin-top:12px;text-align:center">
+        <button type="button" class="btn btn-ghost btn-sm" id="login-otp-back">← Promijeni e-mail</button>
+      </div>
+    </div>
+
+    <div id="login-step-credentials" class="login-step{% if otp_mode %} hidden{% endif %}">
+      <form id="login-form" data-otp-js="1" style="margin-top:24px">
+        {% csrf_token %}
+        <div class="form-group">
+          {{ form.email.label_tag }}
+          {{ form.email }}
+          {% if form.email.errors %}<p class="form-error">{{ form.email.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="form-group">
+          {{ form.role.label_tag }}
+          {{ form.role }}
+        </div>
+        <div class="form-group">
+          <label>{{ form.gdpr_consent }} {{ form.gdpr_consent.label }}</label>
+          {% if form.gdpr_consent.errors %}<p class="form-error">{{ form.gdpr_consent.errors.0 }}</p>{% endif %}
+        </div>
+        <p id="login-credentials-error" class="login-otp-error hidden"></p>
+        <button type="submit" class="btn btn-primary fx-btn-shine" style="width:100%">Pošalji kod za prijavu</button>
+      </form>
+    </div>
+
+    <p style="margin-top:20px;text-align:center;font-size:0.9rem;color:var(--text-muted)">
+      <a href="{% url 'pastoral:public_index' %}">Javni obrasci</a> — krizma, krštenje, pričest, ukop
+    </p>
+  </div>
+  <footer class="auth-footer card-sub" style="margin-top:32px;text-align:center">
+    Pastoral · župna administracija
+  </footer>
+  <script src="{% static 'js/pastoral-shell.js' %}"></script>
+  <script src="{% static 'js/pastoral-otp-login.js' %}"></script>
+</body>
+</html>

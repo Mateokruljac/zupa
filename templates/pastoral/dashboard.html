@@ -1,0 +1,101 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block topbar_actions %}
+<a href="{% page_url 'nakane' %}" class="btn btn-primary btn-sm">+ Nakana</a>
+{% endblock %}
+
+{% block content %}
+{% include "pastoral/partials/liturgical_day.html" with lit_day=liturgical_day %}
+
+<div class="kpi-row">
+  <a href="{% page_url 'nakane' %}?date=today" class="card kpi-card kpi-card--link">
+    <p class="card-label">Nakane danas</p>
+    <p class="card-value">{{ intentions_today|length }}</p>
+  </a>
+  <a href="{% page_url 'dugovanja' %}" class="card kpi-card kpi-card--link">
+    <p class="card-label">Neplaćene nakane</p>
+    <p class="card-value">{{ stats.unpaid_nakane }}</p>
+  </a>
+  <a href="{% page_url 'krizma' %}" class="card kpi-card kpi-card--link">
+    <p class="card-label">Krizmanici ({{ conf_year.year|default:"—" }})</p>
+    <p class="card-value">{{ conf_year.candidates|length|default:0 }}</p>
+  </a>
+  <a href="{% page_url 'kalendar' %}" class="card kpi-card kpi-card--link">
+    <p class="card-label">Otvoreni zadaci</p>
+    <p class="card-value">{{ stats.open_tasks }}</p>
+  </a>
+  <a href="{% page_url 'podsjetnici' %}" class="card kpi-card kpi-card--link">
+    <p class="card-label">Podsjetnici</p>
+    <p class="card-value">{{ stats.reminders_count }}</p>
+  </a>
+  <a href="{% page_url 'dugovanja' %}" class="card kpi-card kpi-card--link">
+    <p class="card-label">Dugovanja</p>
+    <p class="card-value">{{ stats.debts_unpaid }}</p>
+  </a>
+</div>
+
+{% if reminders %}
+<section class="card wide reminders-dashboard-card" style="margin-top:20px">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <h2 class="section-title" style="margin:0">Podsjetnici <span class="badge badge-urgent">{{ reminders|length }}</span></h2>
+    <a href="{% page_url 'podsjetnici' %}" class="btn btn-primary btn-sm">Cijeli inbox</a>
+  </div>
+  {% for r in reminders %}
+  <a href="{% reminder_link r.href %}" class="list-item list-item--clickable">
+    <div><span class="badge">{{ r.category }}</span> <strong>{{ r.title }}</strong><br><small>{{ r.sub }}</small></div>
+    {% if r.priority == 'visoka' %}<span class="badge badge-urgent">hitno</span>{% endif %}
+  </a>
+  {% endfor %}
+</section>
+{% endif %}
+
+<div class="dashboard-grid" style="margin-top:20px">
+  <section class="card">
+    <h2 class="section-title">Današnje misne nakane</h2>
+    {% for n in intentions_today %}
+    <a href="{% page_url 'nakane' %}?date=today" class="list-item list-item--clickable">
+      <div><strong>{{ n.intentionFor }}</strong><br><small>{{ n.massTime }} · {{ n.requestedBy }}</small></div>
+      {% if n.paid %}<span class="badge badge-done">plaćeno</span>{% else %}<span class="badge badge-urgent">neplaćeno</span>{% endif %}
+    </a>
+    {% empty %}
+    <p class="empty-state">Nema nakana za danas.</p>
+    {% endfor %}
+    <a href="{% page_url 'nakane' %}?date=today" class="btn btn-primary btn-sm">Kalendar nakana</a>
+  </section>
+
+  <section class="card">
+    <h2 class="section-title">Sljedeći sakramenti</h2>
+    {% for s in sacraments_upcoming %}
+    <div class="list-item"><span class="badge badge-sacrament">{{ s.type }}</span> <strong>{{ s.name }}</strong> — {{ s.date|hr_date }}</div>
+    {% empty %}
+    <p class="empty-state">—</p>
+    {% endfor %}
+  </section>
+
+  <section class="card wide">
+    <h2 class="section-title">Prioritetni zadaci{% if stats.overdue_tasks %} <span class="badge badge-urgent">{{ stats.overdue_tasks }} zakašnjelo</span>{% endif %}</h2>
+    {% for t in open_tasks %}
+    <a href="{% page_url 'kalendar' %}" class="list-item list-item--clickable">
+      <strong>{{ t.title }}</strong>
+      <span class="badge {% if t.due and t.due < today or t.priority == 'visoka' %}badge-urgent{% endif %}">{{ t.due|hr_date }}</span>
+    </a>
+    {% empty %}
+    <p class="empty-state">Nema otvorenih zadataka.</p>
+    {% endfor %}
+    <a href="{% page_url 'kalendar' %}" class="btn btn-primary btn-sm">Kalendar i zadaci</a>
+  </section>
+
+  <section class="card">
+    <h2 class="section-title">Lukno — neplaćeno</h2>
+    {% for f in lukno_unpaid %}
+    <a href="{% page_url 'obitelji' %}?family={{ f.id }}" class="list-item list-item--clickable">
+      <strong>{{ f.surname }}</strong><br><small>{{ f.address }}</small>
+    </a>
+    {% empty %}
+    <p class="empty-state">Sve obitelji su označene kao platile lukno.</p>
+    {% endfor %}
+    <a href="{% page_url 'dugovanja' %}" class="btn btn-primary btn-sm">Sva dugovanja</a>
+  </section>
+</div>
+{% endblock %}

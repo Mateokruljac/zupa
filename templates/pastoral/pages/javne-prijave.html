@@ -1,0 +1,61 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block topbar_actions %}
+<a href="{% url 'pastoral:public_index' %}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Javni obrasci</a>
+{% endblock %}
+
+{% block content %}
+<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;align-items:end">
+  <div class="form-group">
+    <label>Status</label>
+    <select name="status" onchange="this.form.submit()">
+      <option value="all" {% if submission_filters.status == 'all' %}selected{% endif %}>Sve</option>
+      <option value="nova" {% if submission_filters.status == 'nova' %}selected{% endif %}>Nove ({{ submission_nova_count }})</option>
+      <option value="preuzeto" {% if submission_filters.status == 'preuzeto' %}selected{% endif %}>Preuzeto</option>
+    </select>
+  </div>
+</form>
+
+<section class="card">
+  <h2 class="section-title">Prijave s weba {% if submission_nova_count %}<span class="badge badge-urgent">{{ submission_nova_count }} novih</span>{% endif %}</h2>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Obrazac</th><th>Datum</th><th>Ime</th><th>Telefon</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for s in submission_rows %}
+        <tr>
+          <td>{{ form_labels|get_item:s.formType|default:s.formType|default:s.type }}</td>
+          <td>{{ s.submittedAt|hr_datetime }}</td>
+          <td><strong>{{ s.name|default:"—" }}</strong></td>
+          <td>{{ s.phone|default:"—" }}</td>
+          <td>{% if s.status == 'nova' %}<span class="badge badge-urgent">nova</span>{% else %}<span class="badge badge-done">preuzeto</span>{% endif %}</td>
+          <td style="white-space:nowrap">
+            {% if s.status == 'nova' %}
+            <form method="post" style="display:inline">{% csrf_token %}
+              <input type="hidden" name="action" value="import_submission">
+              <input type="hidden" name="submission_id" value="{{ s.id }}">
+              <input type="hidden" name="year" value="{{ import_year }}">
+              <button type="submit" class="btn btn-primary btn-sm">Uvezi</button>
+            </form>
+            <form method="post" style="display:inline">{% csrf_token %}
+              <input type="hidden" name="action" value="mark_submission_imported">
+              <input type="hidden" name="submission_id" value="{{ s.id }}">
+              <button type="submit" class="btn btn-ghost btn-sm">Samo označi</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% if s.displayFields %}
+        <tr><td colspan="6" style="font-size:13px;color:var(--muted,#6d6760)">
+          {% for f in s.displayFields %}{{ f.label }}: {{ f.value }}{% if not forloop.last %} · {% endif %}{% endfor %}
+        </td></tr>
+        {% endif %}
+        {% empty %}
+        <tr><td colspan="6" class="empty-state">Nema prijava.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

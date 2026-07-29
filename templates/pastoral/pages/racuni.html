@@ -1,0 +1,77 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block topbar_actions %}
+<a href="{% page_url 'dugovanja' %}?view=zupa-duguje" class="btn btn-ghost btn-sm">Dugovanja župe</a>
+<a href="{% page_url 'blagajna' %}" class="btn btn-ghost btn-sm">Blagajna</a>
+{% endblock %}
+
+{% block content %}
+<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+  <div class="form-group">
+    <label>Godina</label>
+    <select name="year" onchange="this.form.submit()">
+      <option value="all" {% if invoice_filters.year == 'all' %}selected{% endif %}>Sve</option>
+      {% for y in invoice_years %}
+      <option value="{{ y }}" {% if invoice_filters.year == y %}selected{% endif %}>{{ y }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Status</label>
+    <select name="status" onchange="this.form.submit()">
+      <option value="all" {% if invoice_filters.status == 'all' %}selected{% endif %}>Svi</option>
+      {% for sid, label in invoice_status_labels.items %}
+      <option value="{{ sid }}" {% if invoice_filters.status == sid %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+<div class="kpi-row" style="margin-bottom:16px">
+  <article class="card kpi-card"><p class="card-label">Računa u prikazu</p><p class="card-value">{{ invoice_summary.count }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Otvoreno</p><p class="card-value">{{ invoice_summary.open }}</p><p class="card-sub">{{ invoice_summary.unpaid_sum|money_eur }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Plaćeno</p><p class="card-value">{{ invoice_summary.paid_sum|money_eur }}</p></article>
+</div>
+
+<section class="card" style="margin-bottom:16px">
+  <h2 class="section-title">Novi ulazni račun</h2>
+  <form method="post" class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;max-width:900px">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_invoice">
+    {{ invoice_form.as_p }}
+    <div style="grid-column:1/-1"><button type="submit" class="btn btn-primary btn-sm">+ Dodaj račun</button></div>
+  </form>
+</section>
+
+<section class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Broj</th><th>Dobavljač</th><th>Opis</th><th>Iznos</th><th>Rok</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for inv in invoice_rows %}
+        <tr>
+          <td>{{ inv.number|default:"—" }}</td>
+          <td>{{ inv.supplierName|default:"—" }}</td>
+          <td>{{ inv.description|default:"—" }}</td>
+          <td>{{ inv.total|money_eur }}</td>
+          <td>{{ inv.dueDate|hr_date }}</td>
+          <td><span class="badge">{{ invoice_status_labels|get_item:inv.status|default:inv.status }}</span></td>
+          <td>
+            {% if inv.status != 'placen' %}
+            <form method="post" style="display:inline">{% csrf_token %}
+              <input type="hidden" name="action" value="mark_invoice_paid">
+              <input type="hidden" name="invoice_id" value="{{ inv.id }}">
+              <button type="submit" class="btn btn-ghost btn-sm">Plaćeno</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="empty-state">Nema računa.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

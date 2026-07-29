@@ -1,0 +1,21 @@
+{% load pastoral_tags %}
+{% for issue in issues %}
+<tr data-issue-id="{{ issue.id }}">
+  <td>{{ issue.weekStart|hr_date }} – {{ issue.weekEnd|hr_date }}</td>
+  <td><strong>{{ issue.title }}</strong></td>
+  <td>
+    <span class="badge {% if issue.status == 'nacrt' %}badge-pending{% else %}badge-done{% endif %}">
+      {% if issue.status == 'nacrt' %}nacrt{% else %}izdan{% endif %}
+    </span>
+  </td>
+  <td>{{ issue.createdAt|hr_datetime }}</td>
+  <td class="listic-history-actions">
+    <button type="button" class="btn btn-ghost btn-sm" data-listic-view="{{ issue.id }}">Pregled</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-listic-edit="{{ issue.id }}">Uredi</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-listic-print-id="{{ issue.id }}">Ispis</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-listic-del="{{ issue.id }}">Obriši</button>
+  </td>
+</tr>
+{% empty %}
+<tr class="listic-history-empty"><td colspan="5"><div class="empty-state ui-empty-fancy"><p>Još nema spremljenih listića. Sastavite prvi u kartici „Sastavi listić”.</p></div></td></tr>
+{% endfor %}

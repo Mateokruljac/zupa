@@ -1,0 +1,30 @@
+{% extends "pastoral/base.html" %}
+
+{% block content %}
+<section class="card" style="max-width:640px">
+  <h2 class="section-title">Podaci o župi</h2>
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_settings">
+    {{ settings_form.as_p }}
+    <button type="submit" class="btn btn-primary" style="margin-top:16px">Spremi postavke</button>
+  </form>
+</section>
+
+{% if parish_decree %}
+<section class="card" style="margin-top:20px">
+  <h2 class="section-title">Kanonski okvir</h2>
+  <p class="card-sub">{{ parish_decree.decreeRef }} · {{ parish_decree.territory }}</p>
+</section>
+{% endif %}
+
+<section class="card" style="margin-top:20px">
+  <h2 class="section-title">Demo podaci</h2>
+  <p class="card-sub">Vrati početnu demo bazu (kao nakon instalacije).</p>
+  <form method="post" onsubmit="return confirm('Vratiti demo podatke?');">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="reset_demo">
+    <button type="submit" class="btn btn-ghost">Vrati demo podatke</button>
+  </form>
+</section>
+{% endblock %}

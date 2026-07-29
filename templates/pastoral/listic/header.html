@@ -1,0 +1,7 @@
+<header class="listic-print-header">
+  <p class="listic-print-meta">{{ settings.diocese }}</p>
+  <h1>{{ settings.name|default:"Župa" }}</h1>
+  <p class="listic-print-week">{{ settings.city }} · tjedan {{ week_start_fmt }} – {{ week_end_fmt }}</p>
+  <p class="listic-print-pastor">Župnik: {{ settings.pastor }}</p>
+  <p class="listic-print-liturgy"><em>Liturgijska boja:</em> {{ liturgy_color }}</p>
+</header>

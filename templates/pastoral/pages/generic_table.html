@@ -1,0 +1,41 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block content %}
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          {% for key, label in columns %}
+          <th>{{ label }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          {% for key, label in columns %}
+          <td>
+            {% with val=row|get_item:key %}
+              {% if key == "done" or key == "paid" or key == "stipendPaid" %}
+                {% if val %}<span class="badge badge-done">da</span>{% else %}<span class="badge">ne</span>{% endif %}
+              {% elif key == "date" or key == "due" or key == "dueDate" or key == "scheduled" or key == "baptismDate" or key == "weddingDate" or key == "funeralDate" %}
+                {{ val|hr_date }}
+              {% else %}
+                {{ val|default:"—" }}
+              {% endif %}
+            {% endwith %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">Nema zapisa.</p>
+  {% endif %}
+</section>
+{% endblock %}

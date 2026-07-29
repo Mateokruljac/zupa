@@ -1,0 +1,25 @@
+<article class="listic-block-card{% if not block.enabled %} is-disabled{% endif %}" data-block-id="{{ block.id }}">
+  <div class="listic-block-card-head">
+    <label class="listic-block-enable">
+      <input type="checkbox" data-block-enabled="{{ block.id }}" {% if block.enabled %}checked{% endif %} />
+      <strong>{{ meta.label }}</strong>
+    </label>
+    <div class="listic-block-move">
+      <button type="button" class="btn btn-ghost btn-sm" data-block-up="{{ block.id }}" {% if is_first %}disabled{% endif %} title="Gore">↑</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-block-down="{{ block.id }}" {% if is_last %}disabled{% endif %} title="Dolje">↓</button>
+      {% if not meta.fixed and block.type == "custom_text" %}
+      <button type="button" class="btn btn-ghost btn-sm" data-block-del="{{ block.id }}" title="Ukloni">×</button>
+      {% endif %}
+    </div>
+  </div>
+  {% if block.type != "header" and block.type != "footer" %}
+  <input type="text" class="listic-block-title-input" data-block-title="{{ block.id }}" value="{{ block.title|default:meta.label }}" placeholder="Naslov sekcije" />
+  {% else %}
+  <span class="listic-block-fixed-title">{{ meta.label }}</span>
+  {% endif %}
+  {% if not meta.auto and block.type != "header" %}
+  <div class="listic-rte-host" data-block-body="{{ block.id }}"></div>
+  {% else %}
+  <p class="card-sub listic-block-auto-hint">{{ meta.desc }}</p>
+  {% endif %}
+</article>

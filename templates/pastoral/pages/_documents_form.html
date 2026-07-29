@@ -1,0 +1,121 @@
+{% load pastoral_tags %}
+<div class="docs-layout">
+  <aside class="card docs-sidebar">
+    <h2 class="section-title">Predlošci</h2>
+    <p class="card-sub docs-sidebar-hint">Odaberite ispisnicu — polja se automatski popune župnim podacima.</p>
+    <nav class="doc-template-nav" aria-label="Predlošci">
+      {% for cat in doc_categories %}
+      <div class="doc-template-group">
+        <h3 class="doc-template-group-title">{{ cat.label|doc_category_label }}</h3>
+        <ul class="doc-template-list">
+          {% for t in cat.templates %}
+          <li>
+            <a href="?tpl={{ t.id }}"
+               class="doc-template-link{% if selected_template and selected_template.id == t.id %} is-active{% endif %}">
+              <span class="doc-template-link-name">{{ t.name }}</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% empty %}
+      <p class="empty-state">Nema predložaka.</p>
+      {% endfor %}
+    </nav>
+  </aside>
+
+  <div class="docs-main">
+    {% if doc_mode == 'potvrde' %}
+    <form method="get" class="card doc-matica-search">
+      <input type="hidden" name="tpl" value="{{ selected_template.id|default:'' }}">
+      <div class="doc-matica-search-inner">
+        <div class="form-group doc-matica-search-field">
+          <label for="matica-q">Pretraga matice</label>
+          <input type="search" id="matica-q" name="q" value="{{ matica_query }}" placeholder="Ime, roditelji, par…" class="doc-field-input">
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm">Traži u matici</button>
+      </div>
+    </form>
+    {% if matica_results %}
+    <section class="card doc-matica-results">
+      <h2 class="section-title">Rezultati matice</h2>
+      <p class="card-sub">Kliknite zapis za automatsko popunjavanje polja.</p>
+      <div class="doc-matica-results-list">
+        {% for r in matica_results %}
+        <a href="?tpl={% if r.type == 'vjenčanja' %}potvrda_vjencanja{% elif r.type == 'umrli' %}potvrda_pogreba{% else %}potvrda_krsenja{% endif %}&record_type={{ r.type }}&record_id={{ r.id }}"
+           class="list-item list-item--clickable doc-matica-hit">
+          <span class="badge">{{ r.type }}</span>
+          <strong>{{ r.label }}</strong>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+    {% endif %}
+
+    {% if selected_template %}
+    <section class="card doc-form-card">
+      <header class="doc-form-header">
+        <div>
+          <p class="doc-form-category">{{ selected_template.category|doc_category_label }}</p>
+          <h2 class="section-title doc-form-title">{{ selected_template.name }}</h2>
+          <p class="card-sub">Ispunite polja ispod, zatim pregledajte ili ispišite dokument.</p>
+        </div>
+      </header>
+
+      <form method="post" id="doc-fields-form" class="doc-fields-form">
+        {% csrf_token %}
+        <input type="hidden" name="template_id" value="{{ selected_template.id }}">
+        <div class="doc-form-grid">
+          {% for field in selected_template.fields %}
+          {% doc_field_value field doc_prefill doc_defaults as fval %}
+          {% with wtype=field|field_widget_type %}
+          <div class="form-group{% if field|field_is_wide %} form-wide{% endif %}">
+            <label for="field_{{ field }}">{{ field|field_label }}</label>
+            {% if wtype == 'textarea' %}
+            <textarea id="field_{{ field }}" name="field_{{ field }}" rows="4" class="doc-field-input doc-field-textarea" data-field="{{ field }}" placeholder="{{ field|field_placeholder }}">{{ fval }}</textarea>
+            {% elif wtype == 'number' %}
+            <input type="number" id="field_{{ field }}" name="field_{{ field }}" class="doc-field-input" data-field="{{ field }}" value="{{ fval }}" step="0.01" min="0" placeholder="{{ field|field_placeholder }}">
+            {% elif wtype == 'date' and fval|field_date_value %}
+            <input type="date" id="field_{{ field }}" name="field_{{ field }}" class="doc-field-input" data-field="{{ field }}" value="{{ fval|field_date_value }}">
+            {% else %}
+            <input type="text" id="field_{{ field }}" name="field_{{ field }}" class="doc-field-input" data-field="{{ field }}" value="{{ fval }}" placeholder="{{ field|field_placeholder }}"{% if wtype == 'date' %} inputmode="numeric"{% endif %}>
+            {% endif %}
+          </div>
+          {% endwith %}
+          {% endfor %}
+        </div>
+
+        <div class="doc-form-actions">
+          <button type="submit" name="action" value="preview_document" class="btn btn-secondary">
+            Pregled na ekranu
+          </button>
+          <button type="submit" name="action" value="print_document" class="btn btn-primary" formtarget="_blank">
+            Ispis / PDF
+          </button>
+        </div>
+      </form>
+    </section>
+
+    {% if preview_html %}
+    <section class="card doc-preview-card">
+      <h2 class="section-title">Pregled dokumenta</h2>
+      <div class="doc-preview-box print-doc-wrap">{{ preview_html|safe }}</div>
+    </section>
+    {% endif %}
+
+    {% if doc_mode == 'dokumenti' %}
+    {% include "pastoral/pages/_documents_bulk.html" %}
+    {% endif %}
+
+    {% else %}
+    <section class="card doc-empty-state">
+      <div class="doc-empty-state-inner">
+        <p class="doc-empty-icon" aria-hidden="true">🖨</p>
+        <h2 class="section-title">Odaberite predložak</h2>
+        <p class="card-sub">S lijeve strane odaberite ispisnicu — lukno, potvrde, zapisnike ŽPV i druge župne formulare.</p>
+      </div>
+    </section>
+    {% endif %}
+  </div>
+</div>

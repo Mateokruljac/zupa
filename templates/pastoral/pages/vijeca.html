@@ -1,0 +1,43 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+  <section class="card">
+    <h2 class="section-title">Župno pastoralno vijeće (ŽPV)</h2>
+    <p class="card-sub">Sljedeći sastanak: {{ pastoral_council.nextMeeting|hr_date }}</p>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Ime</th><th>Uloga</th><th>Potvrđen</th></tr></thead>
+        <tbody>
+          {% for m in pastoral_council.members %}
+          <tr>
+            <td>{{ m.name }}</td>
+            <td>{{ m.role }}</td>
+            <td>{% if m.confirmed %}<span class="badge badge-done">da</span>{% else %}<span class="badge">ne</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <section class="card">
+    <h2 class="section-title">Župno ekonomsko vijeće (ŽEV)</h2>
+    <p class="card-sub">Pregled blagajne: {{ economic_council.nextReview|hr_date }}</p>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Ime</th><th>Uloga</th><th>Potvrđen</th></tr></thead>
+        <tbody>
+          {% for m in economic_council.members %}
+          <tr>
+            <td>{{ m.name }}</td>
+            <td>{{ m.role }}</td>
+            <td>{% if m.confirmed %}<span class="badge badge-done">da</span>{% else %}<span class="badge">ne</span>{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

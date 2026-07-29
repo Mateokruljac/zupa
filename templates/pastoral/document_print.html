@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ doc_title }} — Pastoral</title>
+  <style>
+    body { font-family: Georgia, serif; padding: 24px; color: #222; max-width: 800px; margin: 0 auto; }
+    @media print { body { padding: 12px; } .no-print { display: none; } }
+  </style>
+</head>
+<body>
+  <p class="no-print" style="margin-bottom:16px">
+    <button type="button" onclick="window.print()">Ispis</button>
+    <button type="button" onclick="window.close()">Zatvori</button>
+  </p>
+  {{ doc_html|safe }}
+  <script>window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 300); });</script>
+</body>
+</html>

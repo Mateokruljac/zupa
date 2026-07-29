@@ -1,0 +1,83 @@
+{% extends "pastoral/base.html" %}
+{% load static pastoral_tags %}
+
+{% block body_attrs %}data-needs-parish-data="1"{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% page_url 'nakane' %}" class="btn btn-ghost btn-sm">Nakane</a>
+<a href="{% page_url 'mise' %}" class="btn btn-ghost btn-sm">Mise</a>
+{% endblock %}
+
+{% block content %}
+<div id="page-root" data-django-page="1" data-week-start="{{ week_start }}">
+  <div class="listic-tabs card" role="tablist">
+    <button type="button" class="listic-tab is-active" data-tab="edit">Sastavi listić</button>
+    <button type="button" class="listic-tab" data-tab="layout">Raspored blokova</button>
+    <button type="button" class="listic-tab" data-tab="history">Povijest ({{ listic_issues|length }})</button>
+  </div>
+
+  <div class="listic-panel" data-panel="edit">
+    <div class="listic-layout">
+      <section class="card listic-form-card">
+        <h2 class="section-title">Sastavi listić za tjedan</h2>
+        <div class="listic-week-row">
+          <div class="form-group">
+            <label for="listic-week-start">Tjedan (ponedjeljak)</label>
+            <input type="date" id="listic-week-start" value="{{ week_start }}" />
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" id="listic-autofill">Osvježi iz župe</button>
+        </div>
+        <div class="listic-blocks-builder" id="listic-builder-edit">
+          {% include "pastoral/listic/block_builder.html" with blocks=listic_edit_layout.blocks block_types=block_types %}
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" data-add-text-block="edit">+ Tekstualni blok</button>
+        <div class="listic-actions">
+          <button type="button" class="btn btn-primary" id="listic-save-issue">Spremi</button>
+          <button type="button" class="btn btn-secondary" id="listic-print-btn">Ispis</button>
+          <button type="button" class="btn btn-ghost hidden" id="listic-cancel-edit">Novi</button>
+        </div>
+      </section>
+      <section class="card listic-preview-card">
+        <h2 class="section-title">Pregled</h2>
+        <div id="listic-preview" class="listic-preview">{{ initial_preview_html|safe }}</div>
+      </section>
+    </div>
+  </div>
+
+  <div class="listic-panel hidden" data-panel="layout">
+    <section class="card">
+      <h2 class="section-title">Zadani raspored</h2>
+      <div class="listic-blocks-builder" id="listic-builder-layout">
+        {% include "pastoral/listic/block_builder.html" with blocks=listic_layout.blocks block_types=block_types %}
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" data-add-text-block="layout">+ Tekstualni blok</button>
+      <div class="listic-actions">
+        <button type="button" class="btn btn-primary" id="listic-save-default-layout">Spremi raspored</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="listic-reset-layout">Vrati zadano</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="listic-panel hidden" data-panel="history">
+    <section class="card">
+      <h2 class="section-title">Povijest</h2>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Tjedan</th><th>Naslov</th><th>Status</th><th>Datum</th><th></th></tr></thead>
+          <tbody id="listic-history-body">
+            {% include "pastoral/listic/history_rows.html" with issues=listic_issues %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+{{ listic_bootstrap|json_script:"listic-initial-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/pastoral-print.js' %}"></script>
+<script src="{% static 'js/rich-text-editor.js' %}"></script>
+<script src="{% static 'js/modal-kit.js' %}"></script>
+<script src="{% static 'js/zupni-listic-engine.js' %}"></script>
+{% endblock %}

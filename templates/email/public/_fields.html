@@ -1,0 +1,25 @@
+<table role="presentation" width="100%" style="font-size:14px;color:#5c5652;margin:0;">
+  {% for row in fields %}
+  <tr>
+    <td style="padding:10px 0;border-bottom:1px solid #eee8e2;vertical-align:top;width:42%;"><strong>{{ row.label }}:</strong></td>
+    <td style="padding:10px 0;border-bottom:1px solid #eee8e2;text-align:right;vertical-align:top;">{{ row.value }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% if phone %}
+<table role="presentation" width="100%" style="margin:20px 0 0;background:#faf8f6;border-radius:10px;border-left:4px solid {{ accent_color|default:'#b8922a' }};">
+  <tr>
+    <td style="padding:16px 20px;">
+      <p style="margin:0 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:#7a726c;">Kontakt telefon</p>
+      <p style="margin:0;font-size:18px;font-weight:600;color:{{ primary_color|default:'#5c2e3a' }};">
+        <a href="tel:{{ phone }}" style="color:inherit;text-decoration:none;">{{ phone }}</a>
+      </p>
+      {% if email and email != '—' %}
+      <p style="margin:8px 0 0;font-size:14px;color:#5c5652;">
+        E-mail: <a href="mailto:{{ email }}" style="color:{{ primary_color|default:'#5c2e3a' }};">{{ email }}</a>
+      </p>
+      {% endif %}
+    </td>
+  </tr>
+</table>
+{% endif %}

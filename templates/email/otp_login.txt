@@ -1,0 +1,14 @@
+Pastoral — kod za prijavu: {{ otp_code }}
+
+Župa: {{ parish_name }}
+
+Netko se pokušava prijaviti u Pastoral administraciju.
+
+E-mail prijave: {{ user_email }}
+Uloga: {{ role_label }}
+Vrijedi: {{ ttl_minutes }} minuta.
+
+Ako niste zatražili prijavu, zanemarite ovu poruku i obavijestite župni ured.
+
+---
+Pastoral · župna administracija

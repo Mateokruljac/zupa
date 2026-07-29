@@ -1,0 +1,36 @@
+{% extends "email/base.html" %}
+
+{% block title %}Pastoral — kod za prijavu{% endblock %}
+
+{% block header_tagline %}Sigurnosna prijava — jednokratni kod{% endblock %}
+
+{% block content %}
+<p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#3d3835;">
+  Netko se pokušava prijaviti u <strong>Pastoral</strong> administraciju. Unesite kod ispod na stranici za prijavu.
+</p>
+<table role="presentation" width="100%" style="margin:20px 0;background:#faf8f6;border-radius:10px;border-left:4px solid {{ accent_color|default:'#b8922a' }};">
+  <tr>
+    <td style="padding:20px 24px;text-align:center;">
+      <p style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:#7a726c;">Vaš kod (OTP)</p>
+      <p style="margin:0;font-family:ui-monospace,'Consolas',monospace;font-size:36px;font-weight:700;letter-spacing:0.22em;color:{{ primary_color|default:'#5c2e3a' }};">{{ otp_code }}</p>
+    </td>
+  </tr>
+</table>
+<table role="presentation" width="100%" style="font-size:14px;color:#5c5652;">
+  <tr>
+    <td style="padding:8px 0;border-bottom:1px solid #eee8e2;"><strong>E-mail prijave:</strong></td>
+    <td style="padding:8px 0;border-bottom:1px solid #eee8e2;text-align:right;">{{ user_email }}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px 0;border-bottom:1px solid #eee8e2;"><strong>Uloga:</strong></td>
+    <td style="padding:8px 0;border-bottom:1px solid #eee8e2;text-align:right;">{{ role_label }}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px 0;"><strong>Vrijedi:</strong></td>
+    <td style="padding:8px 0;text-align:right;">{{ ttl_minutes }} minuta</td>
+  </tr>
+</table>
+<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#8a827c;">
+  Ako niste zatražili prijavu, zanemarite ovu poruku i obavijestite župni ured.
+</p>
+{% endblock %}

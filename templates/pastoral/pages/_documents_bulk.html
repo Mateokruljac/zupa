@@ -1,0 +1,111 @@
+{% load pastoral_tags %}
+{% if selected_template %}
+<section class="card doc-bulk-card" style="margin-top:0">
+  <h2 class="section-title">Excel / CSV — serijski ispis</h2>
+  <p class="card-sub">Učitajte CSV (razdjelnik zarez ili točka-zarez), mapirajte stupce na polja predloška i ispišite pojedinačne redove.</p>
+
+  <form method="post" enctype="multipart/form-data" class="doc-bulk-upload">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upload_doc_csv">
+    <input type="hidden" name="template_id" value="{{ selected_template.id }}">
+    <div class="form-group">
+      <label for="csv_file">CSV datoteka</label>
+      <input type="file" id="csv_file" name="csv_file" accept=".csv,.txt" class="doc-field-input" required>
+    </div>
+    <button type="submit" class="btn btn-secondary btn-sm">Učitaj</button>
+  </form>
+
+  {% if import_file_name %}
+  <p class="card-sub">Učitano: <strong>{{ import_file_name }}</strong> — {{ import_rows|length }} redova, stupci: {{ import_columns|join:", " }}</p>
+  {% endif %}
+
+  {% if import_rows and selected_template.fields %}
+  <form method="post" style="margin-bottom:16px">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_doc_binding">
+    <input type="hidden" name="template_id" value="{{ selected_template.id }}">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Polje predloška</th>
+            <th>Stupac u CSV-u</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for field in selected_template.fields %}
+          <tr>
+            <td>{{ field|field_label }}</td>
+            <td>
+              <select name="map_{{ field }}" class="doc-field-input">
+                <option value="">— preskoči —</option>
+                {% for col in import_columns %}
+                <option value="{{ col }}">{{ col }}</option>
+                {% endfor %}
+              </select>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm" style="margin-top:12px">Spremi povezivanje</button>
+  </form>
+
+  <form method="post" class="doc-bulk-row-picker">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="print_doc_row">
+    <input type="hidden" name="template_id" value="{{ selected_template.id }}">
+    {% for field in selected_template.fields %}
+    <input type="hidden" name="map_{{ field }}" value="" class="doc-map-hidden" data-field="{{ field }}">
+    {% endfor %}
+    <div class="form-group">
+      <label for="row_index">Red za ispis</label>
+      <select id="row_index" name="row_index" class="doc-field-input">
+        {% for row in import_rows %}
+        <option value="{{ forloop.counter0 }}">Red {{ forloop.counter }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Ispis odabranog reda</button>
+  </form>
+  <script>
+    (function () {
+      const mapForm = document.querySelector('form input[name="action"][value="save_doc_binding"]')?.closest('form');
+      const printForm = document.querySelector('form input[name="action"][value="print_doc_row"]')?.closest('form');
+      if (!mapForm || !printForm) return;
+      function syncMaps() {
+        mapForm.querySelectorAll('select[name^="map_"]').forEach((sel) => {
+          const field = sel.name.slice(4);
+          const hidden = printForm.querySelector('.doc-map-hidden[data-field="' + field + '"]');
+          if (hidden) hidden.value = sel.value;
+        });
+      }
+      mapForm.addEventListener('change', syncMaps);
+      printForm.addEventListener('submit', syncMaps);
+      syncMaps();
+    })();
+  </script>
+  {% endif %}
+
+  {% if doc_bindings %}
+  <div style="margin-top:20px">
+    <h3 class="section-title" style="font-size:1rem">Spremljena povezivanja</h3>
+    <ul class="doc-bindings-list">
+      {% for b in doc_bindings %}
+      {% if b.templateId == selected_template.id %}
+      <li>
+        <span><strong>{{ b.templateName }}</strong> — {{ b.fileName }} ({{ b.rowCount }} redova)</span>
+        <form method="post" style="display:inline">{% csrf_token %}
+          <input type="hidden" name="action" value="delete_doc_binding">
+          <input type="hidden" name="binding_id" value="{{ b.id }}">
+          <button type="submit" class="btn btn-ghost btn-sm">Ukloni</button>
+        </form>
+      </li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</section>
+{% endif %}

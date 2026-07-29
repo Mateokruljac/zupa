@@ -1,0 +1,81 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block topbar_actions %}
+<a href="{% page_url 'obitelji' %}" class="btn btn-ghost btn-sm">Obitelji</a>
+<button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('visit-form-card').hidden=false">+ Posjet</button>
+{% endblock %}
+
+{% block content %}
+<div class="kpi-row" style="margin-bottom:16px">
+  <article class="card kpi-card"><p class="card-label">Ukupno</p><p class="card-value">{{ visit_stats.total }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Otvoreno</p><p class="card-value">{{ visit_stats.open }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Dospjelo</p><p class="card-value">{{ visit_stats.due }}</p></article>
+</div>
+
+<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+  <a href="?status=open" class="btn btn-sm {% if filter_status == 'open' %}btn-primary{% else %}btn-ghost{% endif %}">Otvoreni</a>
+  <a href="?status=done" class="btn btn-sm {% if filter_status == 'done' %}btn-primary{% else %}btn-ghost{% endif %}">Obavljeni</a>
+  <a href="?status=all" class="btn btn-sm {% if filter_status == 'all' %}btn-primary{% else %}btn-ghost{% endif %}">Svi</a>
+</div>
+
+<section id="visit-form-card" class="card" style="margin-bottom:16px" {% if not selected_visit %}hidden{% endif %}>
+  <h2 class="section-title">{% if selected_visit %}Uredi posjet{% else %}Novi posjet{% endif %}</h2>
+  <form method="post" style="display:grid;gap:12px;max-width:640px">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upsert_visit">
+    {% if selected_visit %}<input type="hidden" name="visit_id" value="{{ selected_visit.id }}">{% endif %}
+    {{ visit_form.as_p }}
+    <div style="display:flex;gap:8px">
+      <button type="submit" class="btn btn-primary btn-sm">Spremi</button>
+      <a href="{% page_url 'posjete' %}" class="btn btn-ghost btn-sm">Odustani</a>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h2 class="section-title">Popis posjeta</h2>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Osoba</th>
+          <th>Vrsta</th>
+          <th>Adresa</th>
+          <th>Svrha</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in visits %}
+        <tr>
+          <td>{{ v.scheduled|hr_date }}</td>
+          <td><strong>{{ v.person }}</strong>{% if v.familySurname %}<br><small>{{ v.familySurname }}</small>{% endif %}</td>
+          <td><span class="badge">{{ v.type }}</span></td>
+          <td>{{ v.address|default:"—" }}</td>
+          <td>{{ v.purpose|default:"—" }}</td>
+          <td>{% if v.done %}<span class="badge badge-done">obavljeno</span>{% else %}<span class="badge">planirano</span>{% endif %}</td>
+          <td style="white-space:nowrap">
+            <a href="?visit={{ v.id }}&status={{ filter_status }}" class="btn btn-ghost btn-sm">Uredi</a>
+            <form method="post" style="display:inline">{% csrf_token %}
+              <input type="hidden" name="action" value="toggle_visit">
+              <input type="hidden" name="visit_id" value="{{ v.id }}">
+              <button type="submit" class="btn btn-ghost btn-sm">{% if v.done %}Otvori{% else %}Obavljeno{% endif %}</button>
+            </form>
+            <form method="post" style="display:inline" onsubmit="return confirm('Obrisati posjet?')">{% csrf_token %}
+              <input type="hidden" name="action" value="delete_visit">
+              <input type="hidden" name="visit_id" value="{{ v.id }}">
+              <button type="submit" class="btn btn-ghost btn-sm">×</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="empty-state">Nema posjeta za odabrani filter.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

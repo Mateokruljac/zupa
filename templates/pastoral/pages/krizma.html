@@ -1,0 +1,67 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block content %}
+<div class="kpi-row" style="margin-bottom:16px">
+  <article class="card kpi-card"><p class="card-label">Krizmanici {{ conf_year }}</p><p class="card-value">{{ krizma_stats.total }}</p></article>
+  <article class="card kpi-card"><p class="card-label">U pripremi</p><p class="card-value">{{ krizma_stats.prep }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Potvrđeno</p><p class="card-value">{{ krizma_stats.confirmed }}</p></article>
+  <article class="card kpi-card">
+    <p class="card-label">Grupna naknada</p>
+    <p class="card-value">{% if confirmation.groupFeePaid %}Plaćeno{% elif confirmation.groupFee %}{{ confirmation.groupFee|money_eur }}{% else %}—{% endif %}</p>
+  </article>
+</div>
+
+<section class="card" style="margin-bottom:16px">
+  <form method="get" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+    <label>Godina krizme
+      <select name="year" onchange="this.form.submit()">
+        {% for y in conf_years %}
+        <option value="{{ y }}" {% if y == conf_year %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+  <div class="krizma-info-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px 20px;padding-top:12px;margin-top:12px;border-top:1px solid var(--border,#e8e0d8)">
+    <div><span class="card-sub">Datum krizme</span><br><strong>{{ confirmation.ceremonyDate|hr_date }}</strong></div>
+    <div><span class="card-sub">Biskup / celebrant</span><br><strong>{{ confirmation.bishop|default:"—" }}</strong></div>
+  </div>
+</section>
+
+<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+  <input type="hidden" name="year" value="{{ conf_year }}">
+  <div class="form-group"><label>Pretraži</label><input type="search" name="q" value="{{ krizma_filters.q }}" class="form-control"></div>
+  <div class="form-group"><label>Status</label>
+    <select name="status">
+      <option value="">Svi</option>
+      <option value="priprema" {% if krizma_filters.status == 'priprema' %}selected{% endif %}>Priprema</option>
+      <option value="pristupnica" {% if krizma_filters.status == 'pristupnica' %}selected{% endif %}>Pristupnica</option>
+      <option value="potvrđen" {% if krizma_filters.status == 'potvrđen' %}selected{% endif %}>Potvrđen</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary btn-sm">Filtriraj</button>
+</form>
+
+<section class="card">
+  <h2 class="section-title">Krizmanici {{ conf_year }} <span class="card-sub">{{ candidates|length }} / {{ krizma_stats.total }}</span></h2>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Ime</th><th>Škola</th><th>Razred</th><th>Skupina</th><th>Kum/ka</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for c in candidates %}
+        <tr>
+          <td><strong>{{ c.name }}</strong></td>
+          <td>{{ c.school|default:"—" }}</td>
+          <td>{{ c.class|default:"—" }}</td>
+          <td>{{ c.group|default:"—" }}</td>
+          <td>{{ c.sponsor|default:"—" }}</td>
+          <td><span class="badge">{{ c.status|default:"—" }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="empty-state">Nema krizmanika za filter.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

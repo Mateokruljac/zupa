@@ -1,0 +1,19 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block content %}
+<section class="card">
+  <h2 class="section-title">Inbox podsjetnika <span class="badge badge-urgent">{{ reminders|length }}</span></h2>
+  {% for r in reminders %}
+  <a href="{% reminder_link r.href %}" class="list-item list-item--clickable">
+    <div>
+      <span class="badge">{{ r.category }}</span>
+      <strong>{{ r.title }}</strong><br><small>{{ r.sub }}</small>
+    </div>
+    {% if r.priority == 'visoka' %}<span class="badge badge-urgent">hitno</span>{% endif %}
+  </a>
+  {% empty %}
+  <p class="empty-state">Nema otvorenih podsjetnika.</p>
+  {% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block topbar_actions %}
+<button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('book-form-card').hidden=false">+ Knjiga</button>
+{% endblock %}
+
+{% block content %}
+<section id="book-form-card" class="card" style="margin-bottom:16px" {% if not selected_book %}hidden{% endif %}>
+  <h2 class="section-title">{% if selected_book %}Uredi knjigu{% else %}Nova matična knjiga{% endif %}</h2>
+  <form method="post" style="display:grid;gap:12px;max-width:640px">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upsert_registry_book">
+    {% if selected_book %}<input type="hidden" name="book_id" value="{{ selected_book.id }}">{% endif %}
+    {{ book_form.as_p }}
+    <div style="display:flex;gap:8px">
+      <button type="submit" class="btn btn-primary btn-sm">Spremi</button>
+      <a href="{% page_url 'maticne-knjige' %}" class="btn btn-ghost btn-sm">Odustani</a>
+    </div>
+  </form>
+  {% if selected_book %}
+  <form method="post" style="margin-top:12px" onsubmit="return confirm('Obrisati zapis?')">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_registry_book">
+    <input type="hidden" name="book_id" value="{{ selected_book.id }}">
+    <button type="submit" class="btn btn-ghost btn-sm">Obriši</button>
+  </form>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2 class="section-title">Matične knjige u župi</h2>
+  {% if registry_books %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Knjiga</th>
+          <th>Vrsta</th>
+          <th>Zadnji unos</th>
+          <th>Zadnji broj</th>
+          <th>Skrbnik</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in registry_books %}
+        <tr>
+          <td><strong>{{ b.title }}</strong><br><small>{{ b.location }}</small></td>
+          <td><span class="badge">{{ b.type }}</span></td>
+          <td>{{ b.lastEntry|hr_date }}</td>
+          <td>{{ b.lastNo|default:"—" }}</td>
+          <td>{{ b.custodian|default:"—" }}</td>
+          <td>{{ b.status|default:"—" }}</td>
+          <td><a href="?book={{ b.id }}" class="btn btn-ghost btn-sm">Uredi</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="empty-state">Nema upisanih matičnih knjiga.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">Nema upisanih matičnih knjiga.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% if title %}
+<section class="listic-print-block">
+  <h2>{{ title }}</h2>
+  <div class="listic-print-body">{{ body_html|safe }}</div>
+</section>
+{% else %}
+<div class="listic-print-body">{{ body_html|safe }}</div>
+{% endif %}

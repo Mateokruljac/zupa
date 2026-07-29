@@ -1,0 +1,36 @@
+{% extends "pastoral/base.html" %}
+{% load static pastoral_tags %}
+
+{% block topbar_actions %}
+<a href="{% page_url 'mise' %}" class="btn btn-ghost btn-sm">Raspored misa</a>
+<a href="{% page_url 'zupni-listic' %}" class="btn btn-ghost btn-sm">Župni list (nakane)</a>
+<button type="button" class="btn btn-ghost btn-sm" id="nakana-gregorian-btn">Gregorijanska (30)</button>
+{% endblock %}
+
+{% block content %}
+{{ nakane_bootstrap|json_script:"nakane-bootstrap-data" }}
+
+<div class="nakane-layout nakane-mode-today" id="nakane-root">
+  <div class="nakane-workspace" id="nakane-workspace">
+    <div class="nakane-split" id="nakane-split">
+      <section class="card nakane-split-cal nakane-cal-wrap" id="nakane-calendar"></section>
+      <div class="nakane-split-panel" id="nakane-day-panel"></div>
+    </div>
+  </div>
+
+  <div class="nakane-evidence-wrap" id="nakane-evidence">
+    <section class="card nakane-stats-section" id="nakane-stats"></section>
+    <section class="card" id="nakane-table-section">
+      <div id="nakane-table"></div>
+    </section>
+  </div>
+</div>
+
+<form id="nakane-csrf-form" method="post" hidden>{% csrf_token %}</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/liturgical-api.js' %}"></script>
+<script src="{% static 'js/modal-kit.js' %}"></script>
+<script src="{% static 'js/nakane-engine.js' %}"></script>
+{% endblock %}

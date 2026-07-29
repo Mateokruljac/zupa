@@ -1,0 +1,21 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Javni obrasci{% endblock %} — Pastoral</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <style>:root { --tenant-primary: #5c2e3a; --tenant-accent: #b8922a; }</style>
+</head>
+<body class="public-page">
+  <main class="public-wrap" style="max-width:720px;margin:0 auto;padding:24px">
+    {% if messages %}
+    {% for message in messages %}<div class="card" style="margin-bottom:16px;padding:12px">{{ message }}</div>{% endfor %}
+    {% endif %}
+    {% block content %}{% endblock %}
+    <p style="text-align:center;margin-top:32px"><a href="{% url 'pastoral:login' %}">Prijava u župni ured</a></p>
+  </main>
+</body>
+</html>

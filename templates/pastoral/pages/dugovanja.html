@@ -1,0 +1,129 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block topbar_actions %}
+<a href="{% page_url 'obitelji' %}" class="btn btn-ghost btn-sm">Obitelji</a>
+<a href="{% page_url 'nakane' %}" class="btn btn-ghost btn-sm">Nakane</a>
+{% endblock %}
+
+{% block content %}
+<nav class="plan-tabs" style="margin-bottom:16px">
+  <a href="?view=prema-zupi{% if debts_filters.q %}&q={{ debts_filters.q|urlencode }}{% endif %}" class="plan-tab-btn {% if debts_view == 'prema-zupi' %}active{% endif %}">
+    Prema župi {% if debts_receivable_count %}<span class="debts-cat-count">{{ debts_receivable_count }}</span>{% endif %}
+  </a>
+  <a href="?view=zupa-duguje{% if debts_filters.q %}&q={{ debts_filters.q|urlencode }}{% endif %}" class="plan-tab-btn {% if debts_view == 'zupa-duguje' %}active{% endif %}">
+    Dugovanja župe {% if debts_payable_count %}<span class="debts-cat-count">{{ debts_payable_count }}</span>{% endif %}
+  </a>
+</nav>
+
+<form method="get" class="debts-toolbar card">
+  <input type="hidden" name="view" value="{{ debts_view }}">
+  <div class="debts-filters-row">
+    <div class="form-group">
+      <label>Godina</label>
+      <select name="year" onchange="this.form.submit()">
+        <option value="all">Sve godine</option>
+        {% for y in debts_years %}
+        <option value="{{ y }}" {% if debts_filters.year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select name="status" onchange="this.form.submit()">
+        <option value="unpaid" {% if debts_filters.status == 'unpaid' %}selected{% endif %}>Samo neplaćeno</option>
+        <option value="all" {% if debts_filters.status == 'all' %}selected{% endif %}>Sve stavke</option>
+        <option value="paid" {% if debts_filters.status == 'paid' %}selected{% endif %}>Plaćeno</option>
+      </select>
+    </div>
+    <div class="form-group form-wide">
+      <label>Pretraži</label>
+      <input type="search" name="q" value="{{ debts_filters.q }}" placeholder="Prezime, nakana, sakrament…">
+    </div>
+    <div class="form-group" style="align-self:end">
+      <button type="submit" class="btn btn-primary btn-sm">Filtriraj</button>
+    </div>
+  </div>
+  <div class="debts-cat-chips" role="group" aria-label="Kategorija">
+    <a href="?view={{ debts_view }}&status={{ debts_filters.status }}&year={{ debts_filters.year }}&q={{ debts_filters.q|urlencode }}" class="debts-cat-chip {% if debts_filters.category == 'all' %}is-active{% endif %}">Sve</a>
+    {% for c in debts_categories %}
+    <a href="?view={{ debts_view }}&cat={{ c.id }}&status={{ debts_filters.status }}&year={{ debts_filters.year }}&q={{ debts_filters.q|urlencode }}" class="debts-cat-chip {% if debts_filters.category == c.id %}is-active{% endif %}">{{ c.label }}</a>
+    {% endfor %}
+  </div>
+  {% if debts_view == 'zupa-duguje' %}
+  <p class="families-toolbar-hint" style="margin:12px 0 0">Obveze župe prema dobavljačima, režijama, biskupiji i drugim vjerovnicima.</p>
+  {% else %}
+  <p class="families-toolbar-hint" style="margin:12px 0 0">Potraživanja od vjernika: lukno, nakane, sakramenti i ostalo.</p>
+  {% endif %}
+</form>
+
+<div class="kpi-row" style="margin:16px 0">
+  <article class="card kpi-card">
+    <p class="card-label">{% if debts_view == 'zupa-duguje' %}Neplaćene obveze{% else %}Neplaćeno (filtar){% endif %}</p>
+    <p class="card-value">{{ debts_summary.unpaid_count }}</p>
+    <p class="card-sub">{{ debts_summary.total_unpaid|money_eur }}</p>
+  </article>
+  <article class="card kpi-card">
+    <p class="card-label">Plaćeno u prikazu</p>
+    <p class="card-value">{{ debts_summary.paid_count }}</p>
+  </article>
+</div>
+
+{% if debts_view == 'zupa-duguje' %}
+<section class="card" style="margin-bottom:16px">
+  <h2 class="section-title">Novo dugovanje župe</h2>
+  <form method="post" class="form-grid" style="display:grid;gap:12px;max-width:720px">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_parish_debt">
+    {{ debt_form.as_p }}
+    <button type="submit" class="btn btn-primary btn-sm">+ Dodaj</button>
+  </form>
+</section>
+{% endif %}
+
+<section class="card page-table-section">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Stavka</th>
+          <th>Kategorija</th>
+          <th>Iznos</th>
+          <th>Rok</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in debts_rows %}
+        <tr>
+          <td>
+            <strong>{{ r.label }}</strong>
+            {% if r.sublabel %}<br><small>{{ r.sublabel }}</small>{% endif %}
+            {% if r.contact %}<br><small>{{ r.contact }}</small>{% endif %}
+          </td>
+          <td><span class="badge">{{ r.category|debt_cat_label:debts_direction }}</span></td>
+          <td>{{ r.amount|money_eur }}</td>
+          <td>{{ r.dueDate|hr_date }}</td>
+          <td>{% if r.paid %}<span class="badge badge-done">plaćeno</span>{% else %}<span class="badge badge-urgent">duguje</span>{% endif %}</td>
+          <td>
+            {% if not r.paid %}
+            <form method="post" style="display:inline">{% csrf_token %}
+              <input type="hidden" name="action" value="mark_debt_paid">
+              <input type="hidden" name="source" value="{{ r.source|to_json }}">
+              <button type="submit" class="btn btn-ghost btn-sm">Označi plaćeno</button>
+            </form>
+            {% endif %}
+            {% if r.link_page %}
+            <a href="{% page_url r.link_page %}{% if r.link_query %}?{{ r.link_query }}{% endif %}" class="btn btn-ghost btn-sm">Otvori</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="empty-state">Nema stavki za odabrane filtere.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

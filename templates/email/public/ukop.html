@@ -1,0 +1,16 @@
+{% extends "email/base.html" %}
+
+{% block title %}Nova prijava — Ukop{% endblock %}
+
+{% block header_tagline %}Javna prijava — ukop / pogreb{% endblock %}
+
+{% block content %}
+<p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#3d3835;">
+  Stigla je nova <strong>prijava za ukop</strong> putem javnog obrasca.
+</p>
+<p style="margin:0 0 20px;font-size:13px;color:#8a827c;">Primljeno: {{ submitted_at }}</p>
+{% include "email/public/_fields.html" %}
+<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#8a827c;">
+  U hitnim slučajevima kontaktirajte obitelj na navedeni telefon. Pregled u modulu <strong>Javne prijave</strong>.
+</p>
+{% endblock %}

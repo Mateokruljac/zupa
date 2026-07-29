@@ -1,0 +1,54 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block topbar_actions %}
+<button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('add-wedding-form').hidden=false">+ Vjenčanje</button>
+{% endblock %}
+
+{% block content %}
+<div class="kpi-row" style="margin-bottom:16px">
+  <article class="card kpi-card"><p class="card-label">Vjenčanja u evidenciji</p><p class="card-value">{{ stats.total }}</p></article>
+</div>
+
+<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+  <div class="form-group"><label>Pretraži</label><input type="search" name="q" value="{{ filters.q }}" class="form-control"></div>
+  <button type="submit" class="btn btn-primary btn-sm">Filtriraj</button>
+</form>
+
+<section id="add-wedding-form" class="card" style="margin-bottom:16px" hidden>
+  <h2 class="section-title">Novo vjenčanje</h2>
+  <form method="post" style="display:grid;gap:12px;max-width:640px">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_wedding">
+    {{ wedding_form.as_p }}
+    <button type="submit" class="btn btn-primary btn-sm">Spremi</button>
+  </form>
+</section>
+
+<section class="card">
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Par</th><th>Datum</th><th>Status</th><th>Stipendij</th><th></th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td><strong>{{ r.couple }}</strong></td>
+          <td>{{ r.weddingDate|hr_date }}</td>
+          <td><span class="badge">{{ r.status|default:"—" }}</span></td>
+          <td>{% if r.stipendPaid %}<span class="badge badge-done">plaćeno</span>{% elif r.stipend %}<span class="badge badge-urgent">{{ r.stipend|money_eur }}</span>{% else %}—{% endif %}</td>
+          <td>
+            <form method="post" style="display:inline" onsubmit="return confirm('Obrisati?');">{% csrf_token %}
+              <input type="hidden" name="action" value="delete_wedding">
+              <input type="hidden" name="record_id" value="{{ r.id }}">
+              <button type="submit" class="btn btn-ghost btn-sm">Obriši</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="empty-state">Nema zapisa.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

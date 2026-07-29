@@ -1,0 +1,211 @@
+/**
+ * Django shell — sidebar layout, footer, UI polish (bez zamjene server navigacije).
+ */
+(function (global) {
+  function esc(s) {
+    return String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function shellPageUrl(file) {
+    const B = global.PastoralBase;
+    if (B?.adminPage) return B.adminPage(file);
+    const f = String(file).replace(/^\/?pages\//, "");
+    const inPages = location.pathname.includes("/pages/");
+    if (f === "app" || f === "app.html") return inPages ? "../app.html" : "app.html";
+    if (f === "login.html" || f === "login") return inPages ? "../login.html" : "login.html";
+    return inPages ? f : `pages/${f}`;
+  }
+
+  function ensureSidebarLayout() {
+    const sidebar = document.querySelector(".sidebar");
+    const nav = sidebar?.querySelector(".nav");
+    if (!sidebar || !nav || sidebar.querySelector(".sidebar-nav-scroll")) return;
+    const scroll = document.createElement("div");
+    scroll.className = "sidebar-nav-scroll";
+    nav.parentNode.insertBefore(scroll, nav);
+    scroll.appendChild(nav);
+  }
+
+  function renderAppFooter(settings) {
+    const year = new Date().getFullYear();
+    const s = settings || {};
+    return `
+    <div class="app-footer-inner">
+      <div class="app-footer-col">
+        <strong>${esc(s.shortName || s.name)}</strong>
+        <span>${esc(s.city)} · ${esc(s.pastor)}</span>
+      </div>
+      <div class="app-footer-col app-footer-links">
+        <a href="tel:${esc((s.phone || "").replace(/\s/g, ""))}">${esc(s.phone || "")}</a>
+        <a href="mailto:${esc(s.email || "")}">${esc(s.email || "")}</a>
+        <a href="${shellPageUrl("pages/obitelji.html")}">Obitelji</a>
+        <a href="${shellPageUrl("public/index.html")}" target="_blank" rel="noopener">Javni obrasci</a>
+        <a href="${shellPageUrl("pages/postavke.html")}">Postavke</a>
+      </div>
+      <div class="app-footer-col app-footer-copy">
+        <span>Pastoral · ${year}</span>
+      </div>
+    </div>`;
+  }
+
+  function ensureAppFooter(settings) {
+    const main = document.querySelector(".app-shell .main");
+    if (!main) return;
+    let foot = document.getElementById("app-footer");
+    if (!foot) {
+      foot = document.createElement("footer");
+      foot.id = "app-footer";
+      foot.className = "app-footer";
+      main.appendChild(foot);
+    }
+    foot.innerHTML = renderAppFooter(settings);
+  }
+
+  function initPriestToolsLite() {
+    const PT = global.PastoralPriestTools;
+    if (!PT) return;
+    PT.init({
+      getData: () => global.PastoralData?.load?.() || {},
+      getSettings: () => global.PastoralParish?.loadSettings?.() || {},
+      pageUrl: shellPageUrl,
+      showToast: (msg) => {
+        if (typeof global.showToast === "function") global.showToast(msg);
+      },
+      escapeHtml: esc,
+    });
+  }
+
+  function initDjangoShell() {
+    if (!document.querySelector(".app-shell")) return;
+    if (document.body.dataset.djangoShell !== "1") return;
+    if (document.body.dataset.shellInit === "1") return;
+    document.body.dataset.shellInit = "1";
+
+    global.PastoralParish?.applyTheme?.();
+    const settings = global.PastoralParish?.loadSettings?.() || {};
+
+    ensureSidebarLayout();
+    ensureAppFooter(settings);
+
+    const nav = document.querySelector(".sidebar .nav");
+    if (nav) nav.dataset.built = "django";
+
+    global.PastoralNav?.init?.();
+
+    const needsData = document.body.dataset.needsParishData === "1";
+    if (needsData) global.PastoralApi?.ensureLoaded?.().catch(() => {});
+
+    initPriestToolsLite();
+    global.PastoralPriestTools?.enhanceShell?.();
+
+    if (global.PastoralTheme) global.PastoralTheme.initThemePicker();
+
+    global.PastoralUiPolish?.enhance?.();
+  }
+
+  global.PastoralShell = {
+    ensureSidebarLayout,
+    ensureAppFooter,
+    initDjangoShell,
+    shellPageUrl,
+  };
+
+  /* --- pastoral-nav (sklopive sekcije) --- */
+  const NAV_STORAGE_KEY = "pastoral_nav_sections";
+  const NAV_DEFAULT_OPEN = {
+    pregled: true,
+    zupa: true,
+    liturgija: true,
+    sakramenti: false,
+    financije: false,
+    isprave: false,
+    ured: false,
+  };
+
+  function navLoadState() {
+    try {
+      return { ...NAV_DEFAULT_OPEN, ...JSON.parse(localStorage.getItem(NAV_STORAGE_KEY) || "{}") };
+    } catch {
+      return { ...NAV_DEFAULT_OPEN };
+    }
+  }
+
+  function navSaveState(state) {
+    try {
+      localStorage.setItem(NAV_STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function bindCollapsibleNav(navEl) {
+    if (!navEl || navEl.dataset.navBound) return;
+    navEl.dataset.navBound = "1";
+    const state = navLoadState();
+    navEl.querySelectorAll(".nav-section").forEach((sec) => {
+      const id = sec.dataset.navSection;
+      const btn = sec.querySelector(".nav-section-toggle");
+      const list = sec.querySelector(".nav-section-items");
+      const open = state[id] !== false;
+      if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (list) list.hidden = !open;
+    });
+    navEl.addEventListener("click", (e) => {
+      const btn = e.target.closest(".nav-section-toggle");
+      if (!btn || !navEl.contains(btn)) return;
+      const id = btn.dataset.section;
+      const list = navEl.querySelector(`.nav-section[data-nav-section="${id}"] .nav-section-items`);
+      const open = btn.getAttribute("aria-expanded") !== "true";
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (list) list.hidden = !open;
+      const next = navLoadState();
+      next[id] = open;
+      navSaveState(next);
+    });
+  }
+
+  function injectNavFooterControls() {
+    const foot = document.querySelector(".sidebar-footer");
+    if (!foot || document.getElementById("nav-expand-all")) return;
+    const wrap = document.createElement("div");
+    wrap.className = "nav-footer-toggles";
+    wrap.innerHTML = `
+      <button type="button" class="btn btn-ghost btn-sm" id="nav-expand-all" style="flex:1">Razvij sve</button>
+      <button type="button" class="btn btn-ghost btn-sm" id="nav-collapse-all" style="flex:1">Skupi sve</button>`;
+    foot.insertBefore(wrap, foot.firstChild);
+    wrap.querySelector("#nav-expand-all")?.addEventListener("click", () => {
+      const s = {};
+      Object.keys(NAV_DEFAULT_OPEN).forEach((k) => { s[k] = true; });
+      navSaveState(s);
+      location.reload();
+    });
+    wrap.querySelector("#nav-collapse-all")?.addEventListener("click", () => {
+      const s = {};
+      Object.keys(NAV_DEFAULT_OPEN).forEach((k) => { s[k] = false; });
+      navSaveState(s);
+      location.reload();
+    });
+  }
+
+  function initNav() {
+    const nav = document.getElementById("sidebar-nav");
+    bindCollapsibleNav(nav);
+    injectNavFooterControls();
+  }
+
+  global.PastoralNav = { init: initNav, loadState: navLoadState, saveState: navSaveState };
+
+  /* --- UI init (tema + shell) --- */
+  document.addEventListener("DOMContentLoaded", () => {
+    const page = document.body.dataset.page;
+    const isLogin = page === "login";
+    if (document.body.dataset.djangoShell === "1") {
+      initDjangoShell();
+    } else if (window.PastoralTheme) {
+      window.PastoralTheme.initThemePicker({ fixed: isLogin });
+    }
+  });
+})(typeof window !== "undefined" ? window : global);

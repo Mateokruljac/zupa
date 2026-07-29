@@ -1,0 +1,50 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block content %}
+<section class="card" style="margin-bottom:16px">
+  <form method="get" style="display:flex;gap:12px;align-items:center">
+    <label>Godina
+      <select name="year" onchange="this.form.submit()">
+        {% for y in fc_years %}
+        <option value="{{ y }}" {% if y == fc_year %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+  <div style="margin-top:12px">
+    <span class="card-sub">Skupina:</span> <strong>{{ fc_group.groupName|default:"—" }}</strong>
+    · <span class="card-sub">Datum:</span> <strong>{{ fc_group.ceremonyDate|hr_date }}</strong>
+    · <span class="card-sub">Naknada:</span>
+    {% if fc_group.groupFeePaid %}<span class="badge badge-done">Plaćeno</span>{% elif fc_group.groupFee %}<span class="badge badge-urgent">{{ fc_group.groupFee|money_eur }}</span>{% else %}—{% endif %}
+  </div>
+</section>
+
+<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;align-items:end">
+  <input type="hidden" name="year" value="{{ fc_year }}">
+  <div class="form-group"><label>Pretraži</label><input type="search" name="q" value="{{ fc_filters.q }}" class="form-control"></div>
+  <button type="submit" class="btn btn-primary btn-sm">Filtriraj</button>
+</form>
+
+<section class="card">
+  <h2 class="section-title">Prvopričesnici {{ fc_year }}</h2>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Ime</th><th>Škola</th><th>Razred</th><th>Roditelji</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for c in fc_candidates %}
+        <tr>
+          <td><strong>{{ c.name }}</strong></td>
+          <td>{{ c.school|default:"—" }}</td>
+          <td>{{ c.class|default:"—" }}</td>
+          <td>{{ c.parents|default:"—" }}</td>
+          <td><span class="badge">{{ c.status|default:"—" }}</span></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="empty-state">Nema prvopričesnika.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}

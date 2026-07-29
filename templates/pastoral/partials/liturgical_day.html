@@ -1,0 +1,54 @@
+{% load pastoral_tags %}
+<section class="card card-section--liturgy lit-day-card" data-lit-day="{{ lit_day.date }}">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+    <div>
+      <p class="card-label">{{ lit_day.date|hr_date }}{% if lit_day.subtitle %} · {{ lit_day.subtitle }}{% endif %}</p>
+      <h2 class="section-title" style="margin:4px 0">{{ lit_day.title }}</h2>
+      {% if lit_day.gospelThought %}
+      <p class="card-sub" style="font-style:italic;margin:8px 0 0">„{{ lit_day.gospelThought }}”</p>
+      {% endif %}
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        {% if lit_day.rankLabel %}<span class="badge">{{ lit_day.rankLabel }}</span>{% endif %}
+        {% if lit_day.seasonWeek %}<span class="badge">{{ lit_day.seasonWeek }}</span>{% endif %}
+        {% if lit_day.psalterWeekHr %}<span class="badge">{{ lit_day.psalterWeekHr }}</span>{% endif %}
+        {% if lit_day.colorLabel %}
+        <span class="cal-cell-lit-swatch {{ lit_day.color|lit_swatch_class }}" title="{{ lit_day.colorLabel }}"></span>
+        <small>{{ lit_day.colorLabel }}</small>
+        {% endif %}
+      </div>
+      {% if lit_day.readingRefs %}
+      <p class="card-sub" style="margin-top:8px"><strong>Misna čitanja:</strong> {{ lit_day.readingRefs }}</p>
+      {% endif %}
+    </div>
+    {% if lit_day.hilpUrl %}
+    <a href="{{ lit_day.hilpUrl }}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener">HILP — puni tekst</a>
+    {% endif %}
+  </div>
+  {% if lit_day.celebrations %}
+  <ul style="margin:12px 0 0;padding-left:1.2em">
+    {% for c in lit_day.celebrations %}<li>{{ c }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if lit_day.readings %}
+  <details class="lit-readings-block">
+    <summary class="lit-readings-summary">
+      <span class="lit-readings-chev" aria-hidden="true"></span>
+      <span class="lit-readings-title">Čitanja</span>
+      <span class="badge">{{ lit_day.readings|length }}</span>
+      {% if lit_day.readingsSource == 'hilp' %}<small class="card-sub">(HILP)</small>{% elif lit_day.readingsSource == 'litcal-va' %}<small class="card-sub">(LitCal VA)</small>{% endif %}
+    </summary>
+    <div class="lit-readings-body">
+      {% for r in lit_day.readings %}
+      <details class="lit-reading-item">
+        <summary class="lit-reading-summary">{{ r.label }}</summary>
+        <div class="lit-reading-text">{{ r.text }}</div>
+      </details>
+      {% endfor %}
+    </div>
+  </details>
+  {% elif lit_day.source == 'offline' %}
+  <p class="empty-state" style="margin-top:12px">Liturgijski podaci trenutno nisu dostupni. Pokušajte osvježiti stranicu ili otvorite HILP.</p>
+  {% else %}
+  <p class="card-sub" style="margin-top:12px">Čitanja nisu učitana — <a href="{{ lit_day.hilpUrl }}" target="_blank" rel="noopener">otvori HILP</a>.</p>
+  {% endif %}
+</section>

@@ -1,0 +1,6 @@
+{% load pastoral_tags %}
+{% for block in blocks %}
+{% with meta=block_types|get_item:block.type %}
+{% include "pastoral/listic/block_card.html" with block=block meta=meta is_first=forloop.first is_last=forloop.last %}
+{% endwith %}
+{% endfor %}
