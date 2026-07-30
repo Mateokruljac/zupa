@@ -1,0 +1,101 @@
+{% load static pastoral_tags %}
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <meta name="theme-color" content="{{ parish_settings.primaryColor|default:'#5c2e3a' }}">
+  <link rel="manifest" href="{% static 'manifest.json' %}">
+  <title>{% block title %}{{ page_title|default:"Pastoral" }}{% endblock %} — Pastoral</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  {{ parish_settings|json_script:"parish-settings-data" }}
+  {{ office_stats|json_script:"office-stats-data" }}
+  <script src="{% static 'js/theme-init.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <script src="{% static 'js/path-base.js' %}"></script>
+  <script src="{% static 'js/parish-config.js' %}"></script>
+  <script src="{% static 'js/pastoral-api.js' %}"></script>
+  <script src="{% static 'js/theme-picker.js' %}"></script>
+  <style>
+    :root {
+      --tenant-primary: {{ parish_settings.primaryColor|default:"#5c2e3a" }};
+      --tenant-accent: {{ parish_settings.accentColor|default:"#b8922a" }};
+    }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body data-page="{{ current_page|default:'dashboard' }}" data-django-shell="1" {% block body_attrs %}{% endblock %} class="{% block body_class %}{% endblock %}">
+  {% if messages %}
+  <div class="flash-messages" style="position:fixed;top:12px;right:12px;z-index:9999;max-width:360px">
+    {% for message in messages %}
+    <div class="card" style="margin-bottom:8px;padding:12px 16px;border-left:4px solid var(--tenant-primary)">{{ message }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div id="sidebar-logo">
+        <a href="{% url 'pastoral:app' %}" class="logo">
+          {% if parish_settings.logoUrl %}
+          <img src="{{ parish_settings.logoUrl }}" alt="" class="tenant-logo tenant-logo-img" />
+          {% else %}
+          <span class="tenant-logo" style="color:var(--tenant-primary)">
+            <svg viewBox="0 0 48 48" class="tenant-logo-svg"><rect width="48" height="48" rx="10" fill="currentColor" opacity="0.12"/><path d="M24 10v28M16 20h16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+          </span>
+          {% endif %}
+          <span class="logo-text">
+            <small>{{ parish_settings.diocese }}</small>
+            <strong>{{ parish_settings.shortName|default:parish_settings.name }}</strong>
+          </span>
+        </a>
+      </div>
+      <p class="sidebar-tenant-meta" id="sidebar-tenant-meta">{{ parish_settings.city }} · {{ request.user.role_label }}</p>
+      <ul class="nav" id="sidebar-nav">
+        {% for sec in nav_sections %}
+        <li class="nav-section" data-nav-section="{{ sec.id }}">
+          <button type="button" class="nav-section-toggle" aria-expanded="true" data-section="{{ sec.id }}">
+            <span class="nav-section-chev" aria-hidden="true"></span>
+            <span class="nav-section-title">{{ sec.label }}</span>
+          </button>
+          <ul class="nav-section-items">
+            {% for link in sec.links %}
+            <li>
+              <a href="{% page_url link.page %}" class="{% if link.active %}active{% endif %}">
+                <span class="nav-ico">{{ link.icon }}</span>{{ link.label }}
+                {% with badge=nav_badges|get_item:link.page %}
+                {% if badge %}<span class="nav-badge">{{ badge }}</span>{% endif %}
+                {% endwith %}
+              </a>
+            </li>
+            {% endfor %}
+          </ul>
+        </li>
+        {% endfor %}
+      </ul>
+      <div class="sidebar-footer">
+        <form method="post" action="{% url 'pastoral:logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-ghost btn-sm" style="width:100%">Odjava</button>
+        </form>
+      </div>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <div>
+          <h1>{% block page_heading %}{{ page_title }}{% endblock %}</h1>
+          {% if page_subtitle %}<p>{{ page_subtitle }}</p>{% endif %}
+        </div>
+        <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+      </header>
+      <main class="content" id="main-content">{% block content %}{% endblock %}</main>
+    </div>
+  </div>
+  <script src="{% static 'js/priest-tools.js' %}"></script>
+  <script src="{% static 'js/ui-polish.js' %}"></script>
+  <script src="{% static 'js/pastoral-shell.js' %}"></script>
+  <script src="{% static 'js/liturgical-day.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
