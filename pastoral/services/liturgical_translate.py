@@ -184,6 +184,12 @@ def _translate_dominica(name: str) -> str | None:
     if base in _EXACT:
         return _EXACT[base] + vigil
 
+    ordinary_time_match = re.match(r'^Dominica\s+(.+?)\s+per annum$', base)
+    if ordinary_time_match:
+        sunday_number = _parse_week_ordinal(ordinary_time_match.group(1))
+        if sunday_number is not None:
+            return f'{sunday_number}. nedjelja kroz godinu{vigil}'
+
     m = re.match(r'^Dominica\s+(\S+)\s+(.+)$', base)
     if not m:
         return None
@@ -281,7 +287,11 @@ def _apply_phrases(text: str) -> str:
     return out.translate(_LATIN_CHARS).strip()
 
 
-def translate_liturgical_name(name: str) -> tuple[str, bool]:
+def translate_liturgical_name(
+    name: str,
+    *,
+    allow_remote_translation: bool = True,
+) -> tuple[str, bool]:
     """
     Vrati (hrvatski_naziv, uspješno_prijevodeno).
     Prvo offline rječnik, zatim deep-translator.
@@ -321,15 +331,21 @@ def translate_liturgical_name(name: str) -> tuple[str, bool]:
         if not _looks_latin(translated):
             return translated, True
 
-    from pastoral.services.liturgical_deep import translate_to_hr
-    deep = translate_to_hr(raw)
-    if deep and deep != raw:
-        return deep, True
+    if allow_remote_translation:
+        from pastoral.services.liturgical_deep import translate_to_hr
+
+        remotely_translated_name = translate_to_hr(raw)
+        if remotely_translated_name and remotely_translated_name != raw:
+            return remotely_translated_name, True
 
     return raw, False
 
 
-def translate_season_lcl(raw: str) -> str:
+def translate_season_lcl(
+    raw: str,
+    *,
+    allow_remote_translation: bool = True,
+) -> str:
     if not raw:
         return ''
     key = str(raw).strip()
@@ -344,8 +360,15 @@ def translate_season_lcl(raw: str) -> str:
     }
     if key in seasons:
         return seasons[key]
-    hr, ok = translate_liturgical_name(key)
-    if ok:
-        return hr
+    translated_season, was_translated = translate_liturgical_name(
+        key,
+        allow_remote_translation=allow_remote_translation,
+    )
+    if was_translated:
+        return translated_season
+    if not allow_remote_translation:
+        return key
+
     from pastoral.services.liturgical_deep import translate_to_hr
+
     return translate_to_hr(key)

@@ -1,7 +1,17 @@
 """Zajedničke datumske pomoćne funkcije (izvor istine umjesto JS duplikata)."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
+
+
+def parse_iso_date(value) -> date | None:
+    """Pretvori ISO datum ili datetime u ``date``; za nevaljan unos vrati ``None``."""
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except (TypeError, ValueError):
+        return None
 
 
 def today_iso() -> str:

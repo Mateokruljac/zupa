@@ -1,0 +1,284 @@
+{% extends "pastoral/base.html" %}
+{% load static pastoral_tags %}
+
+{% block topbar_actions %}
+<button type="button" class="btn btn-ghost btn-sm" data-ops-dialog="communication">Planiraj obavijest</button>
+<button type="button" class="btn btn-primary btn-sm" data-ops-dialog="office">+ Evidentiraj kontakt</button>
+{% endblock %}
+
+{% block content %}
+<div class="ops-center">
+  <section class="ops-hero" aria-labelledby="ops-hero-title">
+    <div>
+      <p class="command-eyebrow">Župni ured · jedinstveni operativni sloj</p>
+      <h2 id="ops-hero-title">Ništa važno ne ostaje u bilježnici, privatnom mobitelu ili tuđem inboxu.</h2>
+      <p>Svaki kontakt dobiva predmet, vlasnika, rok i sljedeći korak. Isti radni red povezuje pastoral, dokumente, financije, ljude, prostore, imovinu i biskupiju.</p>
+    </div>
+    <div class="ops-hero-health">
+      <span class="ops-health-orbit" style="--progress:{{ operations_stats.compliancePercent }}"><strong>{{ operations_stats.attention }}</strong><small>za pozornost</small></span>
+      <div><strong>{{ operations_stats.open }} otvorenih stavki</strong><small>{{ operations_stats.overdue }} prekoračenih · {{ operations_stats.today }} za danas</small></div>
+    </div>
+  </section>
+
+  <section class="signal-grid report-signal-grid" aria-label="Operativni pokazatelji">
+    <a href="?view=attention" class="signal-card signal-card--alert"><span class="signal-icon">!</span><div><small>Traži pozornost</small><strong>{{ operations_stats.attention }}</strong><em>rok, rizik ili odluka</em></div><span class="signal-arrow">→</span></a>
+    <a href="?view=approvals" class="signal-card signal-card--finance"><span class="signal-icon">✓</span><div><small>Čeka odobrenje</small><strong>{{ operations_stats.approvals }}</strong><em>odluke s jasnim tragom</em></div><span class="signal-arrow">→</span></a>
+    <a href="?view=facilities" class="signal-card signal-card--liturgy"><span class="signal-icon">⌂</span><div><small>Rizici imovine</small><strong>{{ operations_stats.facilityRisks }}</strong><em>visoki rizik ili kolizija</em></div><span class="signal-arrow">→</span></a>
+    <a href="?view=people" class="signal-card signal-card--pastoral"><span class="signal-icon">◎</span><div><small>Pokrivenost službi</small><strong>{{ operations_stats.rotaPercent }}%</strong><em>dodijeljene uloge</em></div><span class="signal-arrow">→</span></a>
+  </section>
+
+  <nav class="ops-quick-actions" aria-label="Brze uredske radnje">
+    <button type="button" data-ops-dialog="office"><span>✉</span><strong>Kontakt / pošta</strong><small>urudžbiraj odmah</small></button>
+    <a href="{% page_url 'javne-prijave' %}"><span>▤</span><strong>Javna prijava</strong><small>preuzmi u predmet</small></a>
+    <a href="{% page_url 'dekanat' %}"><span>⇄</span><strong>Druga župa</strong><small>sigurni zahtjev</small></a>
+    <button type="button" data-ops-dialog="facility"><span>⌂</span><strong>Kvar / imovina</strong><small>rok i izvođač</small></button>
+    <button type="button" data-ops-dialog="communication"><span>◌</span><strong>Obavijesti skupinu</strong><small>privole i kanali</small></button>
+    <a href="{% page_url 'kalendar' %}"><span>＋</span><strong>Zadatak ili termin</strong><small>osoba i prostor</small></a>
+  </nav>
+
+  <div class="ops-layout-container">
+    <section class="ops-workspace" aria-label="Jedinstveni radni red">
+      <div class="card ops-queue-card">
+        <header class="ops-card-head">
+          <div><p class="card-label">Jedinstveni inbox</p><h2 class="section-title">Moj radni red</h2></div>
+          <span class="badge">{{ operations_queue|length }}</span>
+        </header>
+        <nav class="ops-filter-tabs" aria-label="Filtri radnog reda">
+          <a href="?view=attention" class="{% if operations_filters.view == 'attention' %}is-active{% endif %}">Pozornost</a>
+          <a href="?view=today" class="{% if operations_filters.view == 'today' %}is-active{% endif %}">Danas</a>
+          <a href="?view=inbox" class="{% if operations_filters.view == 'inbox' %}is-active{% endif %}">Ured</a>
+          <a href="?view=approvals" class="{% if operations_filters.view == 'approvals' %}is-active{% endif %}">Odluke</a>
+          <a href="?view=all" class="{% if operations_filters.view == 'all' %}is-active{% endif %}">Sve</a>
+        </nav>
+        <form method="get" class="case-search-form ops-search-form">
+          <input type="hidden" name="view" value="{{ operations_filters.view }}">
+          <span aria-hidden="true">⌕</span>
+          <input type="search" name="q" value="{{ operations_filters.q }}" placeholder="Predmet, osoba, oznaka, vlasnik…" aria-label="Pretraži operativne stavke">
+        </form>
+        <div class="ops-queue-list">
+          {% for item in operations_queue %}
+          <a href="?view={{ operations_filters.view }}&item={{ item.itemId|urlencode }}{% if operations_filters.q %}&q={{ operations_filters.q|urlencode }}{% endif %}" class="ops-queue-item {% if operations_selected.itemId == item.itemId %}is-selected{% endif %}">
+            <span class="ops-item-icon ops-tone--{{ item.categoryMeta.tone }}">{{ item.categoryMeta.icon }}</span>
+            <span class="ops-item-main">
+              <span class="ops-item-kicker"><small>{{ item.categoryMeta.short }}{% if item.reference %} · {{ item.reference }}{% endif %}</small><span class="case-status case-status--{{ item.statusMeta.tone }}">{{ item.statusMeta.label }}</span></span>
+              <strong>{{ item.title }}</strong>
+              <em>{{ item.nextAction|default:item.meta }}</em>
+              <span class="ops-item-meta"><small>{{ item.owner|default:"Nije dodijeljeno" }}</small>{% if item.due %}<small class="{% if item.isOverdue %}text-danger{% endif %}">{{ item.due|hr_date }}</small>{% endif %}</span>
+            </span>
+          </a>
+          {% empty %}
+          <div class="empty-state-pro"><span>✓</span><strong>Nema stavki u ovom prikazu</strong><small>Promijenite filtar ili evidentirajte novi kontakt.</small></div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <article class="card ops-detail-card">
+        {% if operations_selected %}
+        <header class="ops-detail-head">
+          <div>
+            <span class="ops-detail-eyebrow">{{ operations_selected.categoryMeta.label }}{% if operations_selected.reference %} · {{ operations_selected.reference }}{% endif %}</span>
+            <h2>{{ operations_selected.title }}</h2>
+            <div class="case-detail-badges">
+              <span class="case-status case-status--{{ operations_selected.statusMeta.tone }}">{{ operations_selected.statusMeta.label }}</span>
+              {% if operations_selected.priority %}<span class="badge">prioritet: {{ operations_selected.priority }}</span>{% endif %}
+              {% if operations_selected.confidentiality %}<span class="badge">{{ operations_selected.confidentiality }}</span>{% endif %}
+              {% if operations_selected.linkedCase %}<span class="badge">{{ operations_selected.linkedCase }}</span>{% endif %}
+            </div>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">Ispiši</button>
+        </header>
+
+        {% if operations_selected.isOverdue %}
+        <div class="case-sla-alert case-sla-alert--overdue"><span>!</span><div><strong>Rok je prekoračen</strong><small>Stavka je trebala biti riješena do {{ operations_selected.due|hr_date }}.</small></div></div>
+        {% elif operations_selected.isDueToday %}
+        <div class="case-sla-alert"><span>⌛</span><div><strong>Rok je danas</strong><small>Riješite stavku ili jasno evidentirajte zašto čeka.</small></div></div>
+        {% endif %}
+
+        <div class="ops-facts-grid">
+          <div><small>Odgovorna osoba</small><strong>{{ operations_selected.owner|default:"Nije dodijeljeno" }}</strong></div>
+          <div><small>Rok</small><strong>{% if operations_selected.due %}{{ operations_selected.due|hr_date }}{% else %}Bez roka{% endif %}</strong></div>
+          <div><small>Kontakt / izvor</small><strong>{{ operations_selected.displaySource }}</strong></div>
+          <div><small>Veza s predmetom</small><strong>{{ operations_selected.linkedCase|default:"Nije povezano" }}</strong></div>
+        </div>
+
+        <section class="ops-next-action">
+          <span aria-hidden="true">→</span>
+          <div><small>Sljedeći najbolji korak</small><strong>{{ operations_selected.nextAction|default:"Dodijelite vlasnika i definirajte sljedeći korak." }}</strong></div>
+        </section>
+
+        {% if operations_selected.detailText %}
+        <section class="case-description"><h3>Kontekst i bilješka</h3><p>{{ operations_selected.detailText }}</p></section>
+        {% endif %}
+
+        {% if operations_selected.requiredApprovals %}
+        <section class="ops-approval-ladder">
+          <div class="case-subhead"><div><h3>Trag odobrenja</h3><small>Bez usmenih odluka koje se poslije ne mogu dokazati</small></div></div>
+          {% for approval in operations_selected.requiredApprovals %}
+          <div class="ops-approval-row {% if approval in operations_selected.completedApprovals %}is-done{% endif %}"><span>{% if approval in operations_selected.completedApprovals %}✓{% endif %}</span><strong>{{ approval }}</strong><small>{% if approval in operations_selected.completedApprovals %}potvrđeno{% else %}čeka{% endif %}</small></div>
+          {% endfor %}
+        </section>
+        {% endif %}
+
+        <section class="ops-detail-actions">
+          <div><h3>Promjena statusa</h3><p>Promjena ostaje vezana uz operativnu stavku. Produkcijska verzija dodat će potpis i puni audit događaj.</p></div>
+          <div>
+            {% if operations_selected.isOpen and operations_selected.status != 'in_progress' %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="update_operation_status"><input type="hidden" name="collection" value="{{ operations_selected.collection }}"><input type="hidden" name="source_id" value="{{ operations_selected.sourceId }}"><input type="hidden" name="status" value="in_progress"><button class="btn btn-ghost btn-sm">Preuzmi u obradu</button></form>
+            {% endif %}
+            {% if operations_selected.category == 'approval' and operations_selected.isOpen %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="update_operation_status"><input type="hidden" name="collection" value="{{ operations_selected.collection }}"><input type="hidden" name="source_id" value="{{ operations_selected.sourceId }}"><input type="hidden" name="status" value="approved"><button class="btn btn-primary btn-sm">Odobri</button></form>
+            {% elif operations_selected.category == 'communication' and operations_selected.status == 'draft' %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="update_operation_status"><input type="hidden" name="collection" value="{{ operations_selected.collection }}"><input type="hidden" name="source_id" value="{{ operations_selected.sourceId }}"><input type="hidden" name="status" value="scheduled"><button class="btn btn-primary btn-sm">Odobri plan</button></form>
+            {% elif operations_selected.isOpen %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="update_operation_status"><input type="hidden" name="collection" value="{{ operations_selected.collection }}"><input type="hidden" name="source_id" value="{{ operations_selected.sourceId }}"><input type="hidden" name="status" value="completed"><button class="btn btn-primary btn-sm">Označi dovršenim</button></form>
+            {% endif %}
+          </div>
+        </section>
+        {% else %}
+        <div class="empty-state-pro ops-detail-empty"><span>⌘</span><strong>Odaberite stavku radnog reda</strong><small>Ovdje će se prikazati vlasnik, rok, kontekst i sljedeća radnja.</small></div>
+        {% endif %}
+      </article>
+    </section>
+
+    <section class="ops-module-grid" aria-label="Pregled cijelog poslovanja župe">
+      <article class="card ops-module-card ops-module-card--wide">
+        <header class="pro-section-head"><div><p class="card-label">Pastoralni radar</p><h2 class="section-title">Trenuci u kojima se ne smije zakasniti</h2></div><span class="badge">objašnjivi prijedlozi</span></header>
+        <p class="ops-module-intro">Radar ne rangira nečiju vjeru niti “angažman”. Pokazuje samo konkretne rokove i praznine u evidenciji koje svećenik može pastoralno procijeniti.</p>
+        <div class="pastoral-radar-list">
+          {% for signal in pastoral_radar %}
+          <a href="{% page_url signal.page %}{% if signal.query %}?{{ signal.query }}{% endif %}" class="pastoral-radar-item">
+            <span class="ops-item-icon ops-tone--{{ signal.tone }}">{{ signal.icon }}</span>
+            <span><small>{{ signal.label }}</small><strong>{{ signal.title }}</strong><em>{{ signal.sub }}</em></span>
+            <span class="radar-why" title="{{ signal.why }}">Zašto?</span>
+          </a>
+          {% empty %}<p class="empty-state">Nema novih pastoralnih signala.</p>{% endfor %}
+        </div>
+      </article>
+
+      <article class="card ops-module-card">
+        <header class="pro-section-head"><div><p class="card-label">Dnevni raspored</p><h2 class="section-title">Ured i razgovori</h2></div><a href="{% page_url 'kalendar' %}" class="text-link">Kalendar →</a></header>
+        <div class="ops-agenda-list">
+          {% for appointment in operations_appointments %}
+          <div><time>{{ appointment.time }}</time><span><strong>{{ appointment.title }}</strong><small>{{ appointment.with }} · {{ appointment.place }}</small></span><i class="status-dot status-dot--ok"></i></div>
+          {% empty %}<p class="empty-state">Nema dogovorenih razgovora.</p>{% endfor %}
+        </div>
+        {% for booking in operations_bookings %}{% if booking.conflict %}<div class="ops-conflict-alert"><span>!</span><div><strong>Kolizija prostora</strong><small>{{ booking.resource }} · {{ booking.conflictWith }}</small></div></div>{% endif %}{% endfor %}
+      </article>
+
+      <article class="card ops-module-card">
+        <header class="pro-section-head"><div><p class="card-label">Opterećenje</p><h2 class="section-title">Otvoreno po području</h2></div></header>
+        <div class="pro-chart pro-chart--compact" data-pastoral-chart="bar" data-source="operations-flow-data" data-series="value" data-labels="Otvorene stavke" aria-label="Graf otvorenih operativnih stavki po području"></div>
+        <div class="ops-chart-legend"><span>Jedan radni red</span><small>bez paralelnih bilježnica</small></div>
+      </article>
+
+      <article class="card ops-module-card">
+        <header class="pro-section-head"><div><p class="card-label">Komunikacija</p><h2 class="section-title">Planirana i poslana</h2></div><button type="button" class="text-button" data-ops-dialog="communication">+ Nova</button></header>
+        <div class="ops-compact-list">
+          {% for communication in operations_communications %}
+          <div><span class="ops-mini-icon">◌</span><span><strong>{{ communication.title }}</strong><small>{{ communication.audience }} · {{ communication.channels|join:", " }}</small></span><span class="case-status case-status--{% if communication.status == 'sent' %}success{% elif communication.status == 'draft' %}warning{% else %}info{% endif %}">{{ communication.status }}</span></div>
+          {% empty %}<p class="empty-state">Nema planirane komunikacije.</p>{% endfor %}
+        </div>
+        <p class="ops-guardrail"><span>⌁</span> Ciljne skupine moraju poštovati komunikacijske privole i dob primatelja.</p>
+      </article>
+
+      <article class="card ops-module-card">
+        <header class="pro-section-head"><div><p class="card-label">Imovina i održavanje</p><h2 class="section-title">Objekti, kvarovi i ugovori</h2></div><button type="button" class="text-button" data-ops-dialog="facility">+ Prijavi</button></header>
+        <div class="ops-compact-list">
+          {% for facility in operations_facilities %}
+          <div><span class="ops-risk-dot ops-risk-dot--{{ facility.risk }}"></span><span><strong>{{ facility.title }}</strong><small>{{ facility.facility }} · rok {{ facility.dueAt|hr_date }}</small></span><span class="case-status case-status--{% if facility.risk == 'high' %}danger{% else %}progress{% endif %}">{{ facility.status }}</span></div>
+          {% endfor %}
+        </div>
+        <div class="ops-contract-strip">
+          {% for contract in operations_contracts|slice:":2" %}<span><small>{{ contract.supplier }}</small><strong>{{ contract.renewalAt|hr_date }}</strong></span>{% endfor %}
+        </div>
+      </article>
+
+      <article class="card ops-module-card">
+        <header class="pro-section-head"><div><p class="card-label">Ljudi i službe</p><h2 class="section-title">Raspored bez zadnjih poziva</h2></div><span class="badge">{{ operations_stats.rotaPercent }}%</span></header>
+        <div class="ops-rota-list">
+          {% for row in operations_rota %}
+          <div class="{% if row.status == 'gap' %}has-gap{% endif %}"><time>{{ row.date|hr_date }}<strong>{{ row.time }}</strong></time><span><strong>{{ row.celebration }}</strong><small>{{ row.rolesFilled }}/{{ row.rolesTotal }} uloga{% if row.missingRoles %} · nedostaje {{ row.missingRoles|join:", " }}{% endif %}</small></span><span class="status-dot {% if row.status == 'gap' %}status-dot--warn{% else %}status-dot--ok{% endif %}"></span></div>
+          {% endfor %}
+        </div>
+        <p class="ops-guardrail"><span>✓</span> Produkcijski model uključit će provjere osposobljenosti i isteka potvrda za rad s maloljetnicima.</p>
+      </article>
+
+      <article class="card ops-module-card">
+        <header class="pro-section-head"><div><p class="card-label">Kontrole i kontinuitet</p><h2 class="section-title">Župa mora funkcionirati i nakon primopredaje</h2></div><span class="badge">{{ operations_stats.compliancePercent }}%</span></header>
+        <div class="ops-compliance-list">
+          {% for control in operations_compliance %}
+          <div><span>{% if control.status == 'completed' %}✓{% else %}{{ forloop.counter }}{% endif %}</span><span><strong>{{ control.title }}</strong><small>{{ control.owner }} · {{ control.dueAt|hr_date }}</small></span></div>
+          {% endfor %}
+        </div>
+        <details class="ops-handover-details"><summary>Primopredajna knjiga <span>{{ operations_handover|length }} područja</span></summary><div>{% for row in operations_handover %}<p><span class="status-dot {% if row.status == 'ready' %}status-dot--ok{% else %}status-dot--warn{% endif %}"></span><strong>{{ row.area }}</strong><small>{{ row.title }}</small></p>{% endfor %}</div></details>
+      </article>
+
+      <article class="card ops-module-card">
+        <header class="pro-section-head"><div><p class="card-label">Kvaliteta podataka</p><h2 class="section-title">Možemo se osloniti na ono što je uneseno</h2></div></header>
+        <div class="data-health-grid">
+          {% for row in data_health %}
+          <a href="{% page_url row.page %}"><strong>{{ row.value }}</strong><span>{{ row.label }}</span><i class="status-dot {% if row.value %}status-dot--warn{% else %}status-dot--ok{% endif %}"></i></a>
+          {% endfor %}
+        </div>
+        <p class="ops-module-intro">Ovo je temelj cilja “ništa izvan aplikacije”: sustav mora jasno pokazati kada mu nedostaje podatak, a ne glumiti potpunost.</p>
+      </article>
+    </section>
+  </div>
+
+  <section class="ops-coverage-map" aria-label="Pokriće cjelokupnog upravljanja župom">
+    <header><div><p class="card-label">Cjelovito poslovanje župe</p><h2>Sve područje rada ima svoje mjesto i vlasnika</h2></div><span>frontend ciljna slika</span></header>
+    <div>
+      <a href="{% page_url 'obitelji' %}"><span>01</span><strong>Ljudi i obitelji</strong><small>jedinstveni karton i odnosi</small></a>
+      <a href="{% page_url 'krsenja' %}"><span>02</span><strong>Sakramentalni predmeti</strong><small>priprava, dokumenti i matice</small></a>
+      <a href="{% page_url 'nakane' %}"><span>03</span><strong>Liturgija</strong><small>mise, službe, nakane i listić</small></a>
+      <a href="{% page_url 'blagajna' %}"><span>04</span><strong>Financije</strong><small>lukno, obveze i izvješća</small></a>
+      <a href="{% page_url 'dokumenti' %}"><span>05</span><strong>Isprave i arhiv</strong><small>predlošci, izdavanje i trag</small></a>
+      <a href="{% page_url 'dekanat' %}"><span>06</span><strong>Dekanat i biskupija</strong><small>sigurni predmeti i predaje</small></a>
+      <a href="?view=facilities"><span>07</span><strong>Imovina i ugovori</strong><small>objekti, ključevi i održavanje</small></a>
+      <a href="?view=people"><span>08</span><strong>Ljudi i službe</strong><small>osoblje, volonteri i rasporedi</small></a>
+    </div>
+  </section>
+</div>
+
+<dialog id="ops-office-dialog" class="ops-dialog">
+  <form method="post" class="ops-dialog-form">{% csrf_token %}<input type="hidden" name="action" value="create_office_entry">
+    <header><div><p class="card-label">Uredski zapis</p><h2>Evidentiraj kontakt ili poštu</h2></div><button type="button" data-ops-close aria-label="Zatvori">×</button></header>
+    <p class="ops-dialog-intro">Zapišite samo podatke potrebne za postupanje. Sustav će dodijeliti urudžbenu oznaku.</p>
+    <div class="ops-form-grid">
+      {% for field in office_entry_form %}<div class="form-group {% if field.name == 'subject' or field.name == 'note' %}ops-form-wide{% endif %}">{{ field.label_tag }}{{ field }}{% if field.errors %}<small class="text-danger">{{ field.errors|join:", " }}</small>{% endif %}</div>{% endfor %}
+    </div>
+    <footer><button type="button" class="btn btn-ghost btn-sm" data-ops-close>Odustani</button><button class="btn btn-primary btn-sm">Evidentiraj</button></footer>
+  </form>
+</dialog>
+
+<dialog id="ops-facility-dialog" class="ops-dialog">
+  <form method="post" class="ops-dialog-form">{% csrf_token %}<input type="hidden" name="action" value="create_facility_issue">
+    <header><div><p class="card-label">Imovina i održavanje</p><h2>Prijavi kvar ili zahvat</h2></div><button type="button" data-ops-close aria-label="Zatvori">×</button></header>
+    <p class="ops-dialog-intro">Trošak, objekt, odgovorna osoba i rok ostaju povezani u istom predmetu.</p>
+    <div class="ops-form-grid">
+      {% for field in facility_issue_form %}<div class="form-group {% if field.name == 'title' or field.name == 'description' %}ops-form-wide{% endif %}">{{ field.label_tag }}{{ field }}{% if field.errors %}<small class="text-danger">{{ field.errors|join:", " }}</small>{% endif %}</div>{% endfor %}
+    </div>
+    <footer><button type="button" class="btn btn-ghost btn-sm" data-ops-close>Odustani</button><button class="btn btn-primary btn-sm">Dodaj u radni red</button></footer>
+  </form>
+</dialog>
+
+<dialog id="ops-communication-dialog" class="ops-dialog">
+  <form method="post" class="ops-dialog-form">{% csrf_token %}<input type="hidden" name="action" value="schedule_communication">
+    <header><div><p class="card-label">Ciljana komunikacija</p><h2>Planiraj obavijest</h2></div><button type="button" data-ops-close aria-label="Zatvori">×</button></header>
+    <p class="ops-dialog-intro">Plan se sprema u aplikaciji. Demo ne šalje stvarne poruke niti koristi stvarne kontakte.</p>
+    <div class="ops-form-grid">
+      {% for field in communication_plan_form %}<div class="form-group {% if field.name == 'title' or field.name == 'audience' or field.name == 'message' %}ops-form-wide{% endif %}">{{ field.label_tag }}{{ field }}{% if field.errors %}<small class="text-danger">{{ field.errors|join:", " }}</small>{% endif %}</div>{% endfor %}
+    </div>
+    <footer><button type="button" class="btn btn-ghost btn-sm" data-ops-close>Odustani</button><button class="btn btn-primary btn-sm">Spremi plan</button></footer>
+  </form>
+</dialog>
+
+{{ operations_flow_chart|json_script:"operations-flow-data" }}
+{{ operations_channel_chart|json_script:"operations-channel-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="{% static 'js/dashboard-insights.js' %}"></script>
+<script src="{% static 'js/operations-center.js' %}"></script>
+{% endblock %}

@@ -570,6 +570,7 @@
   function printDay(iso, massTimeFilter) {
     const settings = global.PastoralParish?.loadSettings?.() || {};
     const accent = settings.primaryColor || "#5c2e3a";
+    const printPrimary = /^#[0-9a-f]{6}$/i.test(accent) ? accent : "#5c2e3a";
     let list = state.intentions.filter((n) => n.date === iso);
     if (massTimeFilter) list = list.filter((n) => n.massTime === massTimeFilter);
     list = list.slice().sort((a, b) => String(a.massTime || "").localeCompare(String(b.massTime || "")));
@@ -599,14 +600,11 @@
       body = massTimeFilter ? blocks[0] || body : blocks.join("");
     }
 
-    const html = `<!DOCTYPE html><html lang="hr"><head><meta charset="UTF-8"><title>${esc(docTitle)}</title>
-      <style>body{font-family:Georgia,serif;padding:40px;max-width:800px;margin:0 auto;color:#222}
-      h1{color:${accent}} .mass-block{margin:1.5em 0;padding:1em;border:1px solid #ddd;border-radius:8px}
-      @media print{.no-print{display:none}}</style></head><body>
-      <div class="no-print" style="margin-bottom:1em"><button type="button" onclick="window.print()">Ispis / PDF</button></div>
-      <h1>${esc(settings.name || "Župa")}</h1>
-      <p>${esc(docTitle)}</p>
-      ${body}
+    const parishLine = [settings.city, settings.diocese].filter(Boolean).join(" · ");
+    const html = `<!DOCTYPE html><html lang="hr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(docTitle)}</title>
+      <link rel="stylesheet" href="/static/css/print-document.css"><style>:root{--print-primary:${printPrimary};--print-accent:#b8922a}</style></head><body>
+      <div class="print-toolbar no-print"><div class="print-toolbar__copy"><strong>${esc(docTitle)}</strong><span>Pregled A4 rasporeda prije ispisa ili spremanja u PDF</span></div><div class="print-toolbar__actions"><button type="button" onclick="window.print()">Ispis / PDF</button><button type="button" onclick="window.close()">Zatvori</button></div></div>
+      <article class="print-sheet"><header class="document-letterhead"><span class="document-mark" aria-hidden="true"></span><div class="document-parish"><strong>${esc(settings.name || "Župa")}</strong><span>${esc(parishLine)}</span></div><div class="document-meta"><strong>Misne nakane</strong><span>${esc(longDate)}</span></div></header><main class="document-content"><div class="print-doc"><h1>${esc(docTitle)}</h1>${body}</div></main><footer class="document-footer"><span>${settings.pastor ? `<strong>${esc(settings.pastor)}</strong> · ` : ""}${esc(settings.name || "Župa")}</span><span>${new Date().toLocaleDateString("hr-HR")}</span></footer></article>
       </body></html>`;
 
     const w = window.open("", "_blank");

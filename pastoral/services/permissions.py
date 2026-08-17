@@ -18,11 +18,15 @@ MODULES = {
         'label': 'Isprave i matice',
         'pages': ['formulari', 'potvrde', 'dokumenti', 'maticne-knjige'],
     },
+    'suradnja': {
+        'label': 'Dekanat i suradnja',
+        'pages': ['dekanat'],
+    },
     'ured': {
         'label': 'Župni ured',
-        'pages': ['vijeca', 'kalendar', 'javne-prijave'],
+        'pages': ['operativno-srediste', 'vijeca', 'kalendar', 'javne-prijave'],
     },
-    'postavke': {'label': 'Postavke', 'pages': ['postavke']},
+    'postavke': {'label': 'Postavke', 'pages': ['postavke', 'web-stranica']},
 }
 
 PAGE_TO_MODULE = {}
@@ -39,7 +43,7 @@ def is_locked_finance_page(page: str) -> bool:
 ROLE_PERMISSIONS = {
     'zupnik': list(MODULES.keys()),
     'vikar': list(MODULES.keys()),
-    'upravitelj': ['pregled', 'zupa', 'liturgija', 'financije', 'isprave', 'ured', 'postavke'],
+    'upravitelj': ['pregled', 'zupa', 'liturgija', 'financije', 'isprave', 'suradnja', 'ured', 'postavke'],
 }
 
 
@@ -85,10 +89,14 @@ NAV = [
     {'type': 'link', 'page': 'potvrde', 'icon': '📜', 'label': 'Potvrde'},
     {'type': 'link', 'page': 'dokumenti', 'icon': '📄', 'label': 'Dokumenti (Excel)'},
     {'type': 'link', 'page': 'maticne-knjige', 'icon': '📖', 'label': 'Matične knjige'},
+    {'type': 'label', 'text': 'Dekanat i suradnja'},
+    {'type': 'link', 'page': 'dekanat', 'icon': '⇄', 'label': 'Međužupni zahtjevi'},
     {'type': 'label', 'text': 'Župni ured'},
+    {'type': 'link', 'page': 'operativno-srediste', 'icon': '⌘', 'label': 'Operativno središte'},
     {'type': 'link', 'page': 'vijeca', 'icon': '👥', 'label': 'Vijeća ŽPV/ŽEV'},
     {'type': 'link', 'page': 'kalendar', 'icon': '📅', 'label': 'Događaji i zadaci'},
     {'type': 'link', 'page': 'javne-prijave', 'icon': '📝', 'label': 'Javne prijave'},
+    {'type': 'link', 'page': 'web-stranica', 'icon': '◎', 'label': 'Web-stranica'},
     {'type': 'link', 'page': 'postavke', 'icon': '⚙', 'label': 'Postavke'},
 ]
 
@@ -100,6 +108,7 @@ SECTION_IDS = {
     'Sakramenti': 'sakramenti',
     'Financije': 'financije',
     'Isprave': 'isprave',
+    'Dekanat i suradnja': 'suradnja',
     'Župni ured': 'ured',
 }
 
@@ -142,6 +151,10 @@ def nav_badges_from_stats(stats: dict) -> dict:
         badges['obitelji'] = stats['lukno_unpaid']
     if stats.get('visits_due'):
         badges['posjete'] = stats['visits_due']
+    if stats.get('interparish_pending'):
+        badges['dekanat'] = stats['interparish_pending']
+    if stats.get('operations_attention'):
+        badges['operativno-srediste'] = stats['operations_attention']
     return badges
 
 

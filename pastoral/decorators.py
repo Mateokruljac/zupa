@@ -14,7 +14,9 @@ def pastoral_login_required(view_func):
         page = kwargs.get('page', 'dashboard')
         if request.resolver_match.url_name == 'app':
             page = 'dashboard'
-        if not can_access_page(page, request.user.role):
+        tenant_context = getattr(request, 'tenant_context', None)
+        active_role = tenant_context.role if tenant_context else request.user.role
+        if not can_access_page(page, active_role):
             if is_locked_finance_page(page):
                 messages.error(request, 'Ovaj financijski modul je zaključan za vašu ulogu.')
             else:

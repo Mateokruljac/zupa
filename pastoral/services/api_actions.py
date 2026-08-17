@@ -1,372 +1,57 @@
-"""Sve CRUD mutacije parish podataka — poziva se iz /api/action/."""
+"""Kompatibilna fasada API akcija koje koristi `/api/action/` endpoint.
+
+Nove domenske mutacije pripadaju paketu ``api_action_handlers``. Ovaj modul
+zadržava stabilne importe i registar akcija dok se preostale domene postupno
+izdvajaju bez promjene javnog JSON ugovora.
+"""
 from __future__ import annotations
 
-import uuid
 from datetime import date, datetime, timezone
+from typing import TYPE_CHECKING
 
-from django.utils.dateparse import parse_date
+from pastoral.services.dates import today_iso
+from pastoral.services.api_action_handlers.families import (
+    create_family,
+    delete_contribution,
+    delete_family,
+    delete_family_member,
+    delete_relative,
+    update_family,
+    update_family_notes,
+    update_spouse,
+    upsert_contribution,
+    upsert_family_member,
+    upsert_relative,
+)
+from pastoral.services.api_action_handlers.intentions import (
+    create_intention,
+    delete_intention,
+    mark_intention_paid,
+    toggle_intention_paid,
+    update_intention,
+)
+from pastoral.services.api_action_handlers.formation import (
+    create_confirmation_year,
+    create_first_communion_year,
+    delete_confirmation_candidate,
+    delete_first_communion_candidate,
+    update_confirmation_group,
+    upsert_confirmation_candidate,
+    upsert_first_communion_candidate,
+)
+from pastoral.services.api_action_handlers.shared import (
+    find_family,
+    generate_record_identifier,
+    normalize_date_value,
+    normalize_parish_data,
+)
+from pastoral.services.api_action_handlers.streets import (
+    delete_street,
+    upsert_street,
+)
 
-DEFAULT_LUKNO = 150
-
-
-def _today_iso() -> str:
-    return date.today().isoformat()
-
-
-def _new_id(prefix: str) -> str:
-    return f"{prefix}_{uuid.uuid4().hex[:8]}"
-
-
-def _parse_date(value) -> str:
-    if not value:
-        return ''
-    if hasattr(value, 'isoformat'):
-        return value.isoformat()
-    d = parse_date(str(value))
-    return d.isoformat() if d else str(value)
-
-
-def sync_parishioners(data: dict) -> None:
-    rows = []
-    for fam in data.get('families', []):
-        for m in fam.get('members') or []:
-            rows.append({
-                'id': m.get('id'),
-                'family': fam.get('surname', ''),
-                'name': m.get('name', ''),
-                'phone': fam.get('phone', ''),
-                'email': fam.get('email', ''),
-                'status': 'aktivan' if fam.get('status') == 'aktivna' else fam.get('status', ''),
-                'roles': m.get('roles') or [],
-            })
-    data['parishioners'] = rows
-
-
-def migrate_family(fam: dict) -> None:
-    if not isinstance(fam.get('contributions'), list):
-        fam['contributions'] = []
-    if not fam['contributions']:
-        y = date.today().year
-        for yr in (y - 2, y - 1, y):
-            fam['contributions'].append({
-                'id': _new_id('yc'),
-                'year': yr,
-                'luknoPaid': False,
-                'luknoAmount': DEFAULT_LUKNO,
-                'luknoPaidAt': '',
-                'churchDonation': 0,
-                'donationDate': '',
-                'notes': '',
-            })
-    fam['contributions'].sort(key=lambda c: c.get('year', 0), reverse=True)
-
-
-def normalize_data(data: dict) -> dict:
-    for fam in data.get('families', []):
-        migrate_family(fam)
-    sync_parishioners(data)
-    from pastoral.services.data_normalize import migrate_all
-    migrate_all(data)
-    return data
-
-
-def _find_family(data: dict, fam_id: str):
-    return next((f for f in data.get('families', []) if f.get('id') == fam_id), None)
-
-
-def _confirmation_group(data: dict, year: int):
-    return next((g for g in data.get('confirmations', []) if g.get('year') == year), None)
-
-
-def _fc_group(data: dict, year: int):
-    return next((g for g in data.get('firstCommunion', []) if g.get('year') == year), None)
-
-
-def _payment_ref() -> str:
-    return f"PAY-{uuid.uuid4().hex[:8].upper()}"
-
-
-# --- Intentions ---
-
-def create_intention(data: dict, p: dict) -> dict:
-    paid = bool(p.get('paid'))
-    item = {
-        'id': _new_id('n'),
-        'date': _parse_date(p.get('date')),
-        'massTime': p.get('mass_time') or p.get('massTime') or '',
-        'requestedBy': p.get('requested_by') or p.get('requestedBy') or '',
-        'intentionFor': p.get('intention_for') or p.get('intentionFor') or '',
-        'stipend': float(p.get('stipend') or 0),
-        'paid': paid,
-        'notes': p.get('notes') or '',
-        'paymentId': p.get('payment_id') or p.get('paymentId') or ('' if not paid else _payment_ref()),
-        'paidAt': p.get('paid_at') or p.get('paidAt') or (datetime.now(timezone.utc).isoformat() if paid else ''),
-    }
-    data.setdefault('intentions', []).append(item)
-    return {'ok': True, 'item': item}
-
-
-def update_intention(data: dict, p: dict) -> dict:
-    row = next((n for n in data.get('intentions', []) if n.get('id') == p.get('id')), None)
-    if not row:
-        return {'ok': False, 'error': 'not_found'}
-    for src, dst in (
-        ('date', 'date'), ('mass_time', 'massTime'), ('massTime', 'massTime'),
-        ('intention_for', 'intentionFor'), ('intentionFor', 'intentionFor'),
-        ('requested_by', 'requestedBy'), ('requestedBy', 'requestedBy'),
-        ('notes', 'notes'),
-    ):
-        if src in p:
-            row[dst] = p[src] if dst != 'date' else _parse_date(p[src])
-    if 'stipend' in p:
-        row['stipend'] = float(p['stipend'] or 0)
-    return {'ok': True, 'item': row}
-
-
-def delete_intention(data: dict, p: dict) -> dict:
-    iid = p.get('id') or p.get('intention_id')
-    before = len(data.get('intentions', []))
-    data['intentions'] = [n for n in data.get('intentions', []) if n.get('id') != iid]
-    return {'ok': len(data['intentions']) < before}
-
-
-def mark_intention_paid(data: dict, p: dict) -> dict:
-    row = next((n for n in data.get('intentions', []) if n.get('id') == p.get('id')), None)
-    if not row:
-        return {'ok': False, 'error': 'not_found'}
-    row['paid'] = True
-    row['paymentId'] = p.get('payment_id') or p.get('paymentId') or _payment_ref()
-    row['paidAt'] = p.get('paid_at') or p.get('paidAt') or datetime.now(timezone.utc).isoformat()
-    return {'ok': True, 'item': row}
-
-
-def toggle_intention_paid(data: dict, p: dict) -> dict:
-    row = next((n for n in data.get('intentions', []) if n.get('id') == p.get('id')), None)
-    if not row:
-        return {'ok': False, 'error': 'not_found'}
-    row['paid'] = not row.get('paid')
-    if row['paid']:
-        row['paymentId'] = row.get('paymentId') or _payment_ref()
-        row['paidAt'] = datetime.now(timezone.utc).isoformat()
-    return {'ok': True, 'item': row}
-
-
-# --- Families ---
-
-def create_family(data: dict, p: dict) -> dict:
-    y = date.today().year
-    fam = {
-        'id': _new_id('fam'),
-        'surname': (p.get('surname') or '').strip(),
-        'streetId': p.get('street_id') or p.get('streetId') or '',
-        'address': (p.get('address') or '').strip(),
-        'phone': (p.get('phone') or '').strip(),
-        'email': (p.get('email') or '').strip(),
-        'status': 'aktivna',
-        'preferredMass': '',
-        'pastoralNotes': '',
-        'originPlace': (p.get('origin_place') or p.get('originPlace') or '').strip(),
-        'tags': p.get('tags') or [],
-        'relatives': [],
-        'husband': None,
-        'wife': None,
-        'members': [],
-        'contributions': [],
-    }
-    if not fam['surname']:
-        return {'ok': False, 'error': 'surname_required'}
-    row = {
-        'id': _new_id('yc'),
-        'year': y,
-        'luknoPaid': bool(p.get('lukno_paid') or p.get('luknoPaid')),
-        'luknoAmount': float(p.get('lukno_amount') or p.get('luknoAmount') or DEFAULT_LUKNO),
-        'luknoPaidAt': _today_iso() if p.get('lukno_paid') or p.get('luknoPaid') else '',
-        'churchDonation': float(p.get('church_donation') or p.get('churchDonation') or 0),
-        'donationDate': '',
-        'notes': '',
-    }
-    fam['contributions'].append(row)
-    data.setdefault('families', []).append(fam)
-    sync_parishioners(data)
-    return {'ok': True, 'item': fam}
-
-
-def update_family(data: dict, p: dict) -> dict:
-    fam = _find_family(data, p.get('id'))
-    if not fam:
-        return {'ok': False, 'error': 'not_found'}
-    for key, src in (
-        ('surname', 'surname'), ('streetId', 'street_id'), ('streetId', 'streetId'),
-        ('address', 'address'), ('phone', 'phone'), ('email', 'email'),
-        ('status', 'status'), ('preferredMass', 'preferred_mass'),
-        ('preferredMass', 'preferredMass'), ('pastoralNotes', 'pastoral_notes'),
-        ('pastoralNotes', 'pastoralNotes'), ('originPlace', 'origin_place'),
-        ('originPlace', 'originPlace'),
-    ):
-        if src in p:
-            fam[key] = p[src]
-    if 'tags' in p:
-        fam['tags'] = p['tags'] if isinstance(p['tags'], list) else [
-            t.strip() for t in str(p['tags']).split(',') if t.strip()
-        ]
-    sync_parishioners(data)
-    return {'ok': True, 'item': fam}
-
-
-def delete_family(data: dict, p: dict) -> dict:
-    fid = p.get('id') or p.get('family_id')
-    data['families'] = [f for f in data.get('families', []) if f.get('id') != fid]
-    sync_parishioners(data)
-    return {'ok': True}
-
-
-def upsert_family_member(data: dict, p: dict) -> dict:
-    fam = _find_family(data, p.get('family_id') or p.get('fam_id'))
-    if not fam:
-        return {'ok': False, 'error': 'not_found'}
-    payload = {
-        'name': (p.get('name') or '').strip(),
-        'relation': (p.get('relation') or '').strip(),
-        'birthYear': p.get('birth_year') or p.get('birthYear') or '',
-        'roles': p.get('roles') or [],
-        'notes': (p.get('notes') or '').strip(),
-    }
-    mid = p.get('id') or p.get('member_id')
-    if mid:
-        m = next((x for x in fam.get('members') or [] if x.get('id') == mid), None)
-        if not m:
-            return {'ok': False, 'error': 'not_found'}
-        m.update(payload)
-        item = m
-    else:
-        item = {'id': _new_id('m'), 'sacraments': [], **payload}
-        fam.setdefault('members', []).append(item)
-    sync_parishioners(data)
-    return {'ok': True, 'item': item}
-
-
-def delete_family_member(data: dict, p: dict) -> dict:
-    fam = _find_family(data, p.get('family_id') or p.get('fam_id'))
-    if not fam:
-        return {'ok': False, 'error': 'not_found'}
-    mid = p.get('id') or p.get('member_id')
-    fam['members'] = [m for m in fam.get('members') or [] if m.get('id') != mid]
-    sync_parishioners(data)
-    return {'ok': True}
-
-
-def upsert_contribution(data: dict, p: dict) -> dict:
-    fam = _find_family(data, p.get('family_id') or p.get('fam_id'))
-    if not fam:
-        return {'ok': False, 'error': 'not_found'}
-    yr = int(p.get('year') or date.today().year)
-    row = next((c for c in fam.get('contributions') or [] if c.get('year') == yr), None)
-    if not row:
-        row = {'id': _new_id('yc'), 'year': yr}
-        fam.setdefault('contributions', []).append(row)
-    row['luknoPaid'] = bool(p.get('lukno_paid') or p.get('luknoPaid'))
-    row['luknoAmount'] = float(p.get('lukno_amount') or p.get('luknoAmount') or DEFAULT_LUKNO)
-    row['luknoPaidAt'] = _parse_date(p.get('lukno_paid_at') or p.get('luknoPaidAt'))
-    if row['luknoPaid'] and not row['luknoPaidAt']:
-        row['luknoPaidAt'] = _today_iso()
-    row['churchDonation'] = float(p.get('church_donation') or p.get('churchDonation') or 0)
-    row['donationDate'] = _parse_date(p.get('donation_date') or p.get('donationDate'))
-    row['notes'] = (p.get('notes') or '').strip()
-    return {'ok': True, 'item': row}
-
-
-def delete_contribution(data: dict, p: dict) -> dict:
-    fam = _find_family(data, p.get('family_id') or p.get('fam_id'))
-    if not fam:
-        return {'ok': False, 'error': 'not_found'}
-    yr = int(p.get('year'))
-    fam['contributions'] = [c for c in fam.get('contributions') or [] if c.get('year') != yr]
-    return {'ok': True}
-
-
-def update_spouse(data: dict, p: dict) -> dict:
-    fam = _find_family(data, p.get('family_id') or p.get('fam_id'))
-    if not fam:
-        return {'ok': False, 'error': 'not_found'}
-    which = p.get('which') or p.get('spouse') or 'husband'
-    payload = {k: p.get(k, '') for k in (
-        'name', 'birthYear', 'birthPlace', 'baptismDate', 'baptismPlace', 'weddingChurch', 'notes'
-    )}
-    fam[which] = payload
-    return {'ok': True}
-
-
-def upsert_relative(data: dict, p: dict) -> dict:
-    fam = _find_family(data, p.get('family_id') or p.get('fam_id'))
-    if not fam:
-        return {'ok': False, 'error': 'not_found'}
-    payload = {
-        'name': (p.get('name') or '').strip(),
-        'relation': (p.get('relation') or '').strip(),
-        'birthYear': p.get('birth_year') or p.get('birthYear') or '',
-        'notes': (p.get('notes') or '').strip(),
-    }
-    rid = p.get('id')
-    if rid:
-        r = next((x for x in fam.get('relatives') or [] if x.get('id') == rid), None)
-        if not r:
-            return {'ok': False, 'error': 'not_found'}
-        r.update(payload)
-        item = r
-    else:
-        item = {'id': _new_id('rel'), **payload}
-        fam.setdefault('relatives', []).append(item)
-    return {'ok': True, 'item': item}
-
-
-def delete_relative(data: dict, p: dict) -> dict:
-    fam = _find_family(data, p.get('family_id') or p.get('fam_id'))
-    if not fam:
-        return {'ok': False, 'error': 'not_found'}
-    rid = p.get('id')
-    fam['relatives'] = [r for r in fam.get('relatives') or [] if r.get('id') != rid]
-    return {'ok': True}
-
-
-def update_family_notes(data: dict, p: dict) -> dict:
-    fam = _find_family(data, p.get('family_id') or p.get('fam_id'))
-    if not fam:
-        return {'ok': False, 'error': 'not_found'}
-    fam['pastoralNotes'] = (p.get('pastoral_notes') or p.get('pastoralNotes') or '').strip()
-    return {'ok': True}
-
-
-# --- Streets ---
-
-def upsert_street(data: dict, p: dict) -> dict:
-    sid = p.get('id')
-    payload = {
-        'name': (p.get('name') or '').strip(),
-        'zone': (p.get('zone') or '').strip(),
-        'notes': (p.get('notes') or '').strip(),
-    }
-    if not payload['name']:
-        return {'ok': False, 'error': 'name_required'}
-    if sid:
-        st = next((s for s in data.get('streets', []) if s.get('id') == sid), None)
-        if not st:
-            return {'ok': False, 'error': 'not_found'}
-        st.update(payload)
-        return {'ok': True, 'item': st}
-    item = {
-        'id': _new_id('st'),
-        'sortOrder': len(data.get('streets', [])) + 1,
-        **payload,
-    }
-    data.setdefault('streets', []).append(item)
-    return {'ok': True, 'item': item}
-
-
-def delete_street(data: dict, p: dict) -> dict:
-    sid = p.get('id')
-    data['streets'] = [s for s in data.get('streets', []) if s.get('id') != sid]
-    return {'ok': True}
-
+if TYPE_CHECKING:
+    from pastoral.services.data import ParishDataService
 
 # --- Sacraments (generic upsert) ---
 
@@ -384,7 +69,7 @@ def upsert_sacrament(data: dict, p: dict) -> dict:
         row.update(fields)
         return {'ok': True, 'item': row}
     prefix = {'baptisms': 'b', 'weddings': 'w', 'funerals': 'f', 'anointing': 'a'}.get(key, 's')
-    item = {'id': _new_id(prefix), **fields}
+    item = {'id': generate_record_identifier(prefix), **fields}
     if key == 'anointing':
         arr.insert(0, item)
     else:
@@ -406,7 +91,7 @@ def upsert_task(data: dict, p: dict) -> dict:
     tid = p.get('id')
     payload = {
         'title': (p.get('title') or '').strip(),
-        'due': _parse_date(p.get('due')),
+        'due': normalize_date_value(p.get('due')),
         'category': (p.get('category') or 'ŽPV').strip(),
         'priority': p.get('priority') or 'srednja',
         'done': bool(p.get('done')),
@@ -419,7 +104,7 @@ def upsert_task(data: dict, p: dict) -> dict:
             return {'ok': False, 'error': 'not_found'}
         row.update(payload)
         return {'ok': True, 'item': row}
-    item = {'id': _new_id('t'), **payload}
+    item = {'id': generate_record_identifier('t'), **payload}
     data.setdefault('tasks', []).append(item)
     return {'ok': True, 'item': item}
 
@@ -438,116 +123,6 @@ def toggle_task(data: dict, p: dict) -> dict:
     return {'ok': True, 'item': row}
 
 
-# --- Krizma ---
-
-def create_krizma_year(data: dict, p: dict) -> dict:
-    y = int(p.get('year'))
-    if _confirmation_group(data, y):
-        return {'ok': False, 'error': 'year_exists'}
-    item = {
-        'id': _new_id('conf'),
-        'year': y,
-        'bishop': (p.get('bishop') or '').strip(),
-        'ceremonyDate': _parse_date(p.get('ceremony_date') or p.get('ceremonyDate')),
-        'groupFee': float(p.get('group_fee') or p.get('groupFee') or 0),
-        'groupFeePaid': False,
-        'candidates': [],
-    }
-    data.setdefault('confirmations', []).insert(0, item)
-    return {'ok': True, 'item': item}
-
-
-def update_krizma_group(data: dict, p: dict) -> dict:
-    grp = _confirmation_group(data, int(p.get('year')))
-    if not grp:
-        return {'ok': False, 'error': 'not_found'}
-    grp['ceremonyDate'] = _parse_date(p.get('ceremony_date') or p.get('ceremonyDate'))
-    grp['bishop'] = (p.get('bishop') or '').strip()
-    grp['groupFee'] = float(p.get('group_fee') or p.get('groupFee') or 0)
-    grp['groupFeePaid'] = bool(p.get('group_fee_paid') or p.get('groupFeePaid'))
-    if grp['groupFeePaid'] and not grp.get('groupFeePaidAt'):
-        grp['groupFeePaidAt'] = _today_iso()
-    return {'ok': True, 'item': grp}
-
-
-def upsert_krizmanik(data: dict, p: dict) -> dict:
-    year = int(p.get('year'))
-    grp = _confirmation_group(data, year)
-    if not grp:
-        grp = create_krizma_year(data, {'year': year})['item']
-    payload = {k: p.get(k, '') for k in (
-        'name', 'birthDate', 'school', 'class', 'group', 'baptized', 'sponsor', 'status', 'oib'
-    )}
-    cid = p.get('id')
-    if cid:
-        c = next((x for x in grp.get('candidates') or [] if x.get('id') == cid), None)
-        if not c:
-            return {'ok': False, 'error': 'not_found'}
-        c.update(payload)
-        return {'ok': True, 'item': c}
-    item = {'id': _new_id('cr'), **payload}
-    grp.setdefault('candidates', []).append(item)
-    return {'ok': True, 'item': item}
-
-
-def delete_krizmanik(data: dict, p: dict) -> dict:
-    year = int(p.get('year'))
-    grp = _confirmation_group(data, year)
-    if not grp:
-        return {'ok': False, 'error': 'not_found'}
-    cid = p.get('id')
-    grp['candidates'] = [c for c in grp.get('candidates') or [] if c.get('id') != cid]
-    return {'ok': True}
-
-
-# --- Prva pričest ---
-
-def create_fc_year(data: dict, p: dict) -> dict:
-    y = int(p.get('year'))
-    if _fc_group(data, y):
-        return {'ok': False, 'error': 'year_exists'}
-    item = {
-        'id': _new_id('fc'),
-        'year': y,
-        'groupName': (p.get('group_name') or p.get('groupName') or f'Skupina {y}').strip(),
-        'celebrant': (p.get('celebrant') or '').strip(),
-        'ceremonyDate': _parse_date(p.get('ceremony_date') or p.get('ceremonyDate')),
-        'groupFee': 0,
-        'groupFeePaid': False,
-        'candidates': [],
-    }
-    data.setdefault('firstCommunion', []).insert(0, item)
-    return {'ok': True, 'item': item}
-
-
-def upsert_prvopricestnik(data: dict, p: dict) -> dict:
-    year = int(p.get('year'))
-    grp = _fc_group(data, year)
-    if not grp:
-        grp = create_fc_year(data, {'year': year})['item']
-    payload = dict(p.get('fields') or p)
-    cid = p.get('id')
-    if cid:
-        c = next((x for x in grp.get('candidates') or [] if x.get('id') == cid), None)
-        if not c:
-            return {'ok': False, 'error': 'not_found'}
-        c.update(payload)
-        return {'ok': True, 'item': c}
-    item = {'id': _new_id('c'), **payload}
-    grp.setdefault('candidates', []).append(item)
-    return {'ok': True, 'item': item}
-
-
-def delete_prvopricestnik(data: dict, p: dict) -> dict:
-    year = int(p.get('year'))
-    grp = _fc_group(data, year)
-    if not grp:
-        return {'ok': False, 'error': 'not_found'}
-    cid = p.get('id')
-    grp['candidates'] = [c for c in grp.get('candidates') or [] if c.get('id') != cid]
-    return {'ok': True}
-
-
 # --- Parish debts ---
 
 def upsert_parish_debt(data: dict, p: dict) -> dict:
@@ -557,16 +132,16 @@ def upsert_parish_debt(data: dict, p: dict) -> dict:
         'category': p.get('category') or 'ostalo',
         'year': int(p.get('year') or date.today().year),
         'amount': float(p.get('amount') or 0),
-        'dueDate': _parse_date(p.get('due_date') or p.get('dueDate')),
+        'dueDate': normalize_date_value(p.get('due_date') or p.get('dueDate')),
         'contact': (p.get('contact') or '').strip(),
         'notes': (p.get('notes') or '').strip(),
         'paid': bool(p.get('paid')),
-        'paidAt': _parse_date(p.get('paid_at') or p.get('paidAt')),
+        'paidAt': normalize_date_value(p.get('paid_at') or p.get('paidAt')),
     }
     if not payload['label']:
         return {'ok': False, 'error': 'label_required'}
     if payload['paid'] and not payload['paidAt']:
-        payload['paidAt'] = _today_iso()
+        payload['paidAt'] = today_iso()
     did = p.get('id')
     if did:
         row = next((d for d in data.get('parishDebts', []) if d.get('id') == did), None)
@@ -574,7 +149,7 @@ def upsert_parish_debt(data: dict, p: dict) -> dict:
             return {'ok': False, 'error': 'not_found'}
         row.update(payload)
         return {'ok': True, 'item': row}
-    item = {'id': _new_id('pd'), **payload}
+    item = {'id': generate_record_identifier('pd'), **payload}
     data.setdefault('parishDebts', []).insert(0, item)
     return {'ok': True, 'item': item}
 
@@ -597,7 +172,7 @@ def mark_debt_paid(data: dict, p: dict) -> dict:
 
 def _log_mass_change(data: dict, msg: str) -> None:
     data.setdefault('massScheduleLog', []).insert(0, {
-        'id': _new_id('msl'),
+        'id': generate_record_identifier('msl'),
         'at': datetime.now(timezone.utc).isoformat(),
         'message': msg,
     })
@@ -613,7 +188,7 @@ def upsert_mass_schedule(data: dict, p: dict) -> dict:
         row.update(fields)
         _log_mass_change(data, f"Uređen termin {fields.get('time', '')} ({fields.get('day', '')})")
         return {'ok': True, 'item': row}
-    item = {'id': _new_id('ms'), **fields}
+    item = {'id': generate_record_identifier('ms'), **fields}
     data.setdefault('massSchedule', []).append(item)
     _log_mass_change(data, f"Dodan termin {fields.get('time', '')} ({fields.get('day', '')})")
     return {'ok': True, 'item': item}
@@ -637,7 +212,7 @@ def upsert_mass_exception(data: dict, p: dict) -> dict:
         row.update(fields)
         _log_mass_change(data, f"Uređena iznimka {fields.get('date', '')}")
         return {'ok': True, 'item': row}
-    item = {'id': _new_id('mexc'), **fields}
+    item = {'id': generate_record_identifier('mexc'), **fields}
     data.setdefault('massExceptions', []).append(item)
     _log_mass_change(data, f"Dodana iznimka {fields.get('date', '')}")
     return {'ok': True, 'item': item}
@@ -733,7 +308,7 @@ def search_matica(data: dict, p: dict, settings: dict | None = None) -> dict:
 
 def get_masses_for_date(data: dict, p: dict, settings: dict | None = None) -> dict:
     from pastoral.services.mass_schedule import get_masses_for_date as masses
-    iso = p.get('date') or p.get('iso') or _today_iso()
+    iso = p.get('date') or p.get('iso') or today_iso()
     return {'ok': True, 'slots': masses(data, iso)}
 
 
@@ -754,11 +329,11 @@ def upsert_visit(data: dict, p: dict) -> dict:
             return {'ok': False, 'error': 'not_found'}
         row.update(payload)
         if row.get('done') and row.get('familyId'):
-            fam = _find_family(data, row['familyId'])
+            fam = find_family(data, row['familyId'])
             if fam:
-                fam['lastVisit'] = _today_iso()
+                fam['lastVisit'] = today_iso()
         return {'ok': True, 'item': row}
-    item = {'id': _new_id('v'), 'done': False, **payload}
+    item = {'id': generate_record_identifier('v'), 'done': False, **payload}
     data.setdefault('visits', []).append(item)
     return {'ok': True, 'item': item}
 
@@ -769,9 +344,9 @@ def toggle_visit_done(data: dict, p: dict) -> dict:
         return {'ok': False, 'error': 'not_found'}
     row['done'] = not row.get('done')
     if row['done'] and row.get('familyId'):
-        fam = _find_family(data, row['familyId'])
+        fam = find_family(data, row['familyId'])
         if fam:
-            fam['lastVisit'] = _today_iso()
+            fam['lastVisit'] = today_iso()
     return {'ok': True, 'item': row}
 
 
@@ -786,7 +361,7 @@ def upsert_invoice(data: dict, p: dict) -> dict:
             return {'ok': False, 'error': 'not_found'}
         row.update(fields)
         return {'ok': True, 'item': row}
-    item = {'id': _new_id('inv'), 'direction': 'incoming', **fields}
+    item = {'id': generate_record_identifier('inv'), 'direction': 'incoming', **fields}
     data.setdefault('invoices', []).append(item)
     return {'ok': True, 'item': item}
 
@@ -796,7 +371,7 @@ def mark_invoice_paid(data: dict, p: dict) -> dict:
     if not row:
         return {'ok': False, 'error': 'not_found'}
     row['paidAmount'] = row.get('total') or row.get('amount')
-    row['paidAt'] = _today_iso()
+    row['paidAt'] = today_iso()
     row['status'] = 'placen'
     return {'ok': True, 'item': row}
 
@@ -805,11 +380,11 @@ def mark_invoice_paid(data: dict, p: dict) -> dict:
 
 def create_cashbook_entry(data: dict, p: dict) -> dict:
     fields = dict(p.get('fields') or p)
-    item = {'id': _new_id('cb'), **fields}
+    item = {'id': generate_record_identifier('cb'), **fields}
     data.setdefault('cashbook', []).insert(0, item)
     extra = p.get('auto_entries') or []
     for e in extra:
-        data['cashbook'].insert(0, {'id': _new_id('cb'), **e})
+        data['cashbook'].insert(0, {'id': generate_record_identifier('cb'), **e})
     return {'ok': True, 'item': item}
 
 
@@ -824,7 +399,7 @@ def upsert_app_group(data: dict, p: dict) -> dict:
             return {'ok': False, 'error': 'not_found'}
         row.update(fields)
         return {'ok': True, 'item': row}
-    item = {'id': fields.get('id') or _new_id('grp'), **fields}
+    item = {'id': fields.get('id') or generate_record_identifier('grp'), **fields}
     data.setdefault('appGroups', []).append(item)
     return {'ok': True, 'item': item}
 
@@ -838,7 +413,7 @@ def upsert_app_user(data: dict, p: dict) -> dict:
             return {'ok': False, 'error': 'not_found'}
         row.update(fields)
     else:
-        item = {'id': _new_id('usr'), **fields}
+        item = {'id': generate_record_identifier('usr'), **fields}
         data.setdefault('appUsers', []).append(item)
         row = item
     priest_id = fields.get('priestId')
@@ -860,7 +435,7 @@ def upsert_parish_priest(data: dict, p: dict) -> dict:
             return {'ok': False, 'error': 'not_found'}
         row.update(fields)
         return {'ok': True, 'item': row}
-    item = {'id': _new_id('pr'), **fields}
+    item = {'id': generate_record_identifier('pr'), **fields}
     data.setdefault('parishPriests', []).append(item)
     return {'ok': True, 'item': item}
 
@@ -869,7 +444,7 @@ def upsert_parish_priest(data: dict, p: dict) -> dict:
 
 def send_staff_message(data: dict, p: dict) -> dict:
     item = {
-        'id': _new_id('msg'),
+        'id': generate_record_identifier('msg'),
         'from': p.get('from', ''),
         'fromRole': p.get('from_role') or p.get('fromRole', ''),
         'to': p.get('to', ''),
@@ -927,12 +502,18 @@ def mark_public_submission_imported(data: dict, p: dict) -> dict:
 def import_public_submission(data: dict, p: dict) -> dict:
     sub = p.get('submission') or p
     stype = sub.get('type') or sub.get('formType')
+    stype = {
+        'prijava-krizma': 'krizma',
+        'prijava-krsenje': 'krstenje',
+        'prijava-pricest': 'pricest',
+        'prijava-ukop': 'ukop',
+    }.get(stype, stype)
     d = sub.get('data') or {}
     year = int(p.get('year') or date.today().year)
     sid = sub.get('id')
 
     if stype == 'krizma':
-        upsert_krizmanik(data, {
+        upsert_confirmation_candidate(data, {
             'year': year,
             'name': f"{d.get('ime', '')} {d.get('prezime', '')}".strip(),
             'birthDate': d.get('datum_rodjenja', ''),
@@ -963,7 +544,7 @@ def import_public_submission(data: dict, p: dict) -> dict:
         parts = name_raw.split()
         last_name = parts.pop() if len(parts) > 1 else ''
         first_name = ' '.join(parts) or name_raw
-        upsert_prvopricestnik(data, {
+        upsert_first_communion_candidate(data, {
             'year': year,
             'fields': {
                 'firstName': first_name,
@@ -1005,7 +586,7 @@ def import_public_submission(data: dict, p: dict) -> dict:
 def import_krizmanici(data: dict, p: dict) -> dict:
     year = int(p.get('year') or date.today().year)
     for row in p.get('rows') or []:
-        upsert_krizmanik(data, {
+        upsert_confirmation_candidate(data, {
             'year': year,
             'name': row.get('Ime') or row.get('name') or row.get('Ime i prezime') or '—',
             'birthDate': row.get('Datum rođenja') or row.get('birthDate') or '',
@@ -1020,7 +601,7 @@ def import_krizmanici(data: dict, p: dict) -> dict:
     return {'ok': True, 'count': len(p.get('rows') or [])}
 
 
-HANDLERS = {
+ACTION_HANDLERS = {
     'create_intention': create_intention,
     'update_intention': update_intention,
     'delete_intention': delete_intention,
@@ -1044,13 +625,13 @@ HANDLERS = {
     'upsert_task': upsert_task,
     'delete_task': delete_task,
     'toggle_task': toggle_task,
-    'create_krizma_year': create_krizma_year,
-    'update_krizma_group': update_krizma_group,
-    'upsert_krizmanik': upsert_krizmanik,
-    'delete_krizmanik': delete_krizmanik,
-    'create_fc_year': create_fc_year,
-    'upsert_prvopricestnik': upsert_prvopricestnik,
-    'delete_prvopricestnik': delete_prvopricestnik,
+    'create_krizma_year': create_confirmation_year,
+    'update_krizma_group': update_confirmation_group,
+    'upsert_krizmanik': upsert_confirmation_candidate,
+    'delete_krizmanik': delete_confirmation_candidate,
+    'create_fc_year': create_first_communion_year,
+    'upsert_prvopricestnik': upsert_first_communion_candidate,
+    'delete_prvopricestnik': delete_first_communion_candidate,
     'upsert_parish_debt': upsert_parish_debt,
     'delete_parish_debt': delete_parish_debt,
     'mark_debt_paid': mark_debt_paid,
@@ -1089,7 +670,7 @@ HANDLERS = {
 }
 
 
-READONLY_ACTIONS = frozenset({
+READ_ONLY_ACTION_NAMES = frozenset({
     'render_listic_preview',
     'get_analytics_stats',
     'get_reminders',
@@ -1101,23 +682,49 @@ READONLY_ACTIONS = frozenset({
     'get_masses_for_date',
 })
 
-SETTINGS_AWARE_ACTIONS = READONLY_ACTIONS | frozenset({'upsert_listic_issue'})
+SETTINGS_AWARE_ACTION_NAMES = READ_ONLY_ACTION_NAMES | frozenset({
+    'upsert_listic_issue',
+})
 
 
-def dispatch_action(action: str, payload: dict, svc) -> dict:
-    handler = HANDLERS.get(action)
-    if not handler:
-        return {'ok': False, 'error': 'unknown_action', 'action': action}
-    data = svc.load()
-    normalize_data(data)
-    settings = svc.load_settings()
-    if action in SETTINGS_AWARE_ACTIONS:
-        result = handler(data, payload or {}, settings)
+def dispatch_action(
+    action_name: str,
+    action_payload: dict,
+    parish_data_service: ParishDataService,
+) -> dict:
+    action_handler = ACTION_HANDLERS.get(action_name)
+    if not action_handler:
+        return {
+            'ok': False,
+            'error': 'unknown_action',
+            'action': action_name,
+        }
+
+    parish_data = parish_data_service.load()
+    normalize_parish_data(parish_data)
+    parish_settings = parish_data_service.load_settings()
+    if action_name in SETTINGS_AWARE_ACTION_NAMES:
+        action_result = action_handler(
+            parish_data,
+            action_payload or {},
+            parish_settings,
+        )
     else:
-        result = handler(data, payload or {})
-    if action in READONLY_ACTIONS:
-        return result if isinstance(result, dict) else {'ok': True}
-    if not result.get('ok', True):
-        return result
-    svc.save(data)
-    return {'ok': True, 'data': svc.load(), **{k: v for k, v in result.items() if k not in ('ok',)}}
+        action_result = action_handler(parish_data, action_payload or {})
+
+    if action_name in READ_ONLY_ACTION_NAMES:
+        return action_result if isinstance(action_result, dict) else {'ok': True}
+    if not action_result.get('ok', True):
+        return action_result
+
+    parish_data_service.save(parish_data)
+    additional_response_data = {
+        response_key: response_value
+        for response_key, response_value in action_result.items()
+        if response_key != 'ok'
+    }
+    return {
+        'ok': True,
+        'data': parish_data_service.load(),
+        **additional_response_data,
+    }

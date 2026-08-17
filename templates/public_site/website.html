@@ -1,0 +1,134 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="{{ snapshot.parish.tagline }}">
+  <meta name="theme-color" content="{{ website.primary_color }}">
+  <title>{{ snapshot.parish.name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="{% static 'public_site/js/theme.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'public_site/css/website.css' %}">
+  <style>:root{--parish-primary:{{ website.primary_color }};--parish-accent:{{ website.accent_color }}}</style>
+</head>
+<body class="template-{{ website.template_key }}" data-template="{{ website.template_key }}">
+  <a class="skip-link" href="#sadrzaj">Preskoči na sadržaj</a>
+  {% if preview_mode %}<div class="preview-banner" role="status"><strong>Pregled prije objave</strong><span>Ova verzija nije javna. Skice i zakazani sadržaji označeni su u prikazu.</span></div>{% endif %}
+  <header class="site-header">
+    <a class="brand" href="#vrh" aria-label="{{ snapshot.parish.name }} — naslovnica">
+      <span class="brand-mark" aria-hidden="true">M</span>
+      <span><small>{{ snapshot.parish.diocese }}</small><strong>{{ snapshot.parish.name }}</strong></span>
+    </a>
+    <nav aria-label="Glavna navigacija">
+      <a href="#mise">Svete mise</a><a href="#obavijesti">Obavijesti</a><a href="#dogadanja">Događanja</a><a href="#galerija">Galerija</a><a href="#obrasci">Obrasci</a><a href="#kontakt">Kontakt</a>
+    </nav>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Tema: Sustav. Promijeni temu." title="Tema: Sustav"><span data-theme-icon aria-hidden="true">◐</span><span data-theme-label>Sustav</span></button>
+    {% if snapshot.contact.phone %}<a class="header-contact" href="tel:{{ snapshot.contact.phone|cut:' '|cut:'+' }}">{{ snapshot.contact.phone }}</a>{% endif %}
+  </header>
+
+  <main id="sadrzaj">
+    <section class="hero" id="vrh" style="--hero-image:url('{{ snapshot.media.hero.url }}')">
+      <div class="hero-copy">
+        <p class="eyebrow">{{ snapshot.parish.city }} · Dobro došli</p>
+        <h1>{{ snapshot.parish.name }}</h1>
+        <p class="hero-lead">{{ snapshot.parish.tagline }}</p>
+        <div class="hero-actions"><a class="button button-primary" href="#mise">Raspored svetih misa</a><a class="button button-light" href="#obrasci">Online prijave</a></div>
+        <dl class="hero-facts">
+          {% if snapshot.parish.pastor %}<div><dt>Župnik</dt><dd>{{ snapshot.parish.pastor }}</dd></div>{% endif %}
+          {% if snapshot.contact.address %}<div><dt>Adresa</dt><dd>{{ snapshot.contact.address }}</dd></div>{% endif %}
+        </dl>
+      </div>
+      <aside class="today-card">
+        <p class="eyebrow">Danas u Crkvi</p>
+        <div class="liturgical-orb liturgical-{{ snapshot.liturgy.color|default:'green' }}"></div>
+        <h2>{{ snapshot.liturgy.title|default:'Liturgijski dan' }}</h2>
+        {% if snapshot.liturgy.subtitle %}<p>{{ snapshot.liturgy.subtitle }}</p>{% endif %}
+        {% if snapshot.liturgy.color_label %}<span class="tag">Liturgijska boja: {{ snapshot.liturgy.color_label }}</span>{% endif %}
+        <hr>
+        <h3>Današnje mise</h3>
+        {% for mass in snapshot.today_masses %}<p class="today-mass"><strong>{{ mass.time }}</strong><span>{{ mass.location }}{% if mass.notes %} · {{ mass.notes }}{% endif %}</span></p>{% empty %}<p class="muted">Danas nema redovnog termina u rasporedu.</p>{% endfor %}
+      </aside>
+    </section>
+
+    <section class="quick-strip" aria-label="Brze informacije">
+      <a href="#mise"><span>◷</span><strong>Raspored misa</strong><small>Redovni termini i lokacije</small></a>
+      <a href="#listic"><span>▤</span><strong>Župni listić</strong><small>Tjedne obavijesti na jednom mjestu</small></a>
+      <a href="#donacije"><span>♡</span><strong>Podržite župu</strong><small>IBAN i podaci za uplatu</small></a>
+      <a href="#kontakt"><span>⌖</span><strong>Župni ured</strong><small>Kontakt i radno vrijeme</small></a>
+    </section>
+
+    {% if 'announcements' in snapshot.enabled_sections %}
+    <section class="section" id="obavijesti">
+      <div class="section-heading"><div><p class="eyebrow">Aktualno</p><h2>Obavijesti župe</h2></div><p>Važne informacije za život naše župne zajednice.</p></div>
+      <div class="announcement-grid">
+        {% for item in snapshot.announcements %}<article class="announcement-card{% if forloop.first %} featured{% endif %}"><div class="announcement-meta">{% if item.date_label %}{{ item.date_label }}{% else %}Župna obavijest{% endif %}{% if preview_mode and item.publication_status != 'published' %}<span class="preview-status">{% if item.publication_status == 'draft' %}Skica{% else %}Zakazano{% endif %}</span>{% endif %}</div><h3>{{ item.title }}</h3><p>{{ item.body }}</p></article>{% empty %}<article class="empty-card"><h3>Nema novih obavijesti</h3><p>Nova župna obavijest bit će prikazana čim je ured objavi.</p></article>{% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    {% if 'mass_schedule' in snapshot.enabled_sections %}
+    <section class="section section-tinted" id="mise">
+      <div class="section-heading"><div><p class="eyebrow">Liturgijski život</p><h2>Raspored svetih misa</h2></div><p>Za blagdane i posebne dane pratite aktualne obavijesti župe.</p></div>
+      <div class="mass-grid">{% for mass in snapshot.mass_schedule %}<article class="mass-card"><span>{{ mass.day }}</span><strong>{{ mass.time }}</strong><p>{{ mass.location }}{% if mass.notes %}<br><small>{{ mass.notes }}</small>{% endif %}</p></article>{% empty %}<article class="empty-card">Raspored svetih misa još nije objavljen.</article>{% endfor %}</div>
+      {% if snapshot.contact.confession_schedule %}<div class="confession-note"><span>✦</span><div><strong>Sveta ispovijed</strong><p>{{ snapshot.contact.confession_schedule|linebreaksbr }}</p></div></div>{% endif %}
+    </section>
+    {% endif %}
+
+    {% if 'calendar' in snapshot.enabled_sections %}
+    <section class="section" id="dogadanja">
+      <div class="section-heading"><div><p class="eyebrow">Život zajednice</p><h2>Događanja u župi</h2></div><p>Susreti, priprave, slavlja i pastoralne aktivnosti.</p></div>
+      <div class="event-list">{% for event in snapshot.events %}<article class="event-row"><time datetime="{{ event.date }}"><strong>{{ event.date_label }}</strong>{% if event.time %}<span>{{ event.time }}</span>{% endif %}</time><div><span class="tag">{{ event.type|default:'Župa' }}</span>{% if preview_mode and event.publication_status != 'published' %}<span class="preview-status">{% if event.publication_status == 'draft' %}Skica{% else %}Zakazano{% endif %}</span>{% endif %}<h3>{{ event.title }}</h3><p>{{ event.place }}{% if event.is_past %} · Nedavno održano{% endif %}</p></div></article>{% empty %}<article class="empty-card"><h3>Nema najavljenih događanja</h3><p>Pratite obavijesti za nove susrete i aktivnosti.</p></article>{% endfor %}</div>
+    </section>
+    {% endif %}
+
+    <section class="section gallery-section" id="galerija">
+      <div class="section-heading gallery-heading"><div><p class="eyebrow">Trenuci iz župe</p><h2>Život u slikama</h2></div><p>Fotografije crkve, slavlja i susreta mogu se objavljivati uz obavijesti ili u zasebnim galerijama.</p></div>
+      <div class="gallery-grid">
+        {% for image in snapshot.media.gallery %}
+        <figure class="gallery-card{% if forloop.first %} gallery-card-portrait{% endif %}">
+          <img src="{{ image.url }}" alt="{{ image.alt }}" loading="lazy" decoding="async">
+          <figcaption><span>Galerija župe</span><strong>{{ image.caption }}</strong></figcaption>
+        </figure>
+        {% endfor %}
+      </div>
+    </section>
+
+    {% if 'bulletin' in snapshot.enabled_sections %}
+    <section class="section bulletin-section" id="listic">
+      <div><p class="eyebrow">Sve na jednom mjestu</p><h2>Župni listić</h2><p>Raspored misa, obavijesti i događanja za aktualni župni tjedan.</p></div>
+      <div class="bulletin-stack">{% for issue in snapshot.bulletins %}<article><span>ŽUPNI LISTIĆ</span><h3>{{ issue.title }}</h3>{% if issue.week_start %}<p>{{ issue.week_start }} – {{ issue.week_end }}</p>{% endif %}<small>{% if issue.generated %}Automatski pregled aktualnog tjedna{% else %}Objavljeno izdanje{% endif %}</small></article>{% endfor %}</div>
+    </section>
+    {% endif %}
+
+    {% if 'sacraments' in snapshot.enabled_sections %}
+    <section class="section section-tinted" id="obrasci">
+      <div class="section-heading"><div><p class="eyebrow">Sakramenti i životne situacije</p><h2>Javni obrasci</h2></div><p>Pošaljite početne podatke online; župni ured zatim će vas kontaktirati.</p></div>
+      <div class="form-grid">{% for slug,label,description,icon in snapshot.forms %}<a href="{% url 'public_site:public_form' website.subdomain slug %}"><span>{{ icon }}</span><h3>{{ label }}</h3><p>{{ description }}</p><strong>Otvori obrazac →</strong></a>{% endfor %}</div>
+      <p class="privacy-note">Podaci poslani obrascem koriste se isključivo za kontakt i pripremu tražene župne usluge.</p>
+    </section>
+    {% endif %}
+
+    <section class="section about-grid">
+      <div><p class="eyebrow">Naša zajednica</p><h2>O župi</h2><p class="large-copy">{{ snapshot.parish.about }}</p><dl class="about-list"><div><dt>Biskupija</dt><dd>{{ snapshot.parish.diocese }}</dd></div><div><dt>Župnik</dt><dd>{{ snapshot.parish.pastor }}</dd></div></dl></div>
+      <aside class="pastoral-card"><span aria-hidden="true">✦</span><blockquote>“Gdje su dvojica ili trojica sabrana u moje ime, tu sam i ja među njima.”</blockquote><cite>Mt 18,20</cite></aside>
+    </section>
+
+    {% if 'donations' in snapshot.enabled_sections %}
+    <section class="section donation-section" id="donacije">
+      <div><p class="eyebrow">Dar zajednici</p><h2>Podržite potrebe župe</h2><p>Hvala svakome tko svojim darom pomaže pastoralni život, održavanje crkve i karitativno djelovanje.</p></div>
+      <dl class="payment-card"><div><dt>Primatelj</dt><dd>{{ snapshot.donation.recipient|default:snapshot.parish.name }}</dd></div><div><dt>IBAN</dt><dd class="iban">{% if snapshot.donation.iban %}{{ snapshot.donation.iban }}{% else %}IBAN će župa uskoro objaviti{% endif %}</dd></div><div><dt>Opis plaćanja</dt><dd>{{ snapshot.donation.purpose|default:'Dar za potrebe župe' }}</dd></div></dl>
+    </section>
+    {% endif %}
+
+    <section class="section contact-section" id="kontakt">
+      <div class="contact-copy"><p class="eyebrow">Tu smo za vas</p><h2>Župni ured i kontakt</h2><div class="contact-grid"><div><span>Telefon</span>{% if snapshot.contact.phone %}<a href="tel:{{ snapshot.contact.phone|cut:' '|cut:'+' }}">{{ snapshot.contact.phone }}</a>{% else %}<strong>—</strong>{% endif %}</div><div><span>E-mail</span>{% if snapshot.contact.email %}<a href="mailto:{{ snapshot.contact.email }}">{{ snapshot.contact.email }}</a>{% else %}<strong>—</strong>{% endif %}</div><div><span>Adresa</span><strong>{{ snapshot.contact.address|default:snapshot.parish.city }}</strong></div><div><span>Radno vrijeme</span><strong>{{ snapshot.contact.office_hours|linebreaksbr }}</strong></div></div>{% if snapshot.contact.map_url %}<a class="button button-primary" href="{{ snapshot.contact.map_url }}" rel="noopener" target="_blank">Otvori kartu</a>{% endif %}</div>
+      <aside class="contact-panel"><span class="brand-mark">M</span><h3>{{ snapshot.parish.name }}</h3><p>{{ snapshot.parish.city }}</p><div class="social-links">{% if snapshot.social.facebook %}<a href="{{ snapshot.social.facebook }}" rel="noopener" target="_blank">Facebook</a>{% endif %}{% if snapshot.social.youtube %}<a href="{{ snapshot.social.youtube }}" rel="noopener" target="_blank">YouTube</a>{% endif %}{% if snapshot.social.instagram %}<a href="{{ snapshot.social.instagram }}" rel="noopener" target="_blank">Instagram</a>{% endif %}</div></aside>
+    </section>
+  </main>
+
+  <footer><div><strong>{{ snapshot.parish.name }}</strong><span>{{ snapshot.parish.diocese }}</span></div><p>© {% now "Y" %} {{ snapshot.parish.name }} · Sadržaj uređuje župni ured</p><a href="#vrh">Natrag na vrh ↑</a></footer>
+</body>
+</html>

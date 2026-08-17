@@ -1,0 +1,220 @@
+{% extends "pastoral/base.html" %}
+{% load static pastoral_tags %}
+
+{% block topbar_actions %}
+<button type="button" class="btn btn-primary btn-sm" id="open-deanery-request">+ Novi zahtjev</button>
+{% endblock %}
+
+{% block content %}
+<section class="deanery-hero">
+  <div class="deanery-hero-copy">
+    <p class="command-eyebrow">{{ deanery.diocese }} · sigurna mreža župa</p>
+    <h2>{{ deanery.name }}</h2>
+    <p>Potvrde, delegacije, zamjene i drugi međužupni poslovi vode se kao predmeti s odgovornom osobom, rokom i trajnim tragom — ne kao izgubljene poruke.</p>
+  </div>
+  <div class="deanery-connection">
+    <span class="secure-network-icon" aria-hidden="true">⌁</span>
+    <span><strong>Sigurni kanal aktivan</strong><small>{{ deanery_stats.parishes }} povezanih župa · prosječan odgovor {{ deanery_stats.averageResponseHours }} h</small></span>
+  </div>
+</section>
+
+<section class="signal-grid report-signal-grid" aria-label="Stanje međužupnih zahtjeva">
+  <a href="?view=inbox" class="signal-card signal-card--alert"><span class="signal-icon">↓</span><div><small>Primljeni otvoreni</small><strong>{{ deanery_stats.inbox }}</strong><em>{{ deanery_stats.action }} traži naš postupak</em></div><span class="signal-arrow">→</span></a>
+  <a href="?view=outbox" class="signal-card signal-card--liturgy"><span class="signal-icon">↑</span><div><small>Poslani otvoreni</small><strong>{{ deanery_stats.outbox }}</strong><em>pratimo odgovor druge župe</em></div><span class="signal-arrow">→</span></a>
+  <a href="?view=inbox&status=received" class="signal-card signal-card--pastoral"><span class="signal-icon">!</span><div><small>Visoki prioritet</small><strong>{{ deanery_stats.urgent }}</strong><em>rok ili pastoralna hitnost</em></div><span class="signal-arrow">→</span></a>
+  <a href="?view=all" class="signal-card signal-card--finance"><span class="signal-icon">✓</span><div><small>Prekoračeni SLA</small><strong>{{ deanery_stats.overdue }}</strong><em>predmeti izvan dogovorenog roka</em></div><span class="signal-arrow">→</span></a>
+</section>
+
+<section class="case-template-strip" aria-label="Brzi predlošci zahtjeva">
+  <span class="case-template-label">Novi zahtjev:</span>
+  {% for type_id, meta in request_type_meta.items %}
+  <button type="button" class="case-template-chip" data-request-type="{{ type_id }}"><span>{{ meta.icon }}</span>{{ meta.short }}</button>
+  {% endfor %}
+</section>
+
+<div class="deanery-main-grid">
+  <div class="case-workspace">
+    <section class="card case-inbox">
+      <div class="case-inbox-head">
+        <div><p class="card-label">Operativni inbox</p><h2 class="section-title">Zahtjevi</h2></div>
+        <span class="badge">{{ interparish_requests|length }}</span>
+      </div>
+      <nav class="case-view-tabs" aria-label="Prikaz zahtjeva">
+        <a href="?view=inbox" class="{% if deanery_filters.view == 'inbox' %}is-active{% endif %}">Primljeno</a>
+        <a href="?view=outbox" class="{% if deanery_filters.view == 'outbox' %}is-active{% endif %}">Poslano</a>
+        <a href="?view=closed" class="{% if deanery_filters.view == 'closed' %}is-active{% endif %}">Zatvoreno</a>
+        <a href="?view=all" class="{% if deanery_filters.view == 'all' %}is-active{% endif %}">Sve</a>
+      </nav>
+      <form method="get" class="case-search-form">
+        <input type="hidden" name="view" value="{{ deanery_filters.view }}">
+        <span aria-hidden="true">⌕</span>
+        <input type="search" name="q" value="{{ deanery_filters.q }}" placeholder="Osoba, župa, broj predmeta…" aria-label="Pretraži zahtjeve">
+      </form>
+      <div class="case-list">
+        {% for item in interparish_requests %}
+        <a href="?view={{ deanery_filters.view }}&request={{ item.id }}{% if deanery_filters.q %}&q={{ deanery_filters.q|urlencode }}{% endif %}" class="case-list-item {% if selected_request.id == item.id %}is-selected{% endif %}">
+          <span class="case-list-icon">{{ item.typeMeta.icon }}</span>
+          <span class="case-list-main">
+            <span class="case-list-kicker"><small>{{ item.reference }}</small><span class="case-status case-status--{{ item.statusMeta.tone }}">{{ item.statusMeta.label }}</span></span>
+            <strong>{{ item.subject }}</strong>
+            {% if item.personName %}<em>{{ item.personName }}</em>{% endif %}
+            <span class="case-list-meta"><small>{% if item.direction == 'incoming' %}Od{% else %}Za{% endif %}: {{ item.counterparty.shortName|default:item.counterparty.name }}</small><small class="{% if item.isOverdue %}text-danger{% endif %}">rok {{ item.dueAt|hr_date }}</small></span>
+          </span>
+        </a>
+        {% empty %}
+        <div class="empty-state-pro"><span>✓</span><strong>Nema predmeta u ovom prikazu</strong><small>Promijenite filter ili izradite novi zahtjev.</small></div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="card case-detail">
+      {% if selected_request %}
+      <header class="case-detail-head">
+        <div>
+          <span class="case-detail-ref">{{ selected_request.reference }}{% if selected_request.caseReference %} · {{ selected_request.caseReference }}{% endif %}</span>
+          <h2>{{ selected_request.subject }}</h2>
+          <div class="case-detail-badges">
+            <span class="case-status case-status--{{ selected_request.statusMeta.tone }}">{{ selected_request.statusMeta.label }}</span>
+            <span class="badge">{{ selected_request.typeMeta.label }}</span>
+            <span class="badge">{{ selected_request.confidentiality }}</span>
+            {% if selected_request.priority == 'urgent' %}<span class="badge badge-urgent">hitno</span>{% elif selected_request.priority == 'high' %}<span class="badge badge-urgent">visoko</span>{% endif %}
+          </div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">Ispiši predmet</button>
+      </header>
+
+      <div class="parish-route" aria-label="Put zahtjeva između župa">
+        <div><span class="parish-route-icon">{{ selected_request.sourceParish.shortName|slice:":2"|upper }}</span><span><small>Šalje</small><strong>{{ selected_request.sourceParish.name }}</strong><em>{{ selected_request.sourceParish.priest }}</em></span></div>
+        <span class="parish-route-line"><i></i><b>sigurni zahtjev</b><i></i></span>
+        <div><span class="parish-route-icon">{{ selected_request.targetParish.shortName|slice:":2"|upper }}</span><span><small>Prima</small><strong>{{ selected_request.targetParish.name }}</strong><em>{{ selected_request.targetParish.priest }}</em></span></div>
+      </div>
+
+      {% if selected_request.isOverdue %}
+      <div class="case-sla-alert case-sla-alert--overdue"><span>!</span><div><strong>Dogovoreni rok je prekoračen</strong><small>Predmet je trebao biti riješen do {{ selected_request.dueAt|hr_date }}.</small></div></div>
+      {% elif selected_request.daysLeft != None and selected_request.daysLeft <= 1 %}
+      <div class="case-sla-alert"><span>⌛</span><div><strong>Rok je blizu</strong><small>Odgovor je potreban do {{ selected_request.dueAt|hr_date }}.</small></div></div>
+      {% endif %}
+
+      <div class="case-facts-grid">
+        <div><small>Osoba / osobe</small><strong>{{ selected_request.personName|default:"Nije primjenjivo" }}</strong></div>
+        <div><small>Odgovorna osoba</small><strong>{{ selected_request.assignedTo|default:"Još nije dodijeljeno" }}</strong></div>
+        <div><small>Podnositelj</small><strong>{{ selected_request.requestedBy }}</strong></div>
+        <div><small>Rok odgovora</small><strong>{{ selected_request.dueAt|hr_date }}</strong></div>
+      </div>
+
+      <section class="case-description">
+        <h3>Obrazloženje zahtjeva</h3>
+        <p>{{ selected_request.description }}</p>
+      </section>
+
+      <div class="case-detail-columns">
+        <section class="case-checklist">
+          <div class="case-subhead"><div><h3>Kontrolna lista</h3><small>{{ selected_request.checklistDone }}/{{ selected_request.checklistTotal }} dovršeno</small></div><strong>{{ selected_request.checklistPercent }}%</strong></div>
+          <span class="progress-track"><span style="width:{{ selected_request.checklistPercent }}%"></span></span>
+          <div class="case-checklist-rows">
+            {% for check in selected_request.requiredDocuments %}
+            <form method="post">
+              {% csrf_token %}<input type="hidden" name="action" value="toggle_interparish_checklist"><input type="hidden" name="request_id" value="{{ selected_request.id }}"><input type="hidden" name="checklist_index" value="{{ forloop.counter0 }}">
+              <button type="submit" class="case-check-row {% if check.done %}is-done{% endif %}"><span>{% if check.done %}✓{% endif %}</span><strong>{{ check.label }}</strong></button>
+            </form>
+            {% empty %}<p class="empty-state">Za ovu vrstu zahtjeva nema obvezne kontrolne liste.</p>{% endfor %}
+          </div>
+        </section>
+        <section class="case-attachments">
+          <div class="case-subhead"><div><h3>Privitci</h3><small>Dokumenti uz predmet</small></div><span class="badge">{{ selected_request.attachments|length }}</span></div>
+          {% for attachment in selected_request.attachments %}
+          <div class="case-file"><span>PDF</span><div><strong>{{ attachment.name }}</strong><small>{{ attachment.status }}</small></div><button type="button" class="btn btn-ghost btn-sm" disabled>Otvori</button></div>
+          {% empty %}<p class="empty-state">Nema privitaka.</p>{% endfor %}
+          <button type="button" class="btn btn-ghost btn-sm btn-block" disabled title="Povezat će se sa sigurnom pohranom dokumenata">+ Dodaj dokument</button>
+        </section>
+      </div>
+
+      <section class="case-actions-panel">
+        <div><h3>Sljedeći korak</h3><p>Status je vidljiv objema župama i svaka promjena ulazi u trag predmeta.</p></div>
+        <div class="case-action-buttons">
+          {% if selected_request.status == 'received' %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="update_interparish_status"><input type="hidden" name="request_id" value="{{ selected_request.id }}"><input type="hidden" name="status" value="in_review"><input type="hidden" name="note" value="Predmet je preuzet u obradu."><button class="btn btn-primary btn-sm">Preuzmi u obradu</button></form>{% endif %}
+          {% if selected_request.status != 'completed' and selected_request.status != 'closed' %}
+          <form method="post">{% csrf_token %}<input type="hidden" name="action" value="update_interparish_status"><input type="hidden" name="request_id" value="{{ selected_request.id }}"><input type="hidden" name="status" value="needs_info"><input type="hidden" name="note" value="Od druge župe zatražena je dopuna podataka."><button class="btn btn-ghost btn-sm">Traži dopunu</button></form>
+          <form method="post">{% csrf_token %}<input type="hidden" name="action" value="update_interparish_status"><input type="hidden" name="request_id" value="{{ selected_request.id }}"><input type="hidden" name="status" value="completed"><input type="hidden" name="note" value="Zahtjev je riješen i predmet dovršen."><button class="btn btn-primary btn-sm">Označi dovršenim</button></form>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="case-timeline-section">
+        <div class="case-subhead"><div><h3>Komunikacija i audit trag</h3><small>Sve poruke ostaju vezane uz predmet</small></div><span class="live-indicator"><i></i> sinkronizirano</span></div>
+        <ol class="case-timeline">
+          {% for event in selected_request.timeline %}
+          <li class="case-event--{{ event.kind }}"><span class="case-event-dot"></span><div><span><strong>{{ event.actor }}</strong><time>{{ event.at|hr_datetime }}</time></span><p>{{ event.text }}</p></div></li>
+          {% empty %}<li class="empty-state">Nema aktivnosti.</li>{% endfor %}
+        </ol>
+        <form method="post" class="case-message-form">
+          {% csrf_token %}<input type="hidden" name="action" value="add_interparish_message"><input type="hidden" name="request_id" value="{{ selected_request.id }}">
+          <textarea name="message" rows="2" required placeholder="Napišite poruku drugoj župi ili internu napomenu uz predmet…"></textarea>
+          <button type="submit" class="btn btn-primary btn-sm">Pošalji poruku</button>
+        </form>
+      </section>
+      {% else %}
+      <div class="empty-state-pro case-detail-empty"><span>⇄</span><strong>Odaberite međužupni predmet</strong><small>Detalji, kontrolna lista i komunikacija prikazat će se ovdje.</small></div>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside class="deanery-side-rail">
+    <section class="card">
+      <div class="pro-section-head"><div><p class="card-label">Opterećenje</p><h2 class="section-title">Zahtjevi po tjednu</h2></div></div>
+      <div class="pro-chart pro-chart--compact" data-pastoral-chart="line" data-source="deanery-volume-data" data-series="count" data-labels="Zahtjevi" aria-label="Graf međužupnih zahtjeva po tjednima"></div>
+      <div class="workload-list">
+        {% for row in deanery_workloads %}<div><span><strong>{{ row.label }}</strong><small>otvoreni predmeti</small></span><span>{{ row.count }}</span></div>{% empty %}<p class="empty-state">Nema otvorenog opterećenja.</p>{% endfor %}
+      </div>
+    </section>
+
+    <section class="card deanery-directory-card">
+      <div class="pro-section-head"><div><p class="card-label">Adresar</p><h2 class="section-title">Župe dekanata</h2></div><span class="badge">{{ parish_directory|length }}</span></div>
+      <div class="deanery-directory">
+        {% for parish in parish_directory %}
+        <div class="directory-parish {% if parish.isCurrent %}is-current{% endif %}">
+          <span class="directory-avatar">{{ parish.shortName|slice:":2"|upper }}</span>
+          <span><strong>{{ parish.name }}</strong><small>{{ parish.priest }} · odgovor ~{{ parish.responseHours }} h</small></span>
+          <i class="directory-status directory-status--{{ parish.status }}" title="{{ parish.status }}"></i>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="card deanery-principle-card">
+      <span class="secure-network-icon">▤</span>
+      <h3>Privatnost po predmetu</h3>
+      <p>Druga župa vidi samo podatke i dokumente potrebne za konkretan zahtjev, ne cijeli karton osobe ili obitelji.</p>
+    </section>
+  </aside>
+</div>
+
+<dialog id="new-deanery-request" class="deanery-request-dialog">
+  <form method="post" class="deanery-request-form">
+    {% csrf_token %}<input type="hidden" name="action" value="create_interparish_request">
+    <header><div><p class="card-label">Novi međužupni predmet</p><h2>Pošalji sigurni zahtjev</h2></div><button type="button" class="dialog-close" data-dialog-close aria-label="Zatvori">×</button></header>
+    <p class="deanery-form-intro">Primatelj dobiva strukturiran predmet s rokom i potrebnim kontekstom. Osjetljive podatke unesite samo kada su nužni.</p>
+    <div class="deanery-form-grid">
+      <div class="form-group">{{ interparish_form.target_parish.label_tag }}{{ interparish_form.target_parish }}</div>
+      <div class="form-group">{{ interparish_form.request_type.label_tag }}{{ interparish_form.request_type }}</div>
+      <div class="form-group deanery-form-wide">{{ interparish_form.subject.label_tag }}{{ interparish_form.subject }}</div>
+      <div class="form-group">{{ interparish_form.person_name.label_tag }}{{ interparish_form.person_name }}</div>
+      <div class="form-group">{{ interparish_form.case_reference.label_tag }}{{ interparish_form.case_reference }}</div>
+      <div class="form-group">{{ interparish_form.due_date.label_tag }}{{ interparish_form.due_date }}</div>
+      <div class="form-group">{{ interparish_form.priority.label_tag }}{{ interparish_form.priority }}</div>
+      <div class="form-group">{{ interparish_form.confidentiality.label_tag }}{{ interparish_form.confidentiality }}</div>
+      <div class="form-group deanery-form-wide">{{ interparish_form.description.label_tag }}{{ interparish_form.description }}</div>
+    </div>
+    <div class="deanery-form-safety"><span>⌁</span><p><strong>Načelo najmanjeg opsega podataka</strong><br><small>Pošaljite samo ono što je drugoj župi potrebno za izvršenje zahtjeva.</small></p></div>
+    <footer><button type="button" class="btn btn-ghost btn-sm" data-dialog-close>Odustani</button><button type="submit" class="btn btn-primary btn-sm">Evidentiraj i pošalji</button></footer>
+  </form>
+</dialog>
+
+{{ deanery_volume|json_script:"deanery-volume-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="{% static 'js/dashboard-insights.js' %}"></script>
+<script src="{% static 'js/deanery.js' %}"></script>
+{% endblock %}

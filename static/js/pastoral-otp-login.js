@@ -2,6 +2,9 @@
  * Django OTP prijava — fetch na /api/otp/send/
  */
 (function (global) {
+  const otpRequestTimeoutMilliseconds = 25000;
+  const slowRequestMessageDelayMilliseconds = 7000;
+
   function csrfToken() {
     const meta = document.querySelector('meta[name="csrf-token"]');
     if (meta) return meta.getAttribute("content");
@@ -43,7 +46,6 @@
   async function requestOtp(form) {
     const submit = form.querySelector('button[type="submit"]');
     const email = form.querySelector('[name="email"]')?.value?.trim();
-    const role = form.querySelector('[name="role"]')?.value;
     const gdpr = form.querySelector('[name="gdpr_consent"]')?.checked;
 
     setCredentialsError("");
@@ -62,6 +64,15 @@
       submit.textContent = "Šaljem kod…";
     }
 
+    const requestController = new AbortController();
+    const requestTimeout = global.setTimeout(
+      () => requestController.abort(),
+      otpRequestTimeoutMilliseconds
+    );
+    const slowRequestMessage = global.setTimeout(() => {
+      if (submit?.disabled) submit.textContent = "Slanje još traje…";
+    }, slowRequestMessageDelayMilliseconds);
+
     try {
       const res = await fetch("/api/otp/send/", {
         method: "POST",
@@ -70,9 +81,9 @@
           "X-CSRFToken": csrfToken(),
         },
         credentials: "same-origin",
+        signal: requestController.signal,
         body: JSON.stringify({
           email,
-          role,
           gdpr_consent: gdpr,
         }),
       });
@@ -89,11 +100,22 @@
       }
 
       showStep("otp");
-      setStatus(data.message || "Kod je poslan. Unesite ga ispod.");
+      const recipientDescription = data.recipient
+        ? ` (${data.recipient})`
+        : "";
+      const successfulDeliveryMessage = data.message
+        || `Kod je poslan na e-mail${recipientDescription}. Unesite ga ispod.`;
+      setStatus(successfulDeliveryMessage);
       document.getElementById("login-otp-input")?.focus();
-    } catch (err) {
-      setCredentialsError(`Mrežna greška: ${err.message}`);
+    } catch (error) {
+      setCredentialsError(
+        error.name === "AbortError"
+          ? "Slanje traje predugo. Provjerite vezu i pokušajte ponovno."
+          : `Mrežna greška: ${error.message}`
+      );
     } finally {
+      global.clearTimeout(requestTimeout);
+      global.clearTimeout(slowRequestMessage);
       if (submit) {
         submit.disabled = false;
         submit.textContent = "Pošalji kod za prijavu";

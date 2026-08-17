@@ -7,9 +7,7 @@ from datetime import date, datetime, timezone
 
 from django.utils.dateparse import parse_date
 
-
-def _today_iso() -> str:
-    return date.today().isoformat()
+from pastoral.services.dates import today_iso
 
 
 def mark_debt_paid(data: dict, source: dict) -> bool:
@@ -24,7 +22,7 @@ def mark_debt_paid(data: dict, source: dict) -> bool:
         if not row:
             return False
         row['luknoPaid'] = True
-        row['luknoPaidAt'] = _today_iso()
+        row['luknoPaidAt'] = today_iso()
         return True
     if stype == 'intention':
         n = next((x for x in data.get('intentions', []) if x.get('id') == source.get('id')), None)
@@ -39,28 +37,28 @@ def mark_debt_paid(data: dict, source: dict) -> bool:
         if not n:
             return False
         n['stipendPaid'] = True
-        n['stipendPaidAt'] = _today_iso()
+        n['stipendPaidAt'] = today_iso()
         return True
     if stype == 'firstCommunion':
         g = next((x for x in data.get('firstCommunion', []) if x.get('id') == source.get('id')), None)
         if not g:
             return False
         g['groupFeePaid'] = True
-        g['groupFeePaidAt'] = _today_iso()
+        g['groupFeePaidAt'] = today_iso()
         return True
     if stype == 'confirmations':
         g = next((x for x in data.get('confirmations', []) if x.get('id') == source.get('id')), None)
         if not g:
             return False
         g['groupFeePaid'] = True
-        g['groupFeePaidAt'] = _today_iso()
+        g['groupFeePaidAt'] = today_iso()
         return True
     if stype == 'parishDebts':
         d = next((x for x in data.get('parishDebts', []) if x.get('id') == source.get('id')), None)
         if not d:
             return False
         d['paid'] = True
-        d['paidAt'] = _today_iso()
+        d['paidAt'] = today_iso()
         return True
     return False
 

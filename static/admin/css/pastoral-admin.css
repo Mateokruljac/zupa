@@ -1,0 +1,123 @@
+:root {
+  --pastoral-admin-primary: #5c2e3a;
+  --pastoral-admin-accent: #b8922a;
+  --pastoral-admin-soft: #f5eff1;
+}
+
+#header {
+  background: var(--pastoral-admin-primary);
+}
+
+#branding h1,
+#branding h1 a:link,
+#branding h1 a:visited {
+  color: #fff;
+}
+
+div.breadcrumbs,
+.module caption,
+.inline-group h2 {
+  background: color-mix(in srgb, var(--pastoral-admin-primary) 88%, #fff);
+}
+
+.pastoral-admin-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding: 24px;
+  border: 1px solid #dfd3d6;
+  border-left: 5px solid var(--pastoral-admin-primary);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fff, var(--pastoral-admin-soft));
+}
+
+.pastoral-admin-intro h1 {
+  margin: 3px 0 8px;
+  color: #352a2d;
+  font-size: 24px;
+}
+
+.pastoral-admin-intro p:last-child {
+  max-width: 760px;
+  margin: 0;
+  color: #665b5e;
+  line-height: 1.5;
+}
+
+.pastoral-admin-eyebrow {
+  margin: 0;
+  color: var(--pastoral-admin-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.pastoral-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.pastoral-admin-group {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #e1d8da;
+  border-radius: 9px;
+}
+
+.pastoral-admin-group__head {
+  padding: 13px 16px;
+  background: var(--pastoral-admin-soft);
+  border-bottom: 1px solid #e1d8da;
+}
+
+.pastoral-admin-group__head h2 {
+  margin: 0;
+  color: var(--pastoral-admin-primary);
+  font-size: 15px;
+}
+
+.pastoral-admin-group__head p {
+  margin: 5px 0 0;
+  color: #766b6e;
+  font-size: 12px;
+}
+
+.pastoral-admin-group table {
+  width: 100%;
+}
+
+.pastoral-admin-grid--compact {
+  display: block;
+}
+
+.pastoral-admin-grid--compact .pastoral-admin-group {
+  margin-bottom: 10px;
+  border-radius: 0;
+}
+
+.pastoral-admin-grid--compact .pastoral-admin-group__head {
+  padding: 8px 10px;
+}
+
+.pastoral-admin-grid--compact td a {
+  font-size: 0;
+}
+
+.pastoral-admin-grid--compact td a::before {
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .pastoral-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pastoral-admin-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

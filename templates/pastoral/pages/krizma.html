@@ -28,6 +28,29 @@
   </div>
 </section>
 
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:16px">
+  <details class="card inline-entry-panel">
+    <summary>Uredi podatke godine {{ conf_year }}</summary>
+    <p class="card-sub">Ovaj obrazac sprema samo termin, celebranta i grupnu naknadu. Pogreška kod pojedinog krizmanika ne može blokirati spremanje godine.</p>
+    <form method="post" class="operational-form-grid">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_confirmation_group">
+      {{ confirmation_group_form.as_p }}
+      <button type="submit" class="btn btn-primary btn-sm">Spremi godinu</button>
+    </form>
+  </details>
+  <details class="card inline-entry-panel">
+    <summary>Dodaj krizmanika</summary>
+    <p class="card-sub">OIB se ovdje namjerno ne traži; dopunjuje se samo kada za njega postoji opravdana službena potreba.</p>
+    <form method="post" class="operational-form-grid">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_confirmation_candidate">
+      {{ confirmation_candidate_form.as_p }}
+      <button type="submit" class="btn btn-primary btn-sm">Dodaj krizmanika</button>
+    </form>
+  </details>
+</div>
+
 <form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
   <input type="hidden" name="year" value="{{ conf_year }}">
   <div class="form-group"><label>Pretraži</label><input type="search" name="q" value="{{ krizma_filters.q }}" class="form-control"></div>
@@ -48,14 +71,14 @@
     <table class="data-table">
       <thead><tr><th>Ime</th><th>Škola</th><th>Razred</th><th>Skupina</th><th>Kum/ka</th><th>Status</th></tr></thead>
       <tbody>
-        {% for c in candidates %}
+        {% for confirmation_candidate in candidates %}
         <tr>
-          <td><strong>{{ c.name }}</strong></td>
-          <td>{{ c.school|default:"—" }}</td>
-          <td>{{ c.class|default:"—" }}</td>
-          <td>{{ c.group|default:"—" }}</td>
-          <td>{{ c.sponsor|default:"—" }}</td>
-          <td><span class="badge">{{ c.status|default:"—" }}</span></td>
+          <td><strong>{{ confirmation_candidate.name }}</strong></td>
+          <td>{{ confirmation_candidate.school|default:"—" }}</td>
+          <td>{{ confirmation_candidate.class|default:"—" }}</td>
+          <td>{{ confirmation_candidate.group|default:"—" }}</td>
+          <td>{{ confirmation_candidate.sponsor|default:"—" }}</td>
+          <td><span class="badge">{{ confirmation_candidate.status|default:"—" }}</span></td>
         </tr>
         {% empty %}
         <tr><td colspan="6" class="empty-state">Nema krizmanika za filter.</td></tr>

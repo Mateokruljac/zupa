@@ -8,7 +8,7 @@
   <meta name="theme-color" content="{{ parish_settings.primaryColor|default:'#5c2e3a' }}">
   <link rel="manifest" href="{% static 'manifest.json' %}">
   <title>{% block title %}{{ page_title|default:"Pastoral" }}{% endblock %} — Pastoral</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
   {{ parish_settings|json_script:"parish-settings-data" }}
   {{ office_stats|json_script:"office-stats-data" }}
   <script src="{% static 'js/theme-init.js' %}"></script>
@@ -51,7 +51,7 @@
           </span>
         </a>
       </div>
-      <p class="sidebar-tenant-meta" id="sidebar-tenant-meta">{{ parish_settings.city }} · {{ request.user.role_label }}</p>
+      <p class="sidebar-tenant-meta" id="sidebar-tenant-meta">{{ parish_settings.city }} · {{ active_role_label|default:request.user.role_label }}</p>
       <ul class="nav" id="sidebar-nav">
         {% for sec in nav_sections %}
         <li class="nav-section" data-nav-section="{{ sec.id }}">
@@ -75,21 +75,59 @@
         {% endfor %}
       </ul>
       <div class="sidebar-footer">
+        {% if request.user.is_staff %}
+        <a href="{% url 'admin:index' %}" class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px">Tehnička administracija</a>
+        {% endif %}
         <form method="post" action="{% url 'pastoral:logout' %}">
           {% csrf_token %}
           <button type="submit" class="btn btn-ghost btn-sm" style="width:100%">Odjava</button>
         </form>
       </div>
     </aside>
+    <button type="button" class="sidebar-backdrop" id="sidebar-backdrop" aria-label="Zatvori navigaciju" tabindex="-1"></button>
     <div class="main">
       <header class="topbar">
+        <button type="button" class="sidebar-toggle" id="sidebar-toggle" aria-controls="sidebar-nav" aria-expanded="true" title="Sakrij ili prikaži navigaciju">
+          <span></span><span></span><span></span><span class="sr-only">Navigacija</span>
+        </button>
         <div>
           <h1>{% block page_heading %}{{ page_title }}{% endblock %}</h1>
           {% if page_subtitle %}<p>{{ page_subtitle }}</p>{% endif %}
         </div>
-        <div class="topbar-actions">{% block topbar_actions %}{% endblock %}</div>
+        <div class="topbar-actions">
+          <details class="parish-switcher">
+            <summary>
+              <span class="parish-switcher-mark" aria-hidden="true">✦</span>
+              <span><small>Aktivna župa</small><strong>{{ parish_settings.shortName|default:parish_settings.name }}</strong></span>
+              <span class="parish-switcher-chev" aria-hidden="true"></span>
+            </summary>
+            <div class="parish-switcher-menu">
+              <p class="card-label">Moje župe</p>
+              <a href="{% url 'pastoral:app' %}" class="parish-option is-active">
+                <span class="parish-option-icon">✦</span>
+                <span><strong>{{ parish_settings.name }}</strong><small>{{ parish_settings.city }} · aktivna</small></span>
+                <span class="status-dot status-dot--ok"></span>
+              </a>
+              <a href="{% page_url 'postavke' %}" class="parish-option parish-option--add">
+                <span class="parish-option-icon">+</span>
+                <span><strong>Pristup drugoj župi</strong><small>Višežupni rad i ovlasti</small></span>
+              </a>
+            </div>
+          </details>
+          <a href="{% page_url 'operativno-srediste' %}" class="topbar-ops-link" title="Otvori jedinstveni operativni radni red">
+            <span aria-hidden="true">⌘</span><span>Radni red</span>
+            {% with ops_badge=nav_badges|get_item:'operativno-srediste' %}{% if ops_badge %}<b>{{ ops_badge }}</b>{% endif %}{% endwith %}
+          </a>
+          <button type="button" class="topbar-search-btn" onclick="window.PastoralPriestTools?.openGlobalSearch?.()" title="Brza pretraga (Ctrl/Cmd + K)">
+            <span aria-hidden="true">⌕</span><span>Pretraži</span><kbd>⌘K</kbd>
+          </button>
+          {% block topbar_actions %}{% endblock %}
+        </div>
       </header>
-      <main class="content" id="main-content">{% block content %}{% endblock %}</main>
+      <main class="content" id="main-content">
+        {% if screen_cockpit %}{% include "pastoral/partials/screen_cockpit.html" %}{% endif %}
+        {% block content %}{% endblock %}
+      </main>
     </div>
   </div>
   <script src="{% static 'js/priest-tools.js' %}"></script>

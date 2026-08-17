@@ -4,7 +4,7 @@
 
 {% block content %}
 <header style="margin-bottom:24px">
-  <p><a href="{% url 'pastoral:public_index' %}">← Svi obrasci</a></p>
+  <p><a href="{% if public_site_url %}{{ public_site_url }}#obrasci{% else %}{% url 'pastoral:public_index' %}{% endif %}">← Povratak na župnu stranicu</a></p>
   <h1>{{ form_title }}</h1>
   <p class="card-sub">{{ form_intro }}</p>
   <p class="card-sub">{{ parish_settings.name }} · {{ parish_settings.city }}</p>

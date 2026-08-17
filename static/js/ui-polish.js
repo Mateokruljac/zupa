@@ -23,6 +23,8 @@
     potvrde: "Potvrde",
     dokumenti: "Dokumenti",
     "maticne-knjige": "Matične knjige",
+    dekanat: "Dekanat i suradnja",
+    "operativno-srediste": "Operativno središte",
     vijeca: "Vijeća",
     kalendar: "Događaji i zadaci",
     "javne-prijave": "Javne prijave",
@@ -47,6 +49,8 @@
     blagajna: "📒",
     kalendar: "📅",
     "javne-prijave": "📝",
+    dekanat: "⇄",
+    "operativno-srediste": "⌘",
   };
 
   let observerBound = false;
@@ -98,6 +102,8 @@
       const nova = stats.nova_prijave ?? stats.novaPrijave;
       const todayN = stats.today_nakane ?? stats.todayNakane;
       const debts = stats.debts_unpaid ?? stats.debtsUnpaid;
+      const deanery = stats.interparish_pending ?? stats.interparishPending ?? 0;
+      const operations = stats.operations_attention ?? stats.operationsAttention ?? 0;
       const tasks = (stats.overdue_tasks ?? stats.overdueTasks ?? 0) + (stats.due_today_tasks ?? stats.dueTodayTasks ?? 0);
       if (nova > 0) {
         pills += `<a href="${pageHref("javne-prijave.html")}" class="ui-pill ui-pill--alert">Prijave <span class="ui-pill-num">${nova}</span></a>`;
@@ -110,6 +116,12 @@
       }
       if (tasks > 0) {
         pills += `<a href="${pageHref("kalendar.html")}" class="ui-pill">Zadaci <span class="ui-pill-num">${tasks}</span></a>`;
+      }
+      if (deanery > 0) {
+        pills += `<a href="${pageHref("dekanat.html")}" class="ui-pill ui-pill--alert">Dekanat <span class="ui-pill-num">${deanery}</span></a>`;
+      }
+      if (operations > 0 && document.body.dataset.page !== "operativno-srediste") {
+        pills += `<a href="${pageHref("operativno-srediste.html")}" class="ui-pill ui-pill--alert">Moj radni red <span class="ui-pill-num">${operations}</span></a>`;
       }
     }
 

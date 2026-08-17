@@ -3,9 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 
-
-def today_iso() -> str:
-    return date.today().isoformat()
+from pastoral.services.dates import parse_iso_date, today_iso
 
 
 def filter_rows(rows: list, request, search_fields: list[str]) -> tuple[list, dict]:
@@ -38,6 +36,55 @@ def sacrament_stats(rows: list, date_key: str = '') -> dict:
             elif dt and dt >= today and st != 'obavljeno':
                 upcoming += 1
     return {'total': len(rows), 'upcoming': upcoming, 'done': done}
+
+
+def _workflow_rows(rows: list, page: str) -> list:
+    today = date.today()
+    date_key, prefix = {
+        'krsenja': ('baptismDate', 'KRŠ'),
+        'vjencanja': ('weddingDate', 'VJ'),
+        'pogrebi': ('funeralDate', 'POG'),
+        'pomazanje': ('scheduled', 'BOL'),
+    }[page]
+    output = []
+    for index, original in enumerate(rows, start=1):
+        row = dict(original)
+        ceremony_date = parse_iso_date(row.get(date_key))
+        is_past = bool(ceremony_date and ceremony_date < today)
+        if page == 'krsenja':
+            checks = [
+                ('Roditelji i kontakt', bool(row.get('parents'))), ('Termin', bool(row.get('baptismDate'))),
+                ('Kumovi', bool(row.get('godparents'))), ('Potvrda kuma', bool(row.get('godparentCertReceived'))),
+                ('Celebrant', bool(row.get('celebrant'))),
+            ]
+            if is_past:
+                checks.append(('Upis u maticu', bool(row.get('registryNo'))))
+        elif page == 'vjencanja':
+            checks = [
+                ('Termin', bool(row.get('weddingDate'))), ('Dokumenti', bool(row.get('documentsOk'))),
+                ('Priprava', bool(row.get('preparatorySessions'))), ('Celebrant', bool(row.get('celebrant'))),
+                ('Kontakt para', bool(row.get('contact'))),
+            ]
+        elif page == 'pogrebi':
+            checks = [
+                ('Termin pogreba', bool(row.get('funeralDate'))), ('Kontakt obitelji', bool(row.get('familyContact'))),
+                ('Celebrant', bool(row.get('celebrant'))), ('Groblje', bool(row.get('cemetery') or row.get('cemeteryLocation'))),
+                ('Misa zadušnica', bool(row.get('massPlanned') and row.get('massDate'))),
+            ]
+        else:
+            checks = [
+                ('Kontakt', bool(row.get('contact'))), ('Adresa / lokacija', bool(row.get('address') or row.get('location'))),
+                ('Termin', bool(row.get('scheduled'))), ('Svećenik', bool(row.get('priest'))),
+                ('Ishod posjeta', bool(row.get('done') or row.get('notes'))),
+            ]
+        incomplete = [label for label, done in checks if not done]
+        row['workflowChecks'] = [{'label': label, 'done': done} for label, done in checks]
+        row['workflowReady'] = not incomplete
+        row['workflowMissing'] = incomplete
+        row['caseRef'] = row.get('caseRef') or f"{prefix}-{today.year}-{index:04d}"
+        row['nextStep'] = f"Dopuniti: {incomplete[0]}" if incomplete else ('Provjeriti upis i arhiviranje' if is_past else 'Predmet spreman za termin')
+        output.append(row)
+    return output
 
 
 def confirmation_group(data: dict, year: int) -> dict | None:
@@ -126,7 +173,7 @@ def baptisms_context(data: dict, request) -> dict:
         request,
         ['childName', 'parents', 'status', 'baptismDate'],
     )
-    return {'rows': rows, 'filters': filters, 'stats': {'total': len(data.get('baptisms', []))}}
+    return {'rows': _workflow_rows(rows, 'krsenja'), 'filters': filters, 'stats': {'total': len(data.get('baptisms', []))}}
 
 
 def weddings_context(data: dict, request) -> dict:
@@ -135,7 +182,7 @@ def weddings_context(data: dict, request) -> dict:
         request,
         ['couple', 'status', 'weddingDate'],
     )
-    return {'rows': rows, 'filters': filters, 'stats': {'total': len(data.get('weddings', []))}}
+    return {'rows': _workflow_rows(rows, 'vjencanja'), 'filters': filters, 'stats': {'total': len(data.get('weddings', []))}}
 
 
 def funerals_context(data: dict, request) -> dict:
@@ -144,7 +191,7 @@ def funerals_context(data: dict, request) -> dict:
         request,
         ['deceased', 'cemetery', 'status', 'funeralDate'],
     )
-    return {'rows': rows, 'filters': filters, 'stats': {'total': len(data.get('funerals', []))}}
+    return {'rows': _workflow_rows(rows, 'pogrebi'), 'filters': filters, 'stats': {'total': len(data.get('funerals', []))}}
 
 
 def anointing_context(data: dict, request) -> dict:
@@ -154,7 +201,7 @@ def anointing_context(data: dict, request) -> dict:
         ['person', 'priest', 'address', 'location', 'contact', 'notes', 'status'],
     )
     stats = sacrament_stats(data.get('anointing', []), 'scheduled')
-    return {'rows': rows, 'filters': filters, 'stats': stats}
+    return {'rows': _workflow_rows(rows, 'pomazanje'), 'filters': filters, 'stats': stats}
 
 
 def families_page_context(data: dict, request) -> dict:
@@ -174,17 +221,61 @@ def families_page_context(data: dict, request) -> dict:
     year = date.today().year
     lukno_unpaid = 0
     total_members = sum(len(f.get('members') or []) for f in data.get('families', []))
+    today = date.today()
+    enriched_families = []
+    pastoral_due = 0
+    missing_contact = 0
     for fam in families:
         row = next((c for c in fam.get('contributions', []) if c.get('year') == year), None)
         if row and not row.get('luknoPaid'):
             lukno_unpaid += 1
+        item = dict(fam)
+        last_visit = parse_iso_date(item.get('lastVisit'))
+        item['last_visit_days'] = (today - last_visit).days if last_visit else None
+        item['needs_pastoral_followup'] = not last_visit or item['last_visit_days'] > 365 or 'posjetiti' in (item.get('pastoralNotes') or '').casefold()
+        if item['needs_pastoral_followup']:
+            pastoral_due += 1
+        if not item.get('phone') and not item.get('email'):
+            missing_contact += 1
+        enriched_families.append(item)
+    families = enriched_families
     selected = request.GET.get('family', '')
-    selected_family = next((f for f in data.get('families', []) if f.get('id') == selected), None)
+    selected_family = next((f for f in families if f.get('id') == selected), None)
+    selected_family_profile = None
+    if selected_family:
+        visits = sorted(
+            [v for v in data.get('visits', []) if v.get('familyId') == selected_family.get('id')],
+            key=lambda v: v.get('scheduled') or '',
+            reverse=True,
+        )
+        current_contribution = next(
+            (c for c in selected_family.get('contributions', []) if c.get('year') == year),
+            None,
+        )
+        data_gaps = []
+        if not selected_family.get('phone'):
+            data_gaps.append('telefon')
+        if not selected_family.get('email'):
+            data_gaps.append('e-mail')
+        if not selected_family.get('streetId'):
+            data_gaps.append('teritorijalna pripadnost')
+        if not selected_family.get('lastVisit'):
+            data_gaps.append('zadnji pastoralni posjet')
+        selected_family_profile = {
+            'visits': visits,
+            'last_visit': visits[0] if visits else None,
+            'open_visits': sum(1 for visit in visits if not visit.get('done')),
+            'current_contribution': current_contribution,
+            'data_gaps': data_gaps,
+            'tags': selected_family.get('tags') or [],
+            'notes': selected_family.get('pastoralNotes') or '',
+        }
     return {
         'families': families,
         'streets': streets,
         'street_list': data.get('streets', []),
         'selected_family': selected_family,
+        'selected_family_profile': selected_family_profile,
         'family_filters': {'q': request.GET.get('q', ''), 'street': street_filter},
         'family_stats': {
             'total': len(data.get('families', [])),
@@ -192,6 +283,8 @@ def families_page_context(data: dict, request) -> dict:
             'members': total_members,
             'streets_count': len(data.get('streets', [])),
             'lukno_unpaid': lukno_unpaid,
+            'pastoral_due': pastoral_due,
+            'missing_contact': missing_contact,
         },
         'current_year': year,
     }

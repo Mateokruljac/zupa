@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from pastoral.forms import LoginForm
+from users.models import User
 from pastoral.services.otp import (
     create_otp_challenge,
     dispatch_otp_email,
@@ -16,45 +17,73 @@ from pastoral.services.otp import (
 from pastoral.services.api_actions import dispatch_action
 from pastoral.services.data import ParishDataService
 from pastoral.services.liturgical import LiturgicalService
+from pastoral.services.liturgical_romcal import (
+    RomcalLiturgicalService,
+    compare_liturgical_days,
+)
 
-ISO_RE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
+ISO_DATE_PATTERN = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
 
 @require_http_methods(['POST'])
 def send_otp_api(request):
     try:
-        payload = json.loads(request.body.decode('utf-8'))
+        request_payload = json.loads(request.body.decode('utf-8'))
     except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
 
-    form = LoginForm({
-        'email': (payload.get('email') or '').strip(),
-        'role': payload.get('role') or '',
-        'gdpr_consent': payload.get('gdpr_consent') in (True, 'true', '1', 1, 'on'),
+    login_form = LoginForm({
+        'email': (request_payload.get('email') or '').strip(),
+        'gdpr_consent': request_payload.get('gdpr_consent') in (
+            True,
+            'true',
+            '1',
+            1,
+            'on',
+        ),
     })
-    if not form.is_valid():
+    if not login_form.is_valid():
         return JsonResponse({
             'ok': False,
             'error': 'invalid_input',
-            'details': form.errors,
+            'details': login_form.errors,
         }, status=400)
 
-    email = form.cleaned_data['email'].lower()
-    role = form.cleaned_data['role']
-    code = create_otp_challenge(email, role)
+    email_address = login_form.cleaned_data['email'].lower()
+    user_role = (
+        User.objects.filter(email__iexact=email_address)
+        .values_list('role', flat=True)
+        .first()
+        or User._meta.get_field('role').default
+    )
+    verification_code = create_otp_challenge(email_address, user_role)
 
-    mail_ok, mail_result = dispatch_otp_email(code, email, role)
-    if not mail_ok:
+    email_was_sent, email_result = dispatch_otp_email(
+        verification_code,
+        email_address,
+        user_role,
+    )
+    if not email_was_sent:
         return JsonResponse({
             'ok': False,
-            'error': mail_result.get('error', 'mail_failed'),
-            'detail': mail_result.get('detail', ''),
-            'recipient': mail_result.get('recipient', getattr(settings, 'OTP_RECIPIENT', '')),
+            'error': email_result.get('error', 'mail_failed'),
+            'detail': email_result.get('detail', ''),
+            'recipient': email_result.get(
+                'recipient',
+                getattr(settings, 'OTP_RECIPIENT', ''),
+            ),
         }, status=502)
 
-    store_otp_session(request, email=email, role=role)
+    store_otp_session(
+        request,
+        email=email_address,
+        role=user_role,
+    )
 
-    recipient = mail_result.get('recipient', getattr(settings, 'OTP_RECIPIENT', ''))
+    recipient = email_result.get(
+        'recipient',
+        getattr(settings, 'OTP_RECIPIENT', ''),
+    )
     return JsonResponse({
         'ok': True,
         'recipient': recipient,
@@ -65,58 +94,130 @@ def send_otp_api(request):
 @login_required
 @require_http_methods(['GET'])
 def parish_data_api(request):
-    svc = ParishDataService()
-    return JsonResponse(svc.load())
+    parish_data_service = ParishDataService()
+    return JsonResponse(parish_data_service.load())
 
 
 @login_required
 @require_http_methods(['GET'])
 def liturgical_year_api(request, year: int):
-    days = LiturgicalService().get_year_days(year, with_hilp=False)
+    liturgical_days = LiturgicalService().get_year_days(
+        year,
+        with_hilp=False,
+    )
     return JsonResponse({
         'year': year,
-        'days': days,
+        'days': liturgical_days,
         'translated': True,
-        'source': 'litcal-va+hr-glossary',
+        'source': next(iter(liturgical_days.values()), {}).get(
+            'source',
+            'unknown',
+        ),
     })
 
 
 @login_required
 @require_http_methods(['GET'])
 def liturgical_day_api(request, iso: str):
-    if not ISO_RE.match(iso):
+    if not ISO_DATE_PATTERN.match(iso):
         return JsonResponse({'error': 'invalid_date'}, status=400)
-    day = LiturgicalService().get_day(iso)
-    return JsonResponse(day)
+    liturgical_day = LiturgicalService().get_day(iso)
+    return JsonResponse(liturgical_day)
+
+
+@login_required
+@require_http_methods(['GET'])
+def liturgical_romcal_day_api(request, iso: str):
+    """Izolirani lokalni Romcal rezultat za ručno testiranje."""
+    if not ISO_DATE_PATTERN.match(iso):
+        return JsonResponse({'error': 'invalid_date'}, status=400)
+    return JsonResponse(RomcalLiturgicalService().get_day(iso))
+
+
+@login_required
+@require_http_methods(['GET'])
+def liturgical_compare_api(request, iso: str):
+    """Usporedba postojećeg LitCala i Romcala bez promjene aktivnog izvora."""
+    if not ISO_DATE_PATTERN.match(iso):
+        return JsonResponse({'error': 'invalid_date'}, status=400)
+    litcal_day = LiturgicalService().get_day_litcal(iso)
+    romcal_day = RomcalLiturgicalService().get_day(iso)
+    comparison = compare_liturgical_days(litcal_day, romcal_day)
+    comparison['hybrid'] = LiturgicalService().get_day(iso, with_hilp=False)
+    return JsonResponse(comparison)
+
+
+@login_required
+@require_http_methods(['GET'])
+def liturgical_v1_day_api(request, iso: str):
+    """Stabilni projektni format inspiriran liturgy.day, bez vanjske ovisnosti."""
+    if not ISO_DATE_PATTERN.match(iso):
+        return JsonResponse({'error': 'invalid_date'}, status=400)
+    liturgical_day = LiturgicalService().get_day(iso)
+    return JsonResponse({
+        'schemaVersion': '1.0',
+        'locale': 'hr-HR',
+        'timezone': 'Europe/Zagreb',
+        'provider': liturgical_day.get('source'),
+        'date': iso,
+        'data': liturgical_day,
+    })
+
+
+@login_required
+@require_http_methods(['GET'])
+def liturgical_v1_info_api(request):
+    return JsonResponse({
+        'schemaVersion': '1.0',
+        'locale': 'hr-HR',
+        'timezone': 'Europe/Zagreb',
+        'primaryProvider': getattr(settings, 'LITURGICAL_PRIMARY_PROVIDER', 'hybrid'),
+        'providers': {
+            'romcal': 'Hrvatski kalendar, slavlja, rang i boja',
+            'litcal-va': 'Liturgijski vremenski dan i strukturirani podaci',
+            'hilp': 'Hrvatska misna čitanja i poveznica na puni tekst',
+        },
+        'dayEndpoint': '/api/liturgical/v1/day/YYYY-MM-DD/',
+    })
 
 
 @login_required
 @require_http_methods(['POST'])
 def parish_action_api(request):
     try:
-        body = json.loads(request.body.decode('utf-8'))
+        request_body = json.loads(request.body.decode('utf-8'))
     except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse({'ok': False, 'error': 'invalid_json'}, status=400)
-    action = body.get('action')
-    if not action:
+    action_name = request_body.get('action')
+    if not action_name:
         return JsonResponse({'ok': False, 'error': 'missing_action'}, status=400)
-    payload = body.get('payload') or {}
-    svc = ParishDataService()
-    if action == 'reset_demo':
-        svc.reset_demo()
-        return JsonResponse({'ok': True, 'data': svc.load()})
-    result = dispatch_action(action, payload, svc)
-    status = 200 if result.get('ok') else 400
-    return JsonResponse(result, status=status)
+    action_payload = request_body.get('payload') or {}
+    parish_data_service = ParishDataService()
+    if action_name == 'reset_demo':
+        parish_data_service.reset_demo()
+        return JsonResponse({
+            'ok': True,
+            'data': parish_data_service.load(),
+        })
+    action_result = dispatch_action(
+        action_name,
+        action_payload,
+        parish_data_service,
+    )
+    response_status = 200 if action_result.get('ok') else 400
+    return JsonResponse(action_result, status=response_status)
 
 
 @login_required
 @require_http_methods(['GET'])
 def search_api(request):
     from pastoral.services.global_search import global_search
-    q = request.GET.get('q', '')
-    results = global_search(ParishDataService().load(), q)
-    return JsonResponse({'ok': True, 'results': results})
+    search_query = request.GET.get('q', '')
+    search_results = global_search(
+        ParishDataService().load(),
+        search_query,
+    )
+    return JsonResponse({'ok': True, 'results': search_results})
 
 
 @login_required
@@ -124,11 +225,14 @@ def search_api(request):
 def liturgical_month_api(request, year: int, month: int):
     if month < 1 or month > 12:
         return JsonResponse({'error': 'invalid_month'}, status=400)
-    days = LiturgicalService().get_month_days(year, month)
+    liturgical_days = LiturgicalService().get_month_days(year, month)
     return JsonResponse({
         'year': year,
         'month': month,
-        'days': days,
+        'days': liturgical_days,
         'translated': True,
-        'source': 'litcal-va+hr-glossary',
+        'source': next(iter(liturgical_days.values()), {}).get(
+            'source',
+            'unknown',
+        ),
     })

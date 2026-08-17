@@ -1,4 +1,4 @@
-"""Kalendar stranica — liturgija + župni događaji."""
+"""Kontekst kalendarske stranice: liturgija, događaji i zadaci."""
 from __future__ import annotations
 
 import calendar
@@ -7,63 +7,154 @@ from datetime import date
 from pastoral.services.liturgical import LiturgicalService
 
 
-def _month_bounds(year: int, month: int) -> tuple[date, date]:
-    _, last = calendar.monthrange(year, month)
-    return date(year, month, 1), date(year, month, last)
+def _integer_query_parameter(request, parameter_name: str, default_value: int) -> int:
+    try:
+        return int(request.GET.get(parameter_name) or default_value)
+    except ValueError:
+        return default_value
 
 
-def kalendar_page_context(data: dict, request) -> dict:
+def _selected_calendar_period(request, today: date) -> tuple[int, int]:
+    calendar_year = _integer_query_parameter(request, 'year', today.year)
+    requested_month = _integer_query_parameter(request, 'month', today.month)
+    calendar_month = max(1, min(12, requested_month))
+    return calendar_year, calendar_month
+
+
+def _selected_calendar_date(request, today: date) -> str:
+    selected_date = (request.GET.get('date') or '').strip()
+    if selected_date == 'today' or not selected_date:
+        return today.isoformat()
+    return selected_date
+
+
+def _calendar_cells(calendar_year: int, calendar_month: int) -> list[str | None]:
+    first_weekday, days_in_month = calendar.monthrange(
+        calendar_year,
+        calendar_month,
+    )
+    calendar_cells: list[str | None] = [None] * first_weekday
+    calendar_cells.extend(
+        f'{calendar_year}-{calendar_month:02d}-{day_number:02d}'
+        for day_number in range(1, days_in_month + 1)
+    )
+    while len(calendar_cells) % 7:
+        calendar_cells.append(None)
+    return calendar_cells
+
+
+def _adjacent_calendar_periods(
+    calendar_year: int,
+    calendar_month: int,
+) -> tuple[dict, dict]:
+    if calendar_month == 1:
+        previous_period = {'year': calendar_year - 1, 'month': 12}
+    else:
+        previous_period = {'year': calendar_year, 'month': calendar_month - 1}
+
+    if calendar_month == 12:
+        next_period = {'year': calendar_year + 1, 'month': 1}
+    else:
+        next_period = {'year': calendar_year, 'month': calendar_month + 1}
+    return previous_period, next_period
+
+
+def _events_grouped_by_date(parish_events: list[dict]) -> dict[str, list[dict]]:
+    events_by_date: dict[str, list[dict]] = {}
+    for parish_event in parish_events:
+        event_date = (parish_event.get('date') or '')[:10]
+        if event_date:
+            events_by_date.setdefault(event_date, []).append(parish_event)
+    return events_by_date
+
+
+def _open_tasks_grouped_by_date(parish_tasks: list[dict]) -> dict[str, list[dict]]:
+    tasks_by_date: dict[str, list[dict]] = {}
+    for parish_task in parish_tasks:
+        due_date = (parish_task.get('due') or '')[:10]
+        if due_date and not parish_task.get('done'):
+            tasks_by_date.setdefault(due_date, []).append(parish_task)
+    return tasks_by_date
+
+
+def _calendar_conflicts(parish_events: list[dict]) -> list[dict]:
+    conflicts = []
+    events_by_time_and_place = {}
+    for parish_event in parish_events:
+        if not (
+            parish_event.get('date')
+            and parish_event.get('time')
+            and parish_event.get('place')
+        ):
+            continue
+        event_slot = (
+            parish_event.get('date'),
+            parish_event.get('time'),
+            (parish_event.get('place') or '').casefold(),
+        )
+        existing_event = events_by_time_and_place.get(event_slot)
+        if existing_event:
+            conflicts.append({
+                'first': existing_event,
+                'second': parish_event,
+            })
+        else:
+            events_by_time_and_place[event_slot] = parish_event
+    return conflicts
+
+
+def _sorted_tasks(parish_tasks: list[dict]) -> list[dict]:
+    return sorted(
+        parish_tasks,
+        key=lambda parish_task: (
+            parish_task.get('done', False),
+            parish_task.get('due') or '9999-12-31',
+            parish_task.get('priority') != 'visoka',
+        ),
+    )
+
+
+def calendar_page_context(parish_data: dict, request) -> dict:
     today = date.today()
-    try:
-        year = int(request.GET.get('year') or today.year)
-    except ValueError:
-        year = today.year
-    try:
-        month = int(request.GET.get('month') or today.month)
-    except ValueError:
-        month = today.month
-    month = max(1, min(12, month))
+    calendar_year, calendar_month = _selected_calendar_period(request, today)
+    selected_date = _selected_calendar_date(request, today)
 
-    selected = (request.GET.get('date') or '').strip()
-    if selected == 'today' or not selected:
-        selected = today.isoformat()
+    liturgical_service = LiturgicalService()
+    liturgical_month_days = liturgical_service.get_month_days(
+        calendar_year,
+        calendar_month,
+    )
+    previous_period, next_period = _adjacent_calendar_periods(
+        calendar_year,
+        calendar_month,
+    )
 
-    lit = LiturgicalService()
-    month_days = lit.get_month_days(year, month)
-
-    first_weekday, days_in_month = calendar.monthrange(year, month)
-    cells: list[str | None] = [None] * first_weekday
-    for d in range(1, days_in_month + 1):
-        cells.append(f'{year}-{month:02d}-{d:02d}')
-    while len(cells) % 7:
-        cells.append(None)
-
-    if month == 1:
-        prev_year, prev_month = year - 1, 12
-    else:
-        prev_year, prev_month = year, month - 1
-    if month == 12:
-        next_year, next_month = year + 1, 1
-    else:
-        next_year, next_month = year, month + 1
-
-    events_by_date: dict[str, list] = {}
-    for ev in data.get('events', []):
-        d = (ev.get('date') or '')[:10]
-        if d:
-            events_by_date.setdefault(d, []).append(ev)
+    parish_events = parish_data.get('events', [])
+    parish_tasks = parish_data.get('tasks', [])
+    events_by_date = _events_grouped_by_date(parish_events)
+    tasks_by_date = _open_tasks_grouped_by_date(parish_tasks)
+    sorted_tasks = _sorted_tasks(parish_tasks)
 
     return {
-        'rows': data.get('tasks', []),
-        'parish_events': data.get('events', []),
-        'cal_year': year,
-        'cal_month': month,
-        'cal_prev': {'year': prev_year, 'month': prev_month},
-        'cal_next': {'year': next_year, 'month': next_month},
-        'cal_cells': cells,
-        'filter_date': selected,
-        'lit_month_days': month_days,
-        'lit_day': lit.get_day(selected),
-        'day_events': events_by_date.get(selected, []),
-        'tasks': data.get('tasks', []),
+        'rows': sorted_tasks,
+        'parish_events': parish_events,
+        'cal_year': calendar_year,
+        'cal_month': calendar_month,
+        'cal_prev': previous_period,
+        'cal_next': next_period,
+        'cal_cells': _calendar_cells(calendar_year, calendar_month),
+        'filter_date': selected_date,
+        'lit_month_days': liturgical_month_days,
+        'lit_day': liturgical_service.get_day(selected_date),
+        'day_events': events_by_date.get(selected_date, []),
+        'day_tasks': tasks_by_date.get(selected_date, []),
+        'calendar_counts': {
+            calendar_date: {
+                'events': len(events_by_date.get(calendar_date, [])),
+                'tasks': len(tasks_by_date.get(calendar_date, [])),
+            }
+            for calendar_date in set(events_by_date) | set(tasks_by_date)
+        },
+        'calendar_conflicts': _calendar_conflicts(parish_events),
+        'tasks': sorted_tasks,
     }

@@ -1,0 +1,51 @@
+{% load pastoral_tags %}
+{% page_url screen_cockpit.action.page as cockpit_action_url %}
+<section class="screen-cockpit" aria-labelledby="screen-cockpit-title">
+  <header class="screen-cockpit__intro">
+    <span class="screen-cockpit__icon" aria-hidden="true">{{ screen_cockpit.icon }}</span>
+    <div>
+      <p class="card-label">{{ screen_cockpit.eyebrow }}</p>
+      <h2 id="screen-cockpit-title">{{ screen_cockpit.title }}</h2>
+      <p>{{ screen_cockpit.purpose }}</p>
+    </div>
+  </header>
+
+  <a class="screen-cockpit__action screen-cockpit__action--{{ screen_cockpit.action.tone|default:'info' }}"
+     href="{{ cockpit_action_url }}{% if screen_cockpit.action.query %}?{{ screen_cockpit.action.query }}{% endif %}">
+    <span aria-hidden="true">→</span>
+    <span>
+      <small>Preporučeni sljedeći korak</small>
+      <strong>{{ screen_cockpit.action.title }}</strong>
+      <em>{{ screen_cockpit.action.body }}</em>
+    </span>
+  </a>
+
+  {% if screen_cockpit.metrics or screen_cockpit.checklist %}
+  <details class="screen-cockpit__details">
+    <summary>
+      <span>Sažetak stanja</span>
+      <small>Prikaži pokazatelje i kontrolnu listu</small>
+    </summary>
+
+    {% if screen_cockpit.metrics %}
+    <div class="screen-cockpit__metrics" aria-label="Sažetak stanja">
+      {% for metric in screen_cockpit.metrics %}
+      <div class="screen-cockpit__metric screen-cockpit__metric--{{ metric.tone|default:'neutral' }}">
+        <small>{{ metric.label }}</small>
+        <strong>{{ metric.value }}</strong>
+        {% if metric.hint %}<span>{{ metric.hint }}</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if screen_cockpit.checklist %}
+    <div class="screen-cockpit__checklist" aria-label="Kontrolna lista odabranog predmeta">
+      {% for item in screen_cockpit.checklist %}
+      <span class="{% if item.done %}is-done{% endif %}"><b aria-hidden="true">{% if item.done %}✓{% else %}!{% endif %}</b>{{ item.label }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </details>
+  {% endif %}
+</section>

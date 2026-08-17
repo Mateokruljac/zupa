@@ -19,12 +19,7 @@
     </div>
   </form>
   {% if selected_book %}
-  <form method="post" style="margin-top:12px" onsubmit="return confirm('Obrisati zapis?')">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="delete_registry_book">
-    <input type="hidden" name="book_id" value="{{ selected_book.id }}">
-    <button type="submit" class="btn btn-ghost btn-sm">Obriši</button>
-  </form>
+  <aside class="operational-hint" style="margin-top:12px"><strong>Kontrola zapisa:</strong> matična knjiga se ne briše. Ako je premještena, predana ili arhivirana, promijenite status i obvezno upišite novu lokaciju, skrbnika i napomenu.</aside>
   {% endif %}
 </section>
 

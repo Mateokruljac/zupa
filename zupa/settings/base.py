@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+from .admin_sidebar import ADMIN_REORDER
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = os.environ.get(
@@ -23,6 +25,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'pastoral',
     'users',
+    'control_plane.apps.ControlPlaneConfig',
+    'public_site.apps.PublicSiteConfig',
     'debug_toolbar',
 ]
 
@@ -35,9 +39,11 @@ MIDDLEWARE = [
     'debug_toolbar.middleware.DebugToolbarMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'control_plane.middleware.TenantContextMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -140,3 +146,14 @@ SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 8 * 60 * 60
 
 PARISH_DEFAULT_SLUG = 'bdm-slavonski-brod'
+TENANCY_LEGACY_FALLBACK_ENABLED = False
+LICENSE_ENFORCEMENT_ENABLED = False
+PUBLIC_WEBSITE_DEMO_AUTO_ACTIVATE = False
+
+# Romcal se najprije može testirati usporednim API-jem. Postojeći LitCal ostaje
+# oba izvora rade paralelno; vrijednosti litcal i romcal ostaju za dijagnostiku.
+LITURGICAL_PRIMARY_PROVIDER = os.environ.get(
+    'LITURGICAL_PRIMARY_PROVIDER',
+    'hybrid',
+).strip().lower()
+LITURGICAL_ROMCAL_ENABLED = os.environ.get('LITURGICAL_ROMCAL_ENABLED', 'True') == 'True'

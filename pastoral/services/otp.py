@@ -27,32 +27,43 @@ def create_otp_challenge(email: str, role: str) -> str:
 
 
 def dispatch_otp_email(code: str, email: str, role: str, *, timeout: int = 20) -> tuple[bool, dict]:
-    svc = ParishDataService()
-    parish_settings = svc.load_settings()
+    parish_data_service = ParishDataService()
+    parish_settings = parish_data_service.load_settings()
     recipient = getattr(settings, 'OTP_RECIPIENT', '') or parish_settings.get('email', '')
 
-    task = send_otp_email_task.delay(
-        to_email=recipient,
-        otp_code=code,
-        user_email=email,
-        role_label=role_label_for(role),
-        parish_name=parish_settings.get('shortName') or parish_settings.get('name') or 'Pastoral',
-        ttl_minutes=getattr(settings, 'OTP_TTL_MINUTES', 10),
-        primary_color=parish_settings.get('primaryColor', '#5c2e3a'),
-        accent_color=parish_settings.get('accentColor', '#b8922a'),
-        parish_email=parish_settings.get('email', ''),
-    )
-
     try:
-        result = task.get(timeout=timeout)
-    except Exception as exc:
+        email_task_result = send_otp_email_task.delay(
+            to_email=recipient,
+            otp_code=code,
+            user_email=email,
+            role_label=role_label_for(role),
+            parish_name=(
+                parish_settings.get('shortName')
+                or parish_settings.get('name')
+                or 'Pastoral'
+            ),
+            ttl_minutes=getattr(settings, 'OTP_TTL_MINUTES', 10),
+            primary_color=parish_settings.get('primaryColor', '#5c2e3a'),
+            accent_color=parish_settings.get('accentColor', '#b8922a'),
+            parish_email=parish_settings.get('email', ''),
+        )
+    except Exception as exception:
         return False, {
-            'error': 'mail_timeout',
-            'detail': str(exc),
+            'error': 'mail_queue_unavailable',
+            'detail': str(exception),
             'recipient': recipient,
         }
 
-    if not result.get('ok'):
-        return False, result
+    try:
+        email_result = email_task_result.get(timeout=timeout)
+    except Exception as exception:
+        return False, {
+            'error': 'mail_timeout',
+            'detail': str(exception),
+            'recipient': recipient,
+        }
 
-    return True, result
+    if not email_result.get('ok'):
+        return False, email_result
+
+    return True, email_result

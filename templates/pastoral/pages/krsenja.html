@@ -29,21 +29,17 @@
 <section class="card">
   <div class="table-wrap">
     <table class="data-table">
-      <thead><tr><th>Dijete</th><th>Datum</th><th>Roditelji</th><th>Status</th><th>Stipendij</th><th></th></tr></thead>
+      <thead><tr><th>Predmet / dijete</th><th>Datum</th><th>Roditelji</th><th>Spremnost</th><th>Stipendij</th><th></th></tr></thead>
       <tbody>
         {% for r in rows %}
         <tr>
-          <td><strong>{{ r.childName }}</strong></td>
+          <td><small>{{ r.caseRef }}</small><br><strong>{{ r.childName }}</strong></td>
           <td>{{ r.baptismDate|hr_date }}</td>
           <td>{{ r.parents|default:"—" }}</td>
-          <td><span class="badge">{{ r.status|default:"—" }}</span></td>
+          <td>{% if r.workflowReady %}<span class="badge badge-done">spremno</span>{% else %}<span class="badge badge-urgent">{{ r.workflowMissing|length }} nedostaje</span>{% endif %}<br><small>{{ r.nextStep }}</small></td>
           <td>{% if r.stipendPaid %}<span class="badge badge-done">plaćeno</span>{% elif r.stipend %}<span class="badge badge-urgent">{{ r.stipend|money_eur }}</span>{% else %}—{% endif %}</td>
           <td>
-            <form method="post" style="display:inline" onsubmit="return confirm('Obrisati zapis?');">{% csrf_token %}
-              <input type="hidden" name="action" value="delete_baptism">
-              <input type="hidden" name="record_id" value="{{ r.id }}">
-              <button type="submit" class="btn btn-ghost btn-sm">Obriši</button>
-            </form>
+            <details class="case-inline"><summary class="btn btn-ghost btn-sm">Kontrolna lista</summary><div>{% for check in r.workflowChecks %}<span class="{% if check.done %}is-done{% endif %}">{% if check.done %}✓{% else %}!{% endif %} {{ check.label }}</span>{% endfor %}</div></details>
           </td>
         </tr>
         {% empty %}

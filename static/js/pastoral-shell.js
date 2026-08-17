@@ -2,6 +2,8 @@
  * Django shell — sidebar layout, footer, UI polish (bez zamjene server navigacije).
  */
 (function (global) {
+  const SIDEBAR_COLLAPSED_KEY = "pastoral_sidebar_collapsed";
+
   function esc(s) {
     return String(s ?? "")
       .replace(/&/g, "&amp;")
@@ -27,6 +29,65 @@
     scroll.className = "sidebar-nav-scroll";
     nav.parentNode.insertBefore(scroll, nav);
     scroll.appendChild(nav);
+  }
+
+  function ensureSidebarToggle() {
+    const sidebar = document.querySelector(".sidebar");
+    const toggle = document.getElementById("sidebar-toggle");
+    const backdrop = document.getElementById("sidebar-backdrop");
+    if (!sidebar || !toggle || toggle.dataset.bound === "1") return;
+    toggle.dataset.bound = "1";
+
+    sidebar.querySelectorAll(".nav a").forEach((link) => {
+      if (!link.title) link.title = link.textContent.trim().replace(/\s+/g, " ");
+    });
+
+    const isMobile = () => global.matchMedia("(max-width: 1100px)").matches;
+    const syncAria = () => {
+      const expanded = isMobile()
+        ? document.body.classList.contains("sidebar-mobile-open")
+        : !document.body.classList.contains("sidebar-collapsed");
+      toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+      toggle.setAttribute("aria-label", expanded ? "Sakrij navigaciju" : "Prikaži navigaciju");
+    };
+    const closeMobile = () => {
+      document.body.classList.remove("sidebar-mobile-open");
+      syncAria();
+    };
+
+    try {
+      if (!isMobile() && localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1") {
+        document.body.classList.add("sidebar-collapsed");
+      }
+    } catch {
+      /* localStorage nije obvezan */
+    }
+    syncAria();
+
+    toggle.addEventListener("click", () => {
+      if (isMobile()) {
+        document.body.classList.toggle("sidebar-mobile-open");
+      } else {
+        document.body.classList.toggle("sidebar-collapsed");
+        try {
+          localStorage.setItem(
+            SIDEBAR_COLLAPSED_KEY,
+            document.body.classList.contains("sidebar-collapsed") ? "1" : "0"
+          );
+        } catch {
+          /* localStorage nije obvezan */
+        }
+      }
+      syncAria();
+    });
+    backdrop?.addEventListener("click", closeMobile);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeMobile();
+    });
+    global.addEventListener("resize", () => {
+      if (!isMobile()) document.body.classList.remove("sidebar-mobile-open");
+      syncAria();
+    });
   }
 
   function renderAppFooter(settings) {
@@ -88,6 +149,7 @@
     const settings = global.PastoralParish?.loadSettings?.() || {};
 
     ensureSidebarLayout();
+    ensureSidebarToggle();
     ensureAppFooter(settings);
 
     const nav = document.querySelector(".sidebar .nav");
@@ -122,7 +184,8 @@
     sakramenti: false,
     financije: false,
     isprave: false,
-    ured: false,
+    suradnja: true,
+    ured: true,
   };
 
   function navLoadState() {

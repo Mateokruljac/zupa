@@ -8,7 +8,7 @@
 (function (global) {
   "use strict";
 
-  const CHART_URL = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
+  const CHART_URL = "https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js";
   const VIEW_MODES = ["today", "calendar", "evidence"];
   const MODE_KEY = "nakane-view-mode";
 
@@ -378,7 +378,7 @@
     calEl.innerHTML = `
       <h2 class="section-title">Kalendar misnih nakana</h2>
       ${litWarn}
-      <p class="card-sub cal-lit-legend">Svaki dan: liturgijska boja, rang, svetac/blagdan (LitCal API). Kliknite dan — detalj desno.</p>
+      <p class="card-sub cal-lit-legend">Svaki dan: hrvatsko slavlje iz Romcala te liturgijsko vrijeme i čitanja iz LitCala/HILP-a. Kliknite dan — detalj desno.</p>
       <div class="cal-header">
         <button type="button" class="btn btn-ghost btn-sm" id="cal-prev">‹</button>
         <strong class="cal-month-title">${esc(monthLabel)}</strong>

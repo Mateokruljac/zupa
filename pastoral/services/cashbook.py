@@ -53,6 +53,24 @@ def cashbook_page_context(data: dict, request) -> dict:
         rows = [e for e in rows if (e.get('ledger') or 'plavi') == ledger]
 
     summary = summarize_year(data, year)
+    month_labels = ('Sij', 'Velj', 'Ožu', 'Tra', 'Svi', 'Lip', 'Srp', 'Kol', 'Ruj', 'Lis', 'Stu', 'Pro')
+    cashbook_months = []
+    for month in range(1, 13):
+        prefix = f'{year}-{month:02d}'
+        month_rows = [entry for entry in data.get('cashbook', []) if (entry.get('date') or '').startswith(prefix)]
+        cashbook_months.append({
+            'label': month_labels[month - 1],
+            'in': sum(float(entry.get('amount') or 0) for entry in month_rows if entry.get('type') == 'ulaz'),
+            'out': sum(float(entry.get('amount') or 0) for entry in month_rows if entry.get('type') != 'ulaz'),
+        })
+    all_year_rows = [
+        entry for entry in data.get('cashbook', [])
+        if (entry.get('date') or '').startswith(str(year))
+    ]
+    missing_metadata = sum(
+        1 for entry in all_year_rows
+        if not entry.get('category') or not entry.get('paymentMethod') or not entry.get('description')
+    )
     years = sorted({(e.get('date') or '')[:4] for e in data.get('cashbook', []) if e.get('date')}, reverse=True)
     if str(year) not in years:
         years = [str(year)] + years
@@ -63,4 +81,12 @@ def cashbook_page_context(data: dict, request) -> dict:
         'cashbook_rows': rows,
         'cashbook_summary': summary,
         'cashbook_years': [int(y) for y in years[:6] if y.isdigit()],
+        'cashbook_months': cashbook_months,
+        'cashbook_health': {
+            'percent': round((len(all_year_rows) - missing_metadata) / len(all_year_rows) * 100) if all_year_rows else 0,
+            'missing': missing_metadata,
+            'plavi': sum(1 for entry in all_year_rows if (entry.get('ledger') or 'plavi') == 'plavi'),
+            'crveni': sum(1 for entry in all_year_rows if entry.get('ledger') == 'crveni'),
+            'latest': max((entry.get('date') or '' for entry in all_year_rows), default=''),
+        },
     }

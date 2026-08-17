@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Prijava — Pastoral</title>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="{% static 'js/theme-init.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
   <meta name="csrf-token" content="{{ csrf_token }}">
@@ -60,15 +60,12 @@
           {% if form.email.errors %}<p class="form-error">{{ form.email.errors.0 }}</p>{% endif %}
         </div>
         <div class="form-group">
-          {{ form.role.label_tag }}
-          {{ form.role }}
-        </div>
-        <div class="form-group">
           <label>{{ form.gdpr_consent }} {{ form.gdpr_consent.label }}</label>
           {% if form.gdpr_consent.errors %}<p class="form-error">{{ form.gdpr_consent.errors.0 }}</p>{% endif %}
         </div>
         <p id="login-credentials-error" class="login-otp-error hidden"></p>
         <button type="submit" class="btn btn-primary fx-btn-shine" style="width:100%">Pošalji kod za prijavu</button>
+        <p class="login-security-note"><span aria-hidden="true">⌁</span> Pristup i ovlasti određuju se unaprijed za vašu e-mail adresu.</p>
       </form>
     </div>
 

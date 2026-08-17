@@ -2,14 +2,11 @@ from .base import *
 
 DEBUG = os.environ.get("DEBUG", False)
 IS_PRODUCTION = True
-CORS_ORIGIN_ALLOW_ALL = True
+TENANCY_LEGACY_FALLBACK_ENABLED = False
 ALLOWED_HOSTS = ['*']
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 MEDIA_URL = '/static/media/'
-
-BACKEND_URL = os.environ.get("BACKEND_URL")
-FRONTEND_URL = os.environ.get("FRONTEND_URL")
 
 print("************************************************************")
 print("NOTE: Running in production environment.")

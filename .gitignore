@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Project-local environments and secrets
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Editors and local tooling
+.idea/
+.vscode/
+
+# Frontend dependencies and generated output
+node_modules/
+staticfiles/
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db

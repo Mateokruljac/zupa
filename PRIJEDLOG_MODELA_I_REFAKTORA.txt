@@ -1,0 +1,140 @@
+PRIJEDLOG MODELA I SIGURNOG DALJNJEG REFAKTORA
+Datum: 3. kolovoza 2026.
+
+SVRHA
+Ovaj dokument nije migracijski plan koji treba odmah provesti. To je prijedlog za
+pregled prije ozbiljnijeg razvoja. Trenutni JSON demo i postojeće korisničke tokove
+treba zadržati dok se ne potvrde modeli, dozvole i pravila migracije.
+
+1. PREPORUČENI REDOSLIJED UVOĐENJA MODELA
+
+Faza A — organizacija i pristup
+
+- Diocese: naziv, oznaka, kontakt i postavke.
+- Deanery: pripadnost biskupiji, naziv i dekan.
+- Parish: postojeći model proširiti pripadnošću, identifikatorima i statusom.
+- WorshipPlace: crkva, kapela ili druga lokacija unutar župe.
+- ParishMembership: korisnik, župa, uloga, datum početka/završetka i status.
+- Role i PermissionGrant: dozvole po stvarnoj radnji, ne samo po stranici.
+
+Ovo treba doći prvo jer svi ostali zapisi moraju imati vlasnika, župu i provjeru
+pristupa. Aktivna župa mora biti eksplicitna, a ne implicitno "prva" župa.
+
+Faza B — osobe, kućanstva i privole
+
+- Person: stabilan identitet osobe bez sakramentalnih i financijskih detalja.
+- Household: kućanstvo, adresa, teritorijalna pripadnost i status.
+- HouseholdMember: osoba, kućanstvo, odnos i razdoblje članstva.
+- ContactPoint: telefon/e-mail s vrstom, potvrdom i preferencijom.
+- ConsentRecord: svrha, verzija obavijesti, vrijeme, izvor i opoziv.
+- PastoralNote: odvojena osjetljiva bilješka s granularnim pristupom.
+
+Ne spremati duplikate imena i kontakata u svaki sakramentalni predmet ako se mogu
+referencirati. Istodobno treba dopustiti nepromjenjivu snimku podataka u trenutku
+izdavanja službenog dokumenta.
+
+Faza C — zajednički predmet i radni tijek
+
+- Case: vrsta, referenca, župa, status, prioritet, vlasnik i rok.
+- CaseParty: osoba ili organizacija i njezina uloga u predmetu.
+- CaseChecklistItem: obvezni korak, status, izvršitelj i vrijeme.
+- CaseMessage: strukturirana komunikacija vezana uz predmet.
+- CaseAttachment: metapodaci privitka, klasifikacija i sigurnosni status.
+- CaseTransition: svaka promjena statusa s autorom, razlogom i vremenom.
+
+Javne prijave, sakramenti, potvrde, dekanatski zahtjevi i budući biskupijski inbox
+trebali bi koristiti ovu zajedničku jezgru umjesto zasebnih statusnih mehanizama.
+
+Faza D — kalendar i službe
+
+- CalendarEvent: početak, završetak, privatnost, vlasnik i status.
+- EventRecurrence: pravilo ponavljanja i iznimke.
+- ResourceBooking: prostor, oprema ili vozilo vezano uz događaj.
+- MinistryAssignment: osoba, služba, događaj i status potvrde.
+- MassCelebration: konkretna misa na datum, vrijeme, lokaciju i celebranta.
+- MassIntention: nakana povezana s konkretnom misom, stanjem i stipendijem.
+
+MassSchedule treba biti predložak, a MassCelebration stvarni termin. Time se uredno
+rješavaju blagdanske iznimke, zamjene i prijenos nakana.
+
+Faza E — sakramenti i matice
+
+- SacramentCase: proširenje zajedničkog predmeta po vrsti sakramenta.
+- SacramentCelebration: datum, mjesto, celebrant i sudionici.
+- RegistryBook i RegistryEntry: knjiga te nepromjenjivi izvorni upis.
+- RegistryAnnotation: naknadna bilješka bez prepisivanja izvornog zapisa.
+- RegistryCorrection: kontrolirani ispravak s razlogom i odobrenjem.
+- IssuedDocument: nepromjenjiva snimka izdanog dokumenta, broj i opoziv.
+
+Službeni upis ne smije imati obični hard delete. Ispravak i anotacija moraju čuvati
+autora, vrijeme, razlog i prethodno stanje.
+
+Faza F — financije
+
+- Ledger i LedgerPeriod: plavi/crveni dnevnik i zaključano razdoblje.
+- LedgerEntry: prihod/rashod, datum, kategorija, dokument i odgovorna osoba.
+- Obligation: potraživanje ili obveza, rok, stanje i povezana strana.
+- Payment: stvarna uplata koja može zatvoriti jednu ili više obveza.
+- AnnualContribution: godišnji status lukna po kućanstvu/obvezniku.
+- FinancialReport i ReportSubmission: verzija izvještaja i formalna predaja.
+
+Financijski zapis nakon zaključavanja ne uređivati izravno; korekcija treba biti
+novi povezani zapis. Pastoralna procjena osobe ne smije ovisiti o uplati.
+
+Faza G — audit i dokumenti
+
+- AuditEvent: korisnik, župa, radnja, objekt, vrijeme, izvor zahtjeva i sažetak.
+- DataExport: tko je izvezao koje podatke i zašto.
+- RetentionPolicy: rok i pravilo čuvanja po vrsti zapisa.
+- DocumentTemplateVersion: verzionirani predložak s datumom važenja.
+
+2. PRIJELAZ SA SADAŠNJEG JSON-A
+
+1. Definirati i testirati JSON v2 ugovor sa schemaVersion vrijednošću.
+2. Svakom zapisu dodati stabilan ID, parishId, createdAt i updatedAt.
+3. Napraviti validatore i migracije v1 -> v2 koje se mogu ponoviti bez štete.
+4. Uvesti relacijske modele po jednoj domeni, uz adapter koji vraća isti oblik
+   podataka postojećim predlošcima i JavaScriptu.
+5. Tek nakon usporednog testa prebaciti čitanje i pisanje pojedinog modula.
+6. JSON fallback uklanjati tek kad su podaci migrirani i korisnički tok potvrđen.
+
+3. POTVRĐENI KANDIDATI ZA ČIŠĆENJE
+
+- zupa/tasks.py sadržavao je samo nepovezani primjer Celery zadatka i nije bio
+  referenciran; uklonjen je.
+- Identični sigurni parseri datuma bili su u više servisa; centralizirani su u
+  pastoral.services.dates.parse_iso_date i pokriveni testovima.
+- users/views.py nije bio uključen ni u jednu URL konfiguraciju i pripadao je starom
+  DRF autentikacijskom prototipu. Nakon potvrde da nema vanjskog klijenta uklonjen je
+  zajedno s isključivo njegovim paketima, starim reset predloškom i mrtvim postavkama.
+- Napušteni Netlify/file prototip nije imao aktivnu rutu ni poziv iz Django aplikacije.
+  Uklonjeni su package.json, korijenski manifest, stari index template i statički
+  demo JSON duplikati. Aktivni PWA manifest ostao je u static/ i vodi na /login/.
+- static/css/styles.css treba podijeliti po slojevima tek nakon vizualnih snapshot
+  testova; samo fizičko razdvajanje sada ne donosi funkcionalnu korist.
+
+4. PREPORUČENI TEHNIČKI KORACI PRIJE PRODUKCIJSKOG BACKENDA
+
+- Uvesti formatiranje i lint provjeru u razvojne ovisnosti, ne globalno na računalo.
+- Dodati servisne testove za svaku API akciju i dozvolu po radnji.
+- Dodati render smoke test svih administrativnih ruta.
+- Dodati browser testove za prijavu, Nakane, obitelj, sakramentalni predmet,
+  blagajnu, javnu prijavu, Dekanat i mobilnu navigaciju.
+- Razdvojiti api_actions.py po domenama iza nepromijenjenog dispatch_action ugovora.
+- Zabraniti generički array_key za neodobrene kolekcije i koristiti allow-listu.
+- ParishDataService čitanje ne smije implicitno stvarati ili seedati produkcijske
+  podatke; inicijalizacija treba biti zasebna eksplicitna naredba.
+- Uvesti transakciju ili version polje prije paralelnog rada više korisnika.
+- Autorizacija API mutacija mora biti poslužiteljska i vezana uz aktivnu župu.
+
+5. ŠTO NE PREPORUČUJEM SADA
+
+- rewrite u React/Vue samo zbog veličine JavaScripta;
+- mikroservise;
+- istodobnu migraciju svih JSON podataka u desetke novih tablica;
+- uklanjanje kompatibilnosnih adaptera prije regresijskih testova;
+- promjenu postojećih statusa i naziva polja bez verzionirane migracije;
+- automatsko brisanje službenih, sakramentalnih ili financijskih zapisa.
+
+Glavno pravilo: novi backend može biti kvalitetniji, ali postojeći ekran i tok moraju
+dobivati isti ugovor podataka sve dok se funkcionalnost svjesno ne promijeni.

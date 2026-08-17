@@ -10,7 +10,9 @@
 <div class="kpi-row" style="margin-bottom:16px">
   <article class="card kpi-card"><p class="card-label">Ukupno</p><p class="card-value">{{ visit_stats.total }}</p></article>
   <article class="card kpi-card"><p class="card-label">Otvoreno</p><p class="card-value">{{ visit_stats.open }}</p></article>
-  <article class="card kpi-card"><p class="card-label">Dospjelo</p><p class="card-value">{{ visit_stats.due }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Prekoračeno</p><p class="card-value">{{ visit_stats.due }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Kućna pričest</p><p class="card-value">{{ visit_stats.communion }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Bez ishoda</p><p class="card-value">{{ visit_stats.reports_missing }}</p></article>
 </div>
 
 <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
@@ -19,8 +21,10 @@
   <a href="?status=all" class="btn btn-sm {% if filter_status == 'all' %}btn-primary{% else %}btn-ghost{% endif %}">Svi</a>
 </div>
 
-<section id="visit-form-card" class="card" style="margin-bottom:16px" {% if not selected_visit %}hidden{% endif %}>
+<section id="visit-form-card" class="card" style="margin-bottom:16px" {% if not selected_visit and not prefilled_family %}hidden{% endif %}>
   <h2 class="section-title">{% if selected_visit %}Uredi posjet{% else %}Novi posjet{% endif %}</h2>
+  {% if prefilled_family %}<p class="card-sub">Termin je povezan s kartonom obitelji {{ prefilled_family.surname }}; adresa i obitelj već su popunjene.</p>{% endif %}
+  {% if selected_visit and not selected_visit.done %}<p class="operational-hint">Za završetak posjeta upišite kratak ishod i sljedeći korak u polje <strong>Izvještaj</strong>.</p>{% endif %}
   <form method="post" style="display:grid;gap:12px;max-width:640px">
     {% csrf_token %}
     <input type="hidden" name="action" value="upsert_visit">
@@ -44,30 +48,25 @@
           <th>Vrsta</th>
           <th>Adresa</th>
           <th>Svrha</th>
-          <th>Status</th>
+          <th>Ishod / status</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
         {% for v in visits %}
         <tr>
-          <td>{{ v.scheduled|hr_date }}</td>
+          <td>{{ v.scheduled|hr_date }}{% if v.isOverdue %}<br><small class="text-danger">{{ v.daysOverdue }} dana iza roka</small>{% endif %}</td>
           <td><strong>{{ v.person }}</strong>{% if v.familySurname %}<br><small>{{ v.familySurname }}</small>{% endif %}</td>
           <td><span class="badge">{{ v.type }}</span></td>
           <td>{{ v.address|default:"—" }}</td>
           <td>{{ v.purpose|default:"—" }}</td>
-          <td>{% if v.done %}<span class="badge badge-done">obavljeno</span>{% else %}<span class="badge">planirano</span>{% endif %}</td>
+          <td>{% if v.done %}<span class="badge badge-done">obavljeno</span>{% if v.needsReport %}<br><span class="badge badge-urgent">nedostaje izvještaj</span>{% elif v.report %}<br><small>{{ v.report }}</small>{% endif %}{% elif v.isOverdue %}<span class="badge badge-urgent">prekoračeno</span>{% else %}<span class="badge">planirano</span>{% endif %}</td>
           <td style="white-space:nowrap">
             <a href="?visit={{ v.id }}&status={{ filter_status }}" class="btn btn-ghost btn-sm">Uredi</a>
             <form method="post" style="display:inline">{% csrf_token %}
               <input type="hidden" name="action" value="toggle_visit">
               <input type="hidden" name="visit_id" value="{{ v.id }}">
               <button type="submit" class="btn btn-ghost btn-sm">{% if v.done %}Otvori{% else %}Obavljeno{% endif %}</button>
-            </form>
-            <form method="post" style="display:inline" onsubmit="return confirm('Obrisati posjet?')">{% csrf_token %}
-              <input type="hidden" name="action" value="delete_visit">
-              <input type="hidden" name="visit_id" value="{{ v.id }}">
-              <button type="submit" class="btn btn-ghost btn-sm">×</button>
             </form>
           </td>
         </tr>

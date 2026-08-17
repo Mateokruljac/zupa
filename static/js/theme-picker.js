@@ -112,13 +112,68 @@
   }
 
   function hexToRgb(hex) {
-    const h = String(hex).replace("#", "");
-    if (h.length !== 6) return { r: 92, g: 46, b: 58 };
+    let h = String(hex).replace("#", "").trim();
+    if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    if (!/^[0-9a-f]{6}$/i.test(h)) return { r: 92, g: 46, b: 58 };
     return {
       r: parseInt(h.slice(0, 2), 16),
       g: parseInt(h.slice(2, 4), 16),
       b: parseInt(h.slice(4, 6), 16),
     };
+  }
+
+  function rgbToHex({ r, g, b }) {
+    const part = (value) => Math.round(Math.max(0, Math.min(255, value))).toString(16).padStart(2, "0");
+    return `#${part(r)}${part(g)}${part(b)}`;
+  }
+
+  function relativeLuminance(color) {
+    const { r, g, b } = typeof color === "string" ? hexToRgb(color) : color;
+    const channel = (value) => {
+      const normalized = value / 255;
+      return normalized <= 0.04045
+        ? normalized / 12.92
+        : Math.pow((normalized + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+  }
+
+  function contrastRatio(foreground, background) {
+    const a = relativeLuminance(foreground);
+    const b = relativeLuminance(background);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  }
+
+  function mixRgb(from, to, amount) {
+    const a = typeof from === "string" ? hexToRgb(from) : from;
+    const b = typeof to === "string" ? hexToRgb(to) : to;
+    return {
+      r: a.r + (b.r - a.r) * amount,
+      g: a.g + (b.g - a.g) * amount,
+      b: a.b + (b.b - a.b) * amount,
+    };
+  }
+
+  function ensureContrast(color, background, minimum = 4.5) {
+    if (contrastRatio(color, background) >= minimum) return rgbToHex(hexToRgb(color));
+    const target = relativeLuminance(background) > 0.45 ? "#000000" : "#ffffff";
+    let low = 0;
+    let high = 1;
+    for (let i = 0; i < 18; i += 1) {
+      const amount = (low + high) / 2;
+      const candidate = rgbToHex(mixRgb(color, target, amount));
+      if (contrastRatio(candidate, background) >= minimum) high = amount;
+      else low = amount;
+    }
+    return rgbToHex(mixRgb(color, target, high));
+  }
+
+  function bestTextOn(background) {
+    const darkText = "#171412";
+    const lightText = "#ffffff";
+    return contrastRatio(darkText, background) >= contrastRatio(lightText, background)
+      ? darkText
+      : lightText;
   }
 
   function applyThemeVars(opts) {
@@ -130,15 +185,34 @@
     const { r, g, b } = hexToRgb(primary);
     const dark = getResolvedScheme() === "dark";
     const neutrals = dark ? DARK_NEUTRALS : LIGHT_NEUTRALS;
+    const surfaceForContrast = dark ? DARK_NEUTRALS.surfaceElevated : (opts.surfaceElevated || LIGHT_NEUTRALS.surfaceElevated);
+    const primaryText = ensureContrast(primary, surfaceForContrast);
+    const accentText = ensureContrast(accent, surfaceForContrast);
+    const onPrimary = bestTextOn(primary);
+    const onAccent = bestTextOn(accent);
+    const primaryFillShade = rgbToHex(mixRgb(
+      primary,
+      onPrimary === "#ffffff" ? "#000000" : "#ffffff",
+      0.12
+    ));
+    const primaryStrong = ensureContrast(primary, "#ffffff");
     const softAlpha = dark ? 0.14 : 0.08;
     const glowAlpha = dark ? 0.28 : 0.18;
     const shadowAlpha = dark ? 0.35 : 0.08;
     const shadowLgAlpha = dark ? 0.45 : 0.12;
 
-    root.style.setProperty("--tenant-primary", primary);
-    root.style.setProperty("--tenant-accent", accent);
-    root.style.setProperty("--primary", primary);
-    root.style.setProperty("--accent", accent);
+    root.style.setProperty("--tenant-primary-raw", primary);
+    root.style.setProperty("--tenant-accent-raw", accent);
+    root.style.setProperty("--tenant-primary", primaryText);
+    root.style.setProperty("--tenant-accent", accentText);
+    root.style.setProperty("--primary", primaryText);
+    root.style.setProperty("--accent", accentText);
+    root.style.setProperty("--primary-fill", primary);
+    root.style.setProperty("--primary-fill-shade", primaryFillShade);
+    root.style.setProperty("--primary-strong", primaryStrong);
+    root.style.setProperty("--accent-fill", accent);
+    root.style.setProperty("--on-primary", onPrimary);
+    root.style.setProperty("--on-accent", onAccent);
     root.style.setProperty("--bg", dark ? DARK_NEUTRALS.bg : bg);
     root.style.setProperty("--bg-pattern", dark ? DARK_NEUTRALS.bgPattern : bgPattern);
     root.style.setProperty("--surface", neutrals.surface);
@@ -154,6 +228,8 @@
     root.style.setProperty("--shadow-lg", `0 16px 48px rgba(${dark ? "0, 0, 0" : `${r}, ${g}, ${b}`}, ${shadowLgAlpha})`);
     root.style.setProperty("--border-tint", `color-mix(in srgb, ${primary} ${dark ? 18 : 12}%, var(--border-base))`);
     root.dataset.themePreset = opts.presetId || "custom";
+    root.dataset.themeContrastAdjusted = String(primaryText.toLowerCase() !== primary.toLowerCase() || accentText.toLowerCase() !== accent.toLowerCase());
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", primary);
   }
 
   function applyFromSettings(settings) {
@@ -246,6 +322,7 @@
             <label>Zlatni akcent <input type="color" id="theme-color-accent" value="${settings.accentColor || "#b8922a"}" /></label>
           </div>
           <button type="button" class="btn btn-secondary btn-sm" id="theme-apply-custom">Primijeni prilagodbu</button>
+          <p class="theme-contrast-note">Kontrast se automatski prilagođava svijetlom i tamnom načinu. Vaša izvorna boja ostaje spremljena.</p>
         </div>
       </div>`;
   }
@@ -474,6 +551,9 @@
   global.PastoralTheme = {
     PRESETS,
     applyThemeVars,
+    contrastRatio,
+    ensureContrast,
+    bestTextOn,
     applyColorScheme,
     applyFromSettings,
     saveTheme,

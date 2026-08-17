@@ -1,6 +1,11 @@
 {% extends "pastoral/base.html" %}
 {% load pastoral_tags %}
 
+{% block topbar_actions %}
+<button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('task-entry').open=true">+ Zadatak</button>
+<button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('event-entry').open=true">+ Događaj</button>
+{% endblock %}
+
 {% block content %}
 <div class="kalendar-layout" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
   <section class="card">
@@ -22,6 +27,7 @@
            style="display:block;padding:8px 4px;text-align:center;text-decoration:none;color:inherit;min-height:52px">
           <span>{{ iso|slice:"8:10" }}</span>
           {% if lit.title %}<small style="display:block;font-size:9px;line-height:1.2;opacity:0.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ lit.title }}</small>{% endif %}
+          {% with count=calendar_counts|get_item:iso %}{% if count.events or count.tasks %}<span class="calendar-load" aria-label="{{ count.events }} događaja i {{ count.tasks }} zadataka">{% if count.events %}<b>{{ count.events }}</b>{% endif %}{% if count.tasks %}<i>{{ count.tasks }}</i>{% endif %}</span>{% endif %}{% endwith %}
         </a>
         {% endwith %}
         {% else %}
@@ -34,32 +40,43 @@
   <div>
     {% include "pastoral/partials/liturgical_day.html" with lit_day=lit_day %}
 
-    {% if day_events %}
     <section class="card" style="margin-top:16px">
-      <h2 class="section-title">Župni događaji</h2>
+      <div class="operational-card-head"><div><p class="card-label">{{ filter_date|hr_date }}</p><h2 class="section-title">Dnevni operativni raspored</h2></div><button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('event-entry').open=true">+ Termin</button></div>
       {% for ev in day_events %}
-      <div class="list-item"><strong>{{ ev.title|default:ev.name }}</strong>{% if ev.time %} · {{ ev.time }}{% endif %}</div>
+      <div class="calendar-agenda-row">
+        <time>{{ ev.time|default:"cijeli dan" }}</time>
+        <span><strong>{{ ev.title|default:ev.name }}</strong><small>{{ ev.place|default:"Lokacija nije upisana" }}{% if ev.owner %} · {{ ev.owner }}{% endif %}</small></span>
+        <span class="badge">{{ ev.type|default:"događaj" }}</span>
+      </div>
+      {% empty %}
+      <p class="empty-state">Nema župnih događaja za ovaj datum.</p>
+      {% endfor %}
+      {% for task in day_tasks %}
+      <div class="calendar-agenda-row calendar-agenda-row--task">
+        <time>rok</time><span><strong>{{ task.title }}</strong><small>{{ task.owner|default:"Nije dodijeljeno" }}</small></span><span class="badge">{{ task.priority }}</span>
+      </div>
       {% endfor %}
     </section>
-    {% endif %}
   </div>
 </div>
 
+{% if calendar_conflicts %}
+<aside class="card operational-warning" style="margin-bottom:16px">
+  <strong>Otkriveno je {{ calendar_conflicts|length }} preklapanje prostora i termina.</strong>
+  <span>Provjerite događaje prije potvrde rasporeda ili objave župnog listića.</span>
+</aside>
+{% endif %}
+
 <section class="card">
-  <h2 class="section-title">Zadaci župnog ureda</h2>
-  <form method="post" style="display:grid;gap:12px;max-width:640px;margin-bottom:16px">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="add_task">
-    {{ task_form.as_p }}
-    <button type="submit" class="btn btn-primary btn-sm">+ Dodaj zadatak</button>
-  </form>
+  <div class="operational-card-head"><div><p class="card-label">Odgovornost i rok</p><h2 class="section-title">Zadaci župnog ureda</h2></div><button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('task-entry').open=true">+ Zadatak</button></div>
   <div class="table-wrap">
     <table class="data-table">
-      <thead><tr><th>Zadatak</th><th>Kategorija</th><th>Rok</th><th>Prioritet</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Zadatak</th><th>Odgovoran</th><th>Kategorija</th><th>Rok</th><th>Prioritet</th><th>Status</th><th></th></tr></thead>
       <tbody>
         {% for t in rows %}
         <tr>
           <td><strong>{{ t.title }}</strong></td>
+          <td>{% if t.owner %}{{ t.owner }}{% else %}<span class="badge badge-urgent">nije dodijeljeno</span>{% endif %}</td>
           <td><span class="badge">{{ t.category }}</span></td>
           <td>{{ t.due|hr_date }}</td>
           <td>{{ t.priority }}</td>
@@ -73,10 +90,27 @@
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" class="empty-state">Nema zadataka.</td></tr>
+        <tr><td colspan="7" class="empty-state">Nema zadataka.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </section>
+
+<details id="task-entry" class="card inline-entry-panel">
+  <summary>Novi zadatak župnog ureda</summary>
+  <form method="post" class="operational-form-grid">
+    {% csrf_token %}<input type="hidden" name="action" value="add_task">{{ task_form.as_p }}
+    <button type="submit" class="btn btn-primary btn-sm">Dodaj zadatak</button>
+  </form>
+</details>
+
+<details id="event-entry" class="card inline-entry-panel">
+  <summary>Novi događaj ili termin</summary>
+  <p class="card-sub">Termin ulazi u zajednički raspored, a sustav provjerava preklapanje prostora u isto vrijeme.</p>
+  <form method="post" class="operational-form-grid">
+    {% csrf_token %}<input type="hidden" name="action" value="add_event">{{ event_form.as_p }}
+    <button type="submit" class="btn btn-primary btn-sm">Dodaj u kalendar</button>
+  </form>
+</details>
 {% endblock %}

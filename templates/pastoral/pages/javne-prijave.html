@@ -6,7 +6,8 @@
 {% endblock %}
 
 {% block content %}
-<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;align-items:end">
+<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;align-items:end;flex-wrap:wrap">
+  <div class="form-group"><label>Pretraži</label><input type="search" name="q" value="{{ submission_filters.q }}" class="form-control" placeholder="Ime, kontakt, adresa…"></div>
   <div class="form-group">
     <label>Status</label>
     <select name="status" onchange="this.form.submit()">
@@ -15,20 +16,27 @@
       <option value="preuzeto" {% if submission_filters.status == 'preuzeto' %}selected{% endif %}>Preuzeto</option>
     </select>
   </div>
+  <div class="form-group"><label>Obrazac</label><select name="type"><option value="">Svi obrasci</option>{% for form_type in submission_form_types %}<option value="{{ form_type }}" {% if submission_filters.type == form_type %}selected{% endif %}>{{ form_labels|get_item:form_type|default:form_type }}</option>{% endfor %}</select></div>
+  <button type="submit" class="btn btn-primary btn-sm">Primijeni</button>
+  {% if submission_filters.q or submission_filters.type or submission_filters.status != 'all' %}<a href="{% page_url 'javne-prijave' %}" class="btn btn-ghost btn-sm">Poništi</a>{% endif %}
 </form>
 
 <section class="card">
   <h2 class="section-title">Prijave s weba {% if submission_nova_count %}<span class="badge badge-urgent">{{ submission_nova_count }} novih</span>{% endif %}</h2>
   <div class="table-wrap">
     <table class="data-table">
-      <thead><tr><th>Obrazac</th><th>Datum</th><th>Ime</th><th>Telefon</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Obrazac</th><th>Zaprimljeno</th><th>Osoba i kontakt</th><th>Trijaža</th><th>Status</th><th></th></tr></thead>
       <tbody>
         {% for s in submission_rows %}
         <tr>
           <td>{{ form_labels|get_item:s.formType|default:s.formType|default:s.type }}</td>
-          <td>{{ s.submittedAt|hr_datetime }}</td>
-          <td><strong>{{ s.name|default:"—" }}</strong></td>
-          <td>{{ s.phone|default:"—" }}</td>
+          <td>{{ s.submittedAt|hr_datetime }}{% if s.ageDays != None %}<br><small>{{ s.ageDays }} dana u redu</small>{% endif %}</td>
+          <td><strong>{{ s.name|default:"—" }}</strong><br><small>{{ s.phone|default:s.email|default:"kontakt nije upisan" }}</small></td>
+          <td class="submission-triage">
+            <span class="{% if s.consentGranted %}is-ok{% else %}is-alert{% endif %}">{% if s.consentGranted %}✓{% else %}!{% endif %} privola</span>
+            <span class="{% if s.jurisdictionKnown %}is-ok{% else %}is-alert{% endif %}">{% if s.jurisdictionKnown %}✓{% else %}!{% endif %} nadležnost</span>
+            <span class="{% if s.possibleDuplicate %}is-alert{% else %}is-ok{% endif %}">{% if s.possibleDuplicate %}! mogući duplikat{% else %}✓ nema duplikata{% endif %}</span>
+          </td>
           <td>{% if s.status == 'nova' %}<span class="badge badge-urgent">nova</span>{% else %}<span class="badge badge-done">preuzeto</span>{% endif %}</td>
           <td style="white-space:nowrap">
             {% if s.status == 'nova' %}
@@ -36,21 +44,12 @@
               <input type="hidden" name="action" value="import_submission">
               <input type="hidden" name="submission_id" value="{{ s.id }}">
               <input type="hidden" name="year" value="{{ import_year }}">
-              <button type="submit" class="btn btn-primary btn-sm">Uvezi</button>
+              <button type="submit" class="btn btn-primary btn-sm" {% if not s.triageReady %}title="Trijaža nije potpuna; prije uvoza ručno provjerite upozorenja"{% endif %}>Uvezi u predmet</button>
             </form>
-            <form method="post" style="display:inline">{% csrf_token %}
-              <input type="hidden" name="action" value="mark_submission_imported">
-              <input type="hidden" name="submission_id" value="{{ s.id }}">
-              <button type="submit" class="btn btn-ghost btn-sm">Samo označi</button>
-            </form>
+            <details class="submission-more"><summary class="btn btn-ghost btn-sm">Provjeri podatke</summary><div>{% for f in s.displayFields %}<p><small>{{ f.label }}</small><strong>{{ f.value }}</strong></p>{% endfor %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="mark_submission_imported"><input type="hidden" name="submission_id" value="{{ s.id }}"><button type="submit" class="btn btn-ghost btn-sm">Arhiviraj bez uvoza</button></form></div></details>
             {% endif %}
           </td>
         </tr>
-        {% if s.displayFields %}
-        <tr><td colspan="6" style="font-size:13px;color:var(--muted,#6d6760)">
-          {% for f in s.displayFields %}{{ f.label }}: {{ f.value }}{% if not forloop.last %} · {% endif %}{% endfor %}
-        </td></tr>
-        {% endif %}
         {% empty %}
         <tr><td colspan="6" class="empty-state">Nema prijava.</td></tr>
         {% endfor %}

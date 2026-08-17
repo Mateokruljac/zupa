@@ -9,7 +9,7 @@ Zadano: **Župa Blažene Djevice Marije**, Slavonski Brod.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install Django==4.2.5 whitenoise django-debug-toolbar django-admin-interface django-colorfield pillow
+pip install Django whitenoise django-debug-toolbar django-admin-interface django-colorfield pillow
 python manage.py migrate --settings=config.settings.local
 python manage.py seed_pastoral --settings=config.settings.local
 python manage.py runserver --settings=config.settings.local
@@ -68,3 +68,49 @@ Lozinka (za Django admin): `pastoral-demo`
 ## SQLite / PostgreSQL
 
 Bez `DB_NAME` u `.env` koristi se SQLite. Za produkciju postavite PostgreSQL varijable i pokrenite `docker compose up`.
+
+## Romcal — probni hrvatski liturgijski kalendar
+
+Romcal 4.0.0b6 radi lokalno i koristi ugrađeni kalendar `croatia`; za njegov
+osnovni rezultat nije potrebna mreža. Zadani način rada je `hybrid`: Romcal
+određuje glavno slavlje i rang, a LitCal/HILP dopunjava liturgijski vremenski
+dan i čitanja.
+
+Nakon ponovne izgradnje projektnog Docker servisa pokrenite testove:
+
+```bash
+docker compose up -d --build web
+docker compose exec -T web python manage.py test pastoral.tests.test_liturgical_romcal
+```
+
+Nakon prijave u aplikaciju mogu se ručno otvoriti:
+
+- Romcal dan: http://localhost:8000/api/liturgical/romcal/day/2026-08-03/
+- usporedba s postojećim LitCalom: http://localhost:8000/api/liturgical/compare/2026-08-03/
+- Uskrs 2026.: http://localhost:8000/api/liturgical/compare/2026-04-05/
+- stabilni v1 API: http://localhost:8000/api/liturgical/v1/day/2026-08-03/
+
+Projektna varijabla `LITURGICAL_PRIMARY_PROVIDER` podržava `hybrid` (zadano),
+`romcal` i `litcal`. HILP čitanja i dalje se nadograđuju istim postojećim
+servisom, neovisno o izvoru kalendara.
+
+Projektna naredba, bez globalne instalacije alata:
+
+```bash
+docker compose exec -T web python manage.py liturgical_day 2026-08-03
+docker compose exec -T web python manage.py liturgical_day 2026-08-03 --provider romcal --json
+```
+
+Opcija `--with-hilp` dodatno dohvaća hrvatska čitanja i zato može zahtijevati
+mrežu. Bez te opcije Romcal provjera radi potpuno lokalno.
+
+Mjesečna kontrola kvalitete između Romcala i LitCala:
+
+```bash
+docker compose exec -T web python manage.py liturgical_audit 2026 --month 8
+docker compose exec -T web python manage.py liturgical_audit 2026 --month 8 --json
+```
+
+Razlika između izvora nije automatski pogreška: izvještaj posebno izdvaja dane
+s više dopuštenih slavlja, razlike u naslovu/rangu/boji, neprevedene zapise i
+datume za koje jedan provider nema podatke.

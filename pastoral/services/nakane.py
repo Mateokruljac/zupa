@@ -4,12 +4,8 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 
 from pastoral.forms import IntentionForm
+from pastoral.services.dates import today_iso
 from pastoral.services.mass_schedule import get_masses_for_date
-
-
-def today_iso() -> str:
-    return date.today().isoformat()
-
 
 def intentions_for_date(intentions: list, iso: str) -> list:
     return sorted(

@@ -8,13 +8,22 @@
     <p class="card-sub">Sljedeći sastanak: {{ pastoral_council.nextMeeting|hr_date }}</p>
     <div class="table-wrap">
       <table class="data-table">
-        <thead><tr><th>Ime</th><th>Uloga</th><th>Potvrđen</th></tr></thead>
+        <thead><tr><th>Ime</th><th>Uloga</th><th>Potvrđen</th><th>Upravljanje</th></tr></thead>
         <tbody>
-          {% for m in pastoral_council.members %}
+          {% for council_member in pastoral_council.members %}
           <tr>
-            <td>{{ m.name }}</td>
-            <td>{{ m.role }}</td>
-            <td>{% if m.confirmed %}<span class="badge badge-done">da</span>{% else %}<span class="badge">ne</span>{% endif %}</td>
+            <td>{{ council_member.name }}</td>
+            <td>{{ council_member.role }}</td>
+            <td>{% if council_member.confirmed %}<span class="badge badge-done">da</span>{% else %}<span class="badge">ne</span>{% endif %}</td>
+            <td>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_council_member_confirmation">
+                <input type="hidden" name="council_type" value="pastoral">
+                <input type="hidden" name="member_id" value="{{ council_member.id }}">
+                <button type="submit" class="btn btn-sm">{% if council_member.confirmed %}Označi nepotvrđenim{% else %}Potvrdi članstvo{% endif %}</button>
+              </form>
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -26,18 +35,51 @@
     <p class="card-sub">Pregled blagajne: {{ economic_council.nextReview|hr_date }}</p>
     <div class="table-wrap">
       <table class="data-table">
-        <thead><tr><th>Ime</th><th>Uloga</th><th>Potvrđen</th></tr></thead>
+        <thead><tr><th>Ime</th><th>Uloga</th><th>Potvrđen</th><th>Upravljanje</th></tr></thead>
         <tbody>
-          {% for m in economic_council.members %}
+          {% for council_member in economic_council.members %}
           <tr>
-            <td>{{ m.name }}</td>
-            <td>{{ m.role }}</td>
-            <td>{% if m.confirmed %}<span class="badge badge-done">da</span>{% else %}<span class="badge">ne</span>{% endif %}</td>
+            <td>{{ council_member.name }}</td>
+            <td>{{ council_member.role }}</td>
+            <td>{% if council_member.confirmed %}<span class="badge badge-done">da</span>{% else %}<span class="badge">ne</span>{% endif %}</td>
+            <td>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="toggle_council_member_confirmation">
+                <input type="hidden" name="council_type" value="economic">
+                <input type="hidden" name="member_id" value="{{ council_member.id }}">
+                <button type="submit" class="btn btn-sm">{% if council_member.confirmed %}Označi nepotvrđenim{% else %}Potvrdi članstvo{% endif %}</button>
+              </form>
+            </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
   </section>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;margin-top:20px">
+  <details class="card inline-entry-panel">
+    <summary>Dodaj člana vijeća</summary>
+    <p class="card-sub">Evidentirajte samo podatke potrebne za mandat i rad vijeća.</p>
+    <form method="post" class="operational-form-grid">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_council_member">
+      {{ council_member_form.as_p }}
+      <button type="submit" class="btn btn-primary btn-sm">Dodaj člana</button>
+    </form>
+  </details>
+
+  <details class="card inline-entry-panel">
+    <summary>Odredi sljedeći termin vijeća</summary>
+    <p class="card-sub">Termin se prikazuje na ovoj stranici; događaj u zajednički kalendar i dalje se unosi zasebno.</p>
+    <form method="post" class="operational-form-grid">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="schedule_council_meeting">
+      {{ council_meeting_form.as_p }}
+      <button type="submit" class="btn btn-primary btn-sm">Spremi termin</button>
+    </form>
+  </details>
 </div>
 {% endblock %}

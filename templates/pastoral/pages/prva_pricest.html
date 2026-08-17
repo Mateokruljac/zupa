@@ -26,19 +26,30 @@
   <button type="submit" class="btn btn-primary btn-sm">Filtriraj</button>
 </form>
 
+<details class="card inline-entry-panel" style="margin-bottom:16px">
+  <summary>Dodaj prvopričesnika u {{ fc_year }}</summary>
+  <p class="card-sub">Unesite samo podatke potrebne za pripremu i kontakt sa skrbnicima.</p>
+  <form method="post" class="operational-form-grid">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_first_communion_candidate">
+    {{ first_communion_candidate_form.as_p }}
+    <button type="submit" class="btn btn-primary btn-sm">Dodaj prvopričesnika</button>
+  </form>
+</details>
+
 <section class="card">
   <h2 class="section-title">Prvopričesnici {{ fc_year }}</h2>
   <div class="table-wrap">
     <table class="data-table">
       <thead><tr><th>Ime</th><th>Škola</th><th>Razred</th><th>Roditelji</th><th>Status</th></tr></thead>
       <tbody>
-        {% for c in fc_candidates %}
+        {% for first_communion_candidate in fc_candidates %}
         <tr>
-          <td><strong>{{ c.name }}</strong></td>
-          <td>{{ c.school|default:"—" }}</td>
-          <td>{{ c.class|default:"—" }}</td>
-          <td>{{ c.parents|default:"—" }}</td>
-          <td><span class="badge">{{ c.status|default:"—" }}</span></td>
+          <td><strong>{{ first_communion_candidate.name }}</strong></td>
+          <td>{{ first_communion_candidate.school|default:"—" }}</td>
+          <td>{{ first_communion_candidate.class|default:"—" }}</td>
+          <td>{{ first_communion_candidate.parents|default:"—" }}</td>
+          <td><span class="badge">{{ first_communion_candidate.status|default:"—" }}</span></td>
         </tr>
         {% empty %}
         <tr><td colspan="5" class="empty-state">Nema prvopričesnika.</td></tr>

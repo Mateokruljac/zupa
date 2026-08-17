@@ -32,6 +32,7 @@ def _format_value(value) -> str:
 
 def build_submission_payload(form_slug: str, form: Form) -> dict:
     cd = form.cleaned_data.copy()
+    consent_granted = bool(cd.get('gdpr_consent'))
     address = form.resolved_address()
     cd['adresa'] = address
     cd.pop('street_id', None)
@@ -68,6 +69,9 @@ def build_submission_payload(form_slug: str, form: Form) -> dict:
         'address': address,
         'data': {k: _format_value(v) for k, v in cd.items()},
         'displayFields': display,
+        'consentGranted': consent_granted,
+        'consentCapturedAt': timezone.now().isoformat(),
+        'privacyNoticeVersion': '2026-01',
     }
 
 

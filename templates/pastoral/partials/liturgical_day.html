@@ -4,6 +4,9 @@
     <div>
       <p class="card-label">{{ lit_day.date|hr_date }}{% if lit_day.subtitle %} · {{ lit_day.subtitle }}{% endif %}</p>
       <h2 class="section-title" style="margin:4px 0">{{ lit_day.title }}</h2>
+      {% if lit_day.temporalTitle %}
+      <p class="card-sub" style="margin:4px 0 0"><strong>Liturgijsko vrijeme:</strong> {{ lit_day.temporalTitle }}</p>
+      {% endif %}
       {% if lit_day.gospelThought %}
       <p class="card-sub" style="font-style:italic;margin:8px 0 0">„{{ lit_day.gospelThought }}”</p>
       {% endif %}
@@ -24,6 +27,20 @@
     <a href="{{ lit_day.hilpUrl }}" class="btn btn-secondary btn-sm" target="_blank" rel="noopener">HILP — puni tekst</a>
     {% endif %}
   </div>
+  {% if lit_day.observances|length > 1 %}
+  <div class="lit-observances">
+    <p class="card-label">Slavlja dana</p>
+    {% for observance in lit_day.observances %}
+    <div class="lit-observance-row">
+      <span class="cal-lit-observance-dot {{ observance.color|lit_swatch_class }}" aria-hidden="true"></span>
+      <span class="lit-observance-title">{{ observance.title }}</span>
+      <span class="badge">{{ observance.rankLabel }}</span>
+      <span class="cal-lit-color-tag {{ observance.color|lit_swatch_class }}">{{ observance.colorLabel }}</span>
+      {% if observance.primary %}<span class="badge">Glavno slavlje</span>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
   {% if lit_day.celebrations %}
   <ul style="margin:12px 0 0;padding-left:1.2em">
     {% for c in lit_day.celebrations %}<li>{{ c }}</li>{% endfor %}

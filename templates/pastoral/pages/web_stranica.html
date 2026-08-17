@@ -1,0 +1,186 @@
+{% extends "pastoral/base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<style>
+  .website-hero{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.65fr);gap:20px;align-items:stretch}
+  .website-offer{padding:clamp(22px,4vw,42px);background:linear-gradient(135deg,color-mix(in srgb,var(--tenant-primary) 94%,#171018),color-mix(in srgb,var(--tenant-primary) 72%,var(--tenant-accent)));color:#fff;overflow:hidden;position:relative}
+  .website-offer h2{font-family:"Cormorant Garamond",serif;font-size:clamp(30px,4vw,46px);line-height:1;margin:0 0 14px;max-width:720px}
+  .website-offer p{max-width:680px;color:rgba(255,255,255,.84);font-size:17px}
+  .website-price{font-size:34px;font-weight:700;margin:26px 0 4px}.website-price small{font-size:14px;font-weight:500;opacity:.75}
+  .website-features{display:grid;gap:10px;margin:20px 0 28px;padding:0;list-style:none}.website-features li:before{content:"✓";margin-right:9px;color:#f4d786}
+  .website-status-card{display:flex;flex-direction:column;justify-content:center;text-align:center}.website-status-icon{font-size:44px;margin-bottom:12px}
+  .website-progress{height:10px;border-radius:999px;background:var(--surface-2,#eee);overflow:hidden;margin:16px 0}.website-progress span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--tenant-primary),var(--tenant-accent))}
+  .website-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.75fr);gap:20px;margin-top:20px}.website-form p{display:grid;gap:6px;margin:0 0 14px}.website-form input,.website-form select{width:100%}
+  .website-timeline{list-style:none;margin:18px 0;padding:0;display:grid;gap:14px}.website-timeline li{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start}.website-timeline b{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:color-mix(in srgb,var(--tenant-primary) 13%,transparent);color:var(--tenant-primary)}
+  .website-live-link{word-break:break-all}
+  .website-media-manager{margin-top:20px}.website-media-grid{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(0,1.2fr);gap:22px;margin-top:18px}.website-media-panel{padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--surface-2)}
+  .website-media-preview{width:100%;aspect-ratio:16/9;display:block;object-fit:cover;border-radius:12px;background:var(--surface)}.website-media-preview.portrait{aspect-ratio:4/5}.website-media-form{margin-top:16px}.website-media-form p{display:grid;gap:6px;margin:0 0 12px}.website-media-form input{width:100%}
+  .website-gallery-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:16px}.website-gallery-item{position:relative}.website-gallery-item img{width:100%;aspect-ratio:4/3;display:block;object-fit:cover;border-radius:10px}.website-gallery-item small{display:block;margin-top:6px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.website-gallery-item form{position:absolute;right:7px;top:7px}.website-gallery-item button{width:30px;height:30px;border:0;border-radius:50%;background:rgba(30,23,25,.82);color:#fff;cursor:pointer}.website-demo-badge{position:absolute;left:7px;top:7px;padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.9);font-size:10px;font-weight:700;color:#3a3034}
+  .publication-manager{margin-top:20px}.publication-list{display:grid;gap:10px;margin-top:18px}.publication-row{display:grid;grid-template-columns:minmax(180px,1fr) minmax(360px,1.4fr);gap:18px;align-items:center;padding:16px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2)}.publication-row h3{margin:3px 0 0}.publication-kind{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--tenant-primary)}.publication-controls{display:grid;grid-template-columns:minmax(120px,.7fr) minmax(190px,1fr) auto;gap:9px;align-items:end}.publication-controls label{display:grid;gap:5px;font-size:12px;color:var(--muted)}.publication-controls select,.publication-controls input{width:100%}.publication-state{display:inline-flex;width:max-content;margin-top:9px;padding:4px 8px;border-radius:999px;background:color-mix(in srgb,var(--tenant-primary) 11%,transparent);color:var(--tenant-primary);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}.publication-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  @media(max-width:860px){.website-hero,.website-grid,.website-media-grid{grid-template-columns:1fr}}
+  @media(max-width:860px){.publication-row{grid-template-columns:1fr}.publication-controls{grid-template-columns:1fr 1fr auto}}
+  @media(max-width:600px){.website-gallery-list{grid-template-columns:1fr}.publication-controls{grid-template-columns:1fr}.publication-controls .btn{width:100%}}
+</style>
+{% endblock %}
+
+{% block content %}
+{% if not public_website %}
+<div class="website-hero">
+  <section class="card website-offer">
+    <p style="text-transform:uppercase;letter-spacing:.12em;font-size:12px">Opcionalna dodatna usluga</p>
+    <h2>Javna web-stranica povezana sa životom vaše župe</h2>
+    <p>Raspored misa, obavijesti, kalendar, sakramenti i župni listić objavljuju se iz istog sustava, bez dvostrukog unosa.</p>
+    <div class="website-price">150 € <small>godišnje uz pastoralnu platformu</small></div>
+    <ul class="website-features">
+      <li>Responzivni pastoralni predložak</li>
+      <li>Siguran javni snapshot bez pristupa privatnim evidencijama</li>
+      <li>Standardna poddomena, SSL i automatske nadogradnje</li>
+      <li>Pregled prije objave i kontrola javne vidljivosti</li>
+    </ul>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="activate_public_website">
+      <button class="btn btn-primary" type="submit">Zatraži aktivaciju</button>
+    </form>
+  </section>
+  <aside class="card website-status-card">
+    <div class="website-status-icon">◎</div>
+    <h3>Usluga nije aktivirana</h3>
+    <p class="card-sub">{% if website_demo_auto_activate %}U demo načinu zahtjev se odmah odobrava i pokreće izradu.{% else %}Zahtjev nakon evidentirane uplate odobrava tehnički administrator.{% endif %}</p>
+  </aside>
+</div>
+{% else %}
+<div class="website-hero">
+  <section class="card">
+    <p class="eyebrow">Status dodatne usluge</p>
+    <h2 class="section-title">{{ public_website.get_status_display }}</h2>
+    {% if website_build %}
+    <div class="website-progress" aria-label="Napredak izrade"><span style="width:{{ website_build.progress }}%"></span></div>
+    <p class="card-sub">{{ website_build.get_kind_display }} · {{ website_build.progress }}% · {{ website_build.get_status_display }}</p>
+    {% endif %}
+    <ol class="website-timeline">
+      <li><b>✓</b><span><strong>Dodatna usluga aktivirana</strong><br><small>Entitlement public_website dodan je licenci župe.</small></span></li>
+      <li><b>✓</b><span><strong>Izrada zakazana</strong><br><small>Rezervirana je poddomena {{ public_website.subdomain }}.</small></span></li>
+      <li><b>{% if public_website.status == 'provisioning' %}3{% else %}✓{% endif %}</b><span><strong>Početna verzija</strong><br><small>Predložak, boje i javne sekcije pripremaju se za pregled.</small></span></li>
+    </ol>
+    {% if public_website.status == 'provisioning' %}
+    <form method="post">
+      {% csrf_token %}<input type="hidden" name="action" value="complete_demo_build">
+      <button class="btn btn-primary" type="submit">Dovrši demo generiranje</button>
+    </form>
+    {% else %}
+    <p><strong>Adresa:</strong> <span class="website-live-link">{{ public_website.public_hostname }}</span></p>
+    {% if public_website.status == 'live' %}<a class="btn btn-primary" href="{% url 'public_site:website' public_website.subdomain %}" target="_blank" rel="noopener">Otvori javnu stranicu</a>{% endif %}
+    {% endif %}
+  </section>
+  <aside class="card website-status-card">
+    <div class="website-status-icon">{% if public_website.status == 'live' %}●{% else %}◌{% endif %}</div>
+    <h3>{{ public_website.site_name }}</h3>
+    <p class="card-sub">Predložak: {{ public_website.get_template_key_display }}</p>
+    <span class="publication-state">{{ public_website.get_publication_status_display }}</span>
+  </aside>
+</div>
+
+{% if public_website.status != 'provisioning' %}
+<div class="website-grid">
+  <section class="card">
+    <h2 class="section-title">Izgled i identitet</h2>
+    <form method="post" class="website-form">
+      {% csrf_token %}<input type="hidden" name="action" value="save_website">
+      {{ website_form.as_p }}
+      <button class="btn btn-ghost" type="submit">Spremi postavke</button>
+    </form>
+  </section>
+  <aside class="card">
+    <h2 class="section-title">Objava</h2>
+    <p class="card-sub">Pregled prikazuje radnu verziju samo prijavljenim članovima župe. Objava zatim zaključava javnu konfiguraciju bez pristupa privatnoj tenant bazi.</p>
+    <div class="publication-actions">
+      <a class="btn btn-ghost" href="{% url 'public_site:preview' public_website.subdomain %}" target="_blank" rel="noopener">Pregled prije objave</a>
+    <form method="post">
+      {% csrf_token %}<input type="hidden" name="action" value="publish_demo_website">
+      <button class="btn btn-primary" type="submit">{% if public_website.status == 'live' %}Ponovno objavi{% else %}Objavi demo stranicu{% endif %}</button>
+    </form>
+    </div>
+  </aside>
+</div>
+
+<section class="card publication-manager">
+  <p class="eyebrow">Kontrola javnog sadržaja</p>
+  <h2 class="section-title">Skice i zakazane objave</h2>
+  <p class="card-sub">Stavke bez posebne kontrole ostaju objavljene radi kompatibilnosti. Skica je vidljiva samo u pregledu, a zakazana stavka automatski postaje javna u odabrano vrijeme.</p>
+  <div class="publication-list">
+    {% for item in website_content_items %}
+    <article class="publication-row">
+      <div><span class="publication-kind">{{ item.kind_label }}</span><h3>{{ item.title }}</h3><span class="publication-state">{% if item.publication_status == 'draft' %}Skica{% elif item.publication_status == 'scheduled' %}Zakazano{% else %}Objavljeno{% endif %}</span></div>
+      <form method="post" class="publication-controls">
+        {% csrf_token %}<input type="hidden" name="action" value="update_content_publication"><input type="hidden" name="kind" value="{{ item.kind }}"><input type="hidden" name="source_key" value="{{ item.source_key }}">
+        <label>Status<select name="status">{% for value,label in publication_status_choices %}<option value="{{ value }}"{% if value == item.publication_status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label>Vrijeme zakazane objave<input type="datetime-local" name="scheduled_for" value="{{ item.scheduled_for }}"></label>
+        <button class="btn btn-ghost" type="submit">Spremi</button>
+      </form>
+    </article>
+    {% empty %}<p class="card-sub">Nema javnih obavijesti ni događanja za upravljanje.</p>{% endfor %}
+  </div>
+</section>
+
+<section class="card website-media-manager" id="medijska-biblioteka">
+  <p class="eyebrow">Medijska biblioteka</p>
+  <h2 class="section-title">Fotografije javne stranice</h2>
+  <p class="card-sub">JPG, PNG i WebP fotografije automatski se optimiziraju, pretvaraju u WebP i spremaju bez EXIF metapodataka. Najveća dopuštena datoteka je 8 MB.</p>
+  <div class="website-media-grid">
+    <div class="website-media-panel">
+      <h3>Naslovna fotografija</h3>
+      {% if website_hero_media %}
+      <img class="website-media-preview" src="{{ website_hero_media.image.url }}" alt="{{ website_hero_media.alt_text }}">
+      <form method="post" onsubmit="return confirm('Ukloniti naslovnu fotografiju i vratiti demo sliku?');">
+        {% csrf_token %}<input type="hidden" name="action" value="delete_website_media"><input type="hidden" name="media_id" value="{{ website_hero_media.pk }}">
+        <button class="btn btn-ghost" type="submit">Vrati demo fotografiju</button>
+      </form>
+      {% else %}
+      <img class="website-media-preview" src="{% static 'public_site/images/marija-hero.webp' %}" alt="Demo naslovna fotografija Blažene Djevice Marije">
+      {% endif %}
+      <form method="post" enctype="multipart/form-data" class="website-media-form">
+        {% csrf_token %}<input type="hidden" name="action" value="upload_website_media"><input type="hidden" name="media_kind" value="hero">
+        {{ hero_media_form.as_p }}
+        <button class="btn btn-ghost" type="submit">Postavi naslovnu fotografiju</button>
+      </form>
+    </div>
+    <div class="website-media-panel">
+      <h3>Galerija župe</h3>
+      <div class="website-gallery-list">
+        {% for media in website_gallery_media %}
+        <div class="website-gallery-item">
+          <img src="{{ media.image.url }}" alt="{{ media.alt_text }}" loading="lazy">
+          <small>{{ media.caption|default:media.alt_text }}</small>
+          <form method="post" onsubmit="return confirm('Ukloniti ovu fotografiju iz galerije?');">
+            {% csrf_token %}<input type="hidden" name="action" value="delete_website_media"><input type="hidden" name="media_id" value="{{ media.pk }}">
+            <button type="submit" aria-label="Ukloni fotografiju">×</button>
+          </form>
+        </div>
+        {% empty %}
+        <div class="website-gallery-item"><span class="website-demo-badge">DEMO</span><img src="{% static 'public_site/images/marija-vitraj.webp' %}" alt="Demo marijanski vitraj"><small>Marijanski vitraj</small></div>
+        <div class="website-gallery-item"><span class="website-demo-badge">DEMO</span><img src="{% static 'public_site/images/marijanski-oltar.webp' %}" alt="Demo marijanski oltar"><small>Marijanski oltar</small></div>
+        {% endfor %}
+      </div>
+      <form method="post" enctype="multipart/form-data" class="website-media-form">
+        {% csrf_token %}<input type="hidden" name="action" value="upload_website_media"><input type="hidden" name="media_kind" value="gallery">
+        {{ gallery_media_form.as_p }}
+        <button class="btn btn-ghost" type="submit">Dodaj u galeriju</button>
+      </form>
+    </div>
+  </div>
+</section>
+{% endif %}
+{% if website_demo_auto_activate %}
+<section class="card" style="margin-top:20px;border-style:dashed">
+  <h2 class="section-title">Priprema prezentacije</h2>
+  <p class="card-sub">Vrati modul u neaktivirano stanje kako bi ponovno mogao pokazati cijeli tok od zahtjeva do objave.</p>
+  <form method="post" onsubmit="return confirm('Vratiti demo aktivaciju web-stranice na početak?');">
+    {% csrf_token %}<input type="hidden" name="action" value="reset_demo_website">
+    <button class="btn btn-ghost" type="submit">Vrati demo na početak</button>
+  </form>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

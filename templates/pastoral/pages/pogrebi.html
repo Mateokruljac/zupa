@@ -28,20 +28,16 @@
 <section class="card">
   <div class="table-wrap">
     <table class="data-table">
-      <thead><tr><th>Pokojnik</th><th>Datum</th><th>Groblje</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Predmet / pokojnik</th><th>Datum</th><th>Groblje</th><th>Spremnost</th><th></th></tr></thead>
       <tbody>
         {% for r in rows %}
         <tr>
-          <td><strong>{{ r.deceased }}</strong></td>
+          <td><small>{{ r.caseRef }}</small><br><strong>{{ r.deceased }}</strong></td>
           <td>{{ r.funeralDate|hr_date }}</td>
           <td>{{ r.cemetery|default:"—" }}</td>
-          <td><span class="badge">{{ r.status|default:"—" }}</span></td>
+          <td>{% if r.workflowReady %}<span class="badge badge-done">spremno</span>{% else %}<span class="badge badge-urgent">{{ r.workflowMissing|length }} nedostaje</span>{% endif %}<br><small>{{ r.nextStep }}</small></td>
           <td>
-            <form method="post" style="display:inline" onsubmit="return confirm('Obrisati?');">{% csrf_token %}
-              <input type="hidden" name="action" value="delete_funeral">
-              <input type="hidden" name="record_id" value="{{ r.id }}">
-              <button type="submit" class="btn btn-ghost btn-sm">Obriši</button>
-            </form>
+            <details class="case-inline"><summary class="btn btn-ghost btn-sm">Kontrolna lista</summary><div>{% for check in r.workflowChecks %}<span class="{% if check.done %}is-done{% endif %}">{% if check.done %}✓{% else %}!{% endif %} {{ check.label }}</span>{% endfor %}</div></details>
           </td>
         </tr>
         {% empty %}

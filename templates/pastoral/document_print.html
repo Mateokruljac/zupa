@@ -1,19 +1,28 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="hr">
 <head>
   <meta charset="UTF-8">
-  <title>{{ doc_title }} — Pastoral</title>
-  <style>
-    body { font-family: Georgia, serif; padding: 24px; color: #222; max-width: 800px; margin: 0 auto; }
-    @media print { body { padding: 12px; } .no-print { display: none; } }
-  </style>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>{{ doc_title }} — {{ doc_parish }}</title>
+  <link rel="stylesheet" href="{% static 'css/print-document.css' %}">
+  <style>:root{--print-primary:{{ doc_primary }};--print-accent:{{ doc_accent }}}</style>
 </head>
-<body>
-  <p class="no-print" style="margin-bottom:16px">
-    <button type="button" onclick="window.print()">Ispis</button>
-    <button type="button" onclick="window.close()">Zatvori</button>
-  </p>
-  {{ doc_html|safe }}
-  <script>window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 300); });</script>
+<body data-document-template="{{ doc_template_id }}" data-document-category="{{ doc_category }}">
+  <div class="print-toolbar no-print">
+    <div class="print-toolbar__copy"><strong>{{ doc_title }}</strong><span>Pregled A4 dokumenta prije ispisa ili spremanja u PDF</span></div>
+    <div class="print-toolbar__actions"><button type="button" onclick="window.print()">Ispis / PDF</button><button type="button" onclick="window.close()">Zatvori</button></div>
+  </div>
+  <article class="print-sheet">
+    <header class="document-letterhead">
+      <span class="document-mark" aria-hidden="true"></span>
+      <div class="document-parish"><strong>{{ doc_parish }}</strong><span>{{ doc_diocese|default:doc_city }}</span></div>
+      <div class="document-meta"><strong>{{ doc_category }}</strong><span>{{ doc_issued_at }}</span></div>
+    </header>
+    <main class="document-content">{{ doc_html|safe }}</main>
+    <footer class="document-footer"><span>{% if doc_pastor %}<strong>{{ doc_pastor }}</strong> · {% endif %}{{ doc_parish }}</span><span>{{ doc_city }}{% if doc_city and doc_issued_at %} · {% endif %}{{ doc_issued_at }}</span></footer>
+  </article>
+  <script>window.addEventListener('load',function(){setTimeout(function(){window.print()},350)})</script>
 </body>
 </html>

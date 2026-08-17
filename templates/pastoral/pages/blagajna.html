@@ -1,82 +1,127 @@
 {% extends "pastoral/base.html" %}
-{% load pastoral_tags %}
+{% load static pastoral_tags %}
 
 {% block topbar_actions %}
 <a href="{% page_url 'racuni' %}" class="btn btn-ghost btn-sm">Ulazni računi</a>
-<a href="{% page_url 'financijska-izvjestaja' %}" class="btn btn-ghost btn-sm">Izvješća</a>
+<a href="{% page_url 'financijska-izvjestaja' %}" class="btn btn-primary btn-sm">Izvješća</a>
 {% endblock %}
 
 {% block content %}
-<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+<section class="report-hero report-hero--cashbook">
+  <div>
+    <p class="command-eyebrow">Blagajnički dnevnici · {{ cashbook_year }}</p>
+    <h2>Financijski dnevnik župe</h2>
+    <p>Brzi unos, kontrola kompletnosti i jasan trag plavog i crvenog dnevnika u jednom radnom prostoru.</p>
+  </div>
+  <div class="report-hero-health">
+    <span class="command-health-ring" style="--progress:{{ cashbook_health.percent }}"><strong>{{ cashbook_health.percent }}</strong><small>%</small></span>
+    <span><strong>Kompletnost unosa</strong><small>{% if cashbook_health.missing %}{{ cashbook_health.missing }} stavki traži dopunu{% else %}Sva obvezna polja su popunjena{% endif %}</small></span>
+  </div>
+</section>
+
+<form method="get" class="card report-period-toolbar">
   <div class="form-group">
     <label>Godina</label>
     <select name="year" onchange="this.form.submit()">
-      {% for y in cashbook_years %}
-      <option value="{{ y }}" {% if y == cashbook_year %}selected{% endif %}>{{ y }}</option>
-      {% endfor %}
+      {% for year in cashbook_years %}<option value="{{ year }}" {% if year == cashbook_year %}selected{% endif %}>{{ year }}</option>{% endfor %}
     </select>
   </div>
   <div class="form-group">
     <label>Dnevnik</label>
     <select name="ledger" onchange="this.form.submit()">
-      <option value="sve" {% if cashbook_ledger == 'sve' %}selected{% endif %}>Svi</option>
-      <option value="plavi" {% if cashbook_ledger == 'plavi' %}selected{% endif %}>Plavi</option>
-      <option value="crveni" {% if cashbook_ledger == 'crveni' %}selected{% endif %}>Crveni</option>
+      <option value="sve" {% if cashbook_ledger == 'sve' %}selected{% endif %}>Svi dnevnici</option>
+      <option value="plavi" {% if cashbook_ledger == 'plavi' %}selected{% endif %}>Plavi dnevnik</option>
+      <option value="crveni" {% if cashbook_ledger == 'crveni' %}selected{% endif %}>Crveni dnevnik</option>
     </select>
   </div>
+  <span class="report-toolbar-note">Zadnje knjiženje: {{ cashbook_health.latest|hr_date }}</span>
 </form>
 
-<div class="kpi-row" style="margin-bottom:16px">
-  <article class="card kpi-card"><p class="card-label">Ulaz {{ cashbook_year }}</p><p class="card-value">{{ cashbook_summary.in_sum|money_eur }}</p></article>
-  <article class="card kpi-card"><p class="card-label">Izlaz {{ cashbook_year }}</p><p class="card-value">{{ cashbook_summary.out_sum|money_eur }}</p></article>
-  <article class="card kpi-card"><p class="card-label">Saldo</p><p class="card-value">{{ cashbook_summary.balance|money_eur }}</p></article>
-  <article class="card kpi-card"><p class="card-label">Plaćeni računi</p><p class="card-value">{{ cashbook_summary.inv_paid|money_eur }}</p></article>
+<section class="signal-grid report-signal-grid" aria-label="Sažetak blagajne">
+  <article class="signal-card signal-card--finance"><span class="signal-icon">↗</span><div><small>Ulaz {{ cashbook_year }}</small><strong>{{ cashbook_summary.in_sum|floatformat:0 }} €</strong><em>{{ cashbook_health.plavi }} stavki u plavom dnevniku</em></div></article>
+  <article class="signal-card signal-card--alert"><span class="signal-icon">↘</span><div><small>Izlaz {{ cashbook_year }}</small><strong>{{ cashbook_summary.out_sum|floatformat:0 }} €</strong><em>{{ cashbook_health.crveni }} stavki u crvenom dnevniku</em></div></article>
+  <article class="signal-card signal-card--liturgy"><span class="signal-icon">=</span><div><small>Saldo</small><strong>{{ cashbook_summary.balance|floatformat:0 }} €</strong><em>prema evidentiranim stavkama</em></div></article>
+  <article class="signal-card signal-card--pastoral"><span class="signal-icon">✓</span><div><small>Plaćeni računi</small><strong>{{ cashbook_summary.inv_paid|floatformat:0 }} €</strong><em>povezano s ulaznim računima</em></div></article>
+</section>
+
+<div class="cashbook-workspace-grid">
+  <section class="card cashbook-chart-card">
+    <div class="pro-section-head">
+      <div><p class="card-label">Godišnje kretanje</p><h2 class="section-title">Ulaz i izlaz po mjesecu</h2></div>
+      <div class="chart-legend"><span><i class="legend-in"></i>Ulaz</span><span><i class="legend-out"></i>Izlaz</span></div>
+    </div>
+    <div class="pro-chart" data-pastoral-chart="grouped-bars" data-source="cashbook-month-data" data-series="in,out" data-labels="Ulaz,Izlaz" aria-label="Graf blagajničkih unosa po mjesecima"></div>
+  </section>
+
+  <section class="card ledger-status-card">
+    <div class="pro-section-head"><div><p class="card-label">Dnevnici</p><h2 class="section-title">Kontrola stanja</h2></div><span class="live-indicator"><i></i> povezano</span></div>
+    <div class="ledger-status-list">
+      <a href="?year={{ cashbook_year }}&ledger=plavi" class="ledger-status ledger-status--blue">
+        <span class="ledger-icon">P</span><span><strong>Plavi dnevnik</strong><small>Redovni prihodi i rashodi</small></span><span><strong>{{ cashbook_health.plavi }}</strong><small>stavki</small></span>
+      </a>
+      <a href="?year={{ cashbook_year }}&ledger=crveni" class="ledger-status ledger-status--red">
+        <span class="ledger-icon">C</span><span><strong>Crveni dnevnik</strong><small>Posebna i namjenska sredstva</small></span><span><strong>{{ cashbook_health.crveni }}</strong><small>stavki</small></span>
+      </a>
+    </div>
+    <div class="reconciliation-note">
+      <span aria-hidden="true">⌁</span><div><strong>Usklađenje sa ŽEV-om</strong><small>Prikaz je spreman za radni pregled; digitalno odobrenje dolazi u backend fazi.</small></div>
+    </div>
+  </section>
 </div>
 
-<section class="card" style="margin-bottom:16px">
-  <h2 class="section-title">Novi unos</h2>
-  <form method="post" class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;max-width:900px">
+<details class="card cashbook-entry-panel" open>
+  <summary>
+    <span><small class="card-label">Brzi unos</small><strong>Novo knjiženje</strong></span>
+    <span class="btn btn-primary btn-sm">+ Dodaj stavku</span>
+  </summary>
+  <form method="post" class="cashbook-entry-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="add_cashbook_entry">
     {{ cashbook_form.as_p }}
-    <div style="grid-column:1/-1"><button type="submit" class="btn btn-primary btn-sm">+ Dodaj unos</button></div>
+    <div class="cashbook-entry-actions"><span class="card-sub">Sva polja ostaju u JSON evidenciji demonstracijskog frontenda.</span><button type="submit" class="btn btn-primary btn-sm">Spremi knjiženje</button></div>
   </form>
-</section>
+</details>
 
-<section class="card page-table-section">
-  <h2 class="section-title">Dnevnik — {{ cashbook_year }}</h2>
+<section class="card page-table-section cashbook-ledger-table">
+  <div class="pro-section-head">
+    <div><p class="card-label">Evidencija</p><h2 class="section-title">{{ cashbook_ledger|title }} · {{ cashbook_year }}</h2></div>
+    <div class="table-head-actions"><span class="badge">{{ cashbook_rows|length }} stavki</span><button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">Ispis</button></div>
+  </div>
   <div class="table-wrap">
     <table class="data-table">
-      <thead><tr><th>Datum</th><th>Dnevnik</th><th>Tip</th><th>Kategorija</th><th>Opis</th><th>Iznos</th></tr></thead>
+      <thead><tr><th>Datum</th><th>Dnevnik</th><th>Smjer</th><th>Kategorija</th><th>Opis</th><th>Način</th><th>Iznos</th></tr></thead>
       <tbody>
-        {% for e in cashbook_rows %}
+        {% for entry in cashbook_rows %}
         <tr>
-          <td>{{ e.date|hr_date }}</td>
-          <td><span class="badge">{{ e.ledger|default:"plavi" }}</span></td>
-          <td>{% if e.type == 'ulaz' %}<span class="badge badge-done">ulaz</span>{% else %}<span class="badge badge-urgent">izlaz</span>{% endif %}</td>
-          <td>{{ e.category|default:"—" }}</td>
-          <td>{{ e.description|default:"—" }}</td>
-          <td>{% if e.type == 'ulaz' %}+{% else %}−{% endif %}{{ e.amount|money_eur }}</td>
+          <td>{{ entry.date|hr_date }}</td>
+          <td><span class="ledger-badge ledger-badge--{{ entry.ledger|default:'plavi' }}">{{ entry.ledger|default:"plavi" }}</span></td>
+          <td>{% if entry.type == 'ulaz' %}<span class="badge badge-done">ulaz</span>{% else %}<span class="badge badge-urgent">izlaz</span>{% endif %}</td>
+          <td>{{ entry.category|default:"—" }}</td>
+          <td><strong>{{ entry.description|default:"—" }}</strong></td>
+          <td>{{ entry.paymentMethod|default:"—" }}</td>
+          <td class="{% if entry.type == 'ulaz' %}amount-positive{% else %}amount-negative{% endif %}">{% if entry.type == 'ulaz' %}+{% else %}−{% endif %}{{ entry.amount|money_eur }}</td>
         </tr>
-        {% empty %}
-        <tr><td colspan="6" class="empty-state">Nema unosa za odabrani period.</td></tr>
-        {% endfor %}
+        {% empty %}<tr><td colspan="7" class="empty-state">Nema unosa za odabrani period.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
 </section>
 
 {% if cashbook_summary.by_category %}
-<section class="card wide" style="margin-top:16px">
-  <h2 class="section-title">Po kategorijama ({{ cashbook_year }})</h2>
-  <div class="debts-cat-summary" style="display:flex;flex-wrap:wrap;gap:12px">
-    {% for cat, v in cashbook_summary.by_category.items %}
-    <div class="debts-cat-stat card" style="padding:12px 16px">
-      <span class="card-sub">{{ cat }}</span><br>
-      <strong>+{{ v.in|floatformat:0 }} / −{{ v.out|floatformat:0 }} €</strong>
-    </div>
+<section class="card cashbook-category-panel">
+  <div class="pro-section-head"><div><p class="card-label">Struktura knjiženja</p><h2 class="section-title">Kategorije · {{ cashbook_year }}</h2></div></div>
+  <div class="report-mini-metrics report-mini-metrics--categories">
+    {% for category, values in cashbook_summary.by_category.items %}
+    <article><small>{{ category }}</small><strong>+{{ values.in|floatformat:0 }} €</strong><em>−{{ values.out|floatformat:0 }} € izlaza</em></article>
     {% endfor %}
   </div>
 </section>
 {% endif %}
+
+{{ cashbook_months|json_script:"cashbook-month-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="{% static 'js/dashboard-insights.js' %}"></script>
 {% endblock %}

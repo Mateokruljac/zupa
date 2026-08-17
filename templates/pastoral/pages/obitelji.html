@@ -3,13 +3,15 @@
 
 {% block topbar_actions %}
 <a href="{% page_url 'ulice' %}" class="btn btn-ghost btn-sm">Ulice i kvartovi</a>
+<a href="#new-family" class="btn btn-primary btn-sm">Nova obitelj</a>
 {% endblock %}
 
 {% block content %}
 <div class="kpi-row" style="margin-bottom:16px">
   <article class="card kpi-card"><p class="card-label">Obitelji u župi</p><p class="card-value">{{ family_stats.total }}</p><p class="card-sub">{{ family_stats.streets_count }} ulica</p></article>
-  <article class="card kpi-card"><p class="card-label">U prikazu</p><p class="card-value">{{ family_stats.shown }}</p></article>
-  <article class="card kpi-card"><p class="card-label">Lukno neplaćeno</p><p class="card-value">{{ family_stats.lukno_unpaid }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Vjernika u kartonima</p><p class="card-value">{{ family_stats.members }}</p><p class="card-sub">{{ family_stats.shown }} obitelji u prikazu</p></article>
+  <article class="card kpi-card"><p class="card-label">Pastoralno praćenje</p><p class="card-value">{{ family_stats.pastoral_due }}</p><p class="card-sub">bez posjeta ili starije od godine</p></article>
+  <article class="card kpi-card"><p class="card-label">Bez kontakta</p><p class="card-value">{{ family_stats.missing_contact }}</p><p class="card-sub">nema telefona ni e-maila</p></article>
 </div>
 
 <form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
@@ -26,34 +28,66 @@
   {% if family_filters.q or family_filters.street %}<a href="{% page_url 'obitelji' %}" class="btn btn-ghost btn-sm">Poništi</a>{% endif %}
 </form>
 
+<details id="new-family" class="card inline-entry-panel" style="margin-bottom:16px">
+  <summary>Dodaj osnovni karton obitelji</summary>
+  <p class="card-sub">Članovi, sakramenti, doprinosi i osjetljive pastoralne bilješke dopunjuju se zasebno; ovdje se traži samo osnovni kontaktni karton.</p>
+  <form method="post" class="operational-form-grid">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_family">
+    {{ family_form.as_p }}
+    <button type="submit" class="btn btn-primary btn-sm">Dodaj obitelj</button>
+  </form>
+</details>
+
 {% if selected_family %}
 <section class="card" style="margin-bottom:16px">
-  <h2 class="section-title">Karton — {{ selected_family.surname }}</h2>
-  <p class="card-sub">{{ selected_family.address }}{% with st=streets|get_item:selected_family.streetId %}{% if st %} · {{ st.name }}{% endif %}{% endwith %}</p>
-  {% if selected_family.phone %}<p>Tel: {{ selected_family.phone }}</p>{% endif %}
+  <div class="family-card-head">
+    <div><p class="card-label">Pastoralni karton obitelji</p><h2 class="section-title">{{ selected_family.surname }}</h2><p class="card-sub">{{ selected_family.address }}{% with st=streets|get_item:selected_family.streetId %}{% if st %} · {{ st.name }}{% endif %}{% endwith %}</p></div>
+    <div class="family-card-actions">
+      {% if selected_family.phone %}<a href="tel:{{ selected_family.phone }}" class="btn btn-ghost btn-sm">Nazovi</a>{% endif %}
+      {% if selected_family.email %}<a href="mailto:{{ selected_family.email }}" class="btn btn-ghost btn-sm">E-mail</a>{% endif %}
+      <a href="{% page_url 'posjete' %}?family={{ selected_family.id }}" class="btn btn-primary btn-sm">Planiraj posjet</a>
+    </div>
+  </div>
+  <div class="family-context-grid">
+    <div><small>Zadnji posjet</small><strong>{{ selected_family.lastVisit|hr_date }}</strong></div>
+    <div><small>Otvoreni posjeti</small><strong>{{ selected_family_profile.open_visits }}</strong></div>
+    <div><small>Preferirana misa</small><strong>{{ selected_family.preferredMass|default:"—" }}</strong></div>
+    <div><small>Status kartona</small><strong>{{ selected_family.status|default:"—" }}</strong></div>
+  </div>
+  {% if selected_family_profile.tags %}<div class="family-tags">{% for tag in selected_family_profile.tags %}<span>{{ tag }}</span>{% endfor %}</div>{% endif %}
+  {% if selected_family_profile.notes %}<aside class="pastoral-note"><strong>Pastoralna bilješka</strong><p>{{ selected_family_profile.notes }}</p></aside>{% endif %}
+  {% if selected_family_profile.data_gaps %}<aside class="operational-warning"><strong>Karton treba dopuniti:</strong><span>{{ selected_family_profile.data_gaps|join:", " }}</span></aside>{% endif %}
   <h3 class="section-title" style="margin-top:16px">Članovi</h3>
   <div class="table-wrap">
     <table class="data-table">
       <thead><tr><th>Ime</th><th>Uloga</th><th>Rođen</th></tr></thead>
       <tbody>
-        {% for m in selected_family.members %}
-        <tr><td>{{ m.name }}</td><td>{{ m.role|default:"—" }}</td><td>{{ m.birthDate|hr_date }}</td></tr>
+        {% for family_member in selected_family.members %}
+        <tr><td><strong>{{ family_member.name }}</strong>{% if family_member.roles %}<br><small>{{ family_member.roles|join:", " }}</small>{% endif %}</td><td>{{ family_member.relation|default:"—" }}</td><td>{{ family_member.birthYear|default:"—" }}</td></tr>
         {% empty %}
         <tr><td colspan="3" class="empty-state">Nema članova.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  <h3 class="section-title" style="margin-top:16px">Povijest pastoralne skrbi</h3>
+  <div class="family-care-timeline">
+    {% for visit in selected_family_profile.visits %}
+    <div><time>{{ visit.scheduled|hr_date }}</time><span><strong>{{ visit.purpose|default:visit.type }}</strong><small>{{ visit.priest|default:"Svećenik nije upisan" }}{% if visit.report %} · {{ visit.report }}{% endif %}</small></span><span class="badge {% if visit.done %}badge-done{% else %}badge-urgent{% endif %}">{% if visit.done %}obavljeno{% else %}otvoreno{% endif %}</span></div>
+    {% empty %}<p class="empty-state">Nema evidentiranih pastoralnih posjeta.</p>{% endfor %}
+  </div>
   <h3 class="section-title" style="margin-top:16px">Lukno</h3>
+  <p class="card-sub">Financijska evidencija je odvojena od pastoralne procjene obitelji.</p>
   <div class="table-wrap">
     <table class="data-table">
       <thead><tr><th>Godina</th><th>Iznos</th><th>Status</th></tr></thead>
       <tbody>
-        {% for c in selected_family.contributions %}
+        {% for annual_contribution in selected_family.contributions %}
         <tr>
-          <td>{{ c.year }}</td>
-          <td>{{ c.luknoAmount|default:"150"|money_eur }}</td>
-          <td>{% if c.luknoPaid %}<span class="badge badge-done">plaćeno</span>{% else %}<span class="badge badge-urgent">duguje</span>{% endif %}</td>
+          <td>{{ annual_contribution.year }}</td>
+          <td>{{ annual_contribution.luknoAmount|default:"150"|money_eur }}</td>
+          <td>{% if annual_contribution.luknoPaid %}<span class="badge badge-done">plaćeno</span>{% else %}<span class="badge badge-urgent">duguje</span>{% endif %}</td>
         </tr>
         {% empty %}
         <tr><td colspan="3" class="empty-state">Nema uplata.</td></tr>
@@ -69,23 +103,20 @@
   <h2 class="section-title">Popis obitelji</h2>
   <div class="table-wrap">
     <table class="data-table">
-      <thead><tr><th>Prezime</th><th>Adresa</th><th>Članova</th><th>Lukno {{ current_year }}</th><th>Telefon</th><th></th></tr></thead>
+      <thead><tr><th>Prezime</th><th>Adresa</th><th>Članova</th><th>Zadnji posjet</th><th>Pastoralni signal</th><th>Kontakt</th><th></th></tr></thead>
       <tbody>
-        {% for f in families %}
+        {% for family in families %}
         <tr>
-          <td><strong>{{ f.surname }}</strong></td>
-          <td>{{ f.address|default:"—" }}{% with st=streets|get_item:f.streetId %}{% if st %} · {{ st.name }}{% endif %}{% endwith %}</td>
-          <td>{{ f.members|length }}</td>
-          <td>
-            {% with contrib=f.contributions %}
-              {% for c in contrib %}{% if c.year == current_year %}{% if c.luknoPaid %}<span class="badge badge-done">Plaćeno</span>{% else %}<span class="badge badge-urgent">Duguje</span>{% endif %}{% endif %}{% empty %}—{% endfor %}
-            {% endwith %}
-          </td>
-          <td>{{ f.phone|default:"—" }}</td>
-          <td><a href="?family={{ f.id }}{% if family_filters.q %}&q={{ family_filters.q|urlencode }}{% endif %}{% if family_filters.street %}&street={{ family_filters.street }}{% endif %}" class="btn btn-ghost btn-sm">Karton</a></td>
+          <td><strong>{{ family.surname }}</strong></td>
+          <td>{{ family.address|default:"—" }}{% with street=streets|get_item:family.streetId %}{% if street %} · {{ street.name }}{% endif %}{% endwith %}</td>
+          <td>{{ family.members|length }}</td>
+          <td>{{ family.lastVisit|hr_date }}</td>
+          <td>{% if family.needs_pastoral_followup %}<span class="badge badge-urgent">provjeriti skrb</span>{% else %}<span class="badge badge-done">redovito praćenje</span>{% endif %}</td>
+          <td>{{ family.phone|default:family.email|default:"—" }}</td>
+          <td><a href="?family={{ family.id }}{% if family_filters.q %}&q={{ family_filters.q|urlencode }}{% endif %}{% if family_filters.street %}&street={{ family_filters.street }}{% endif %}" class="btn btn-ghost btn-sm">Karton</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="6" class="empty-state">Nema obitelji za filter.</td></tr>
+        <tr><td colspan="7" class="empty-state">Nema obitelji za filter.</td></tr>
         {% endfor %}
       </tbody>
     </table>

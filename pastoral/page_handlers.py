@@ -1,13 +1,11 @@
-from datetime import date
-
 from pastoral.services.data import ParishDataService
-from pastoral.services.liturgical import LiturgicalService
+from pastoral.services.dashboard import build_dashboard_context
 from pastoral.services.cashbook import cashbook_page_context
 from pastoral.services.debts import debts_page_context
 from pastoral.services.documents_page import documents_page_context
 from pastoral.services.finance_reports import finance_reports_context
 from pastoral.services.invoices_page import invoices_page_context
-from pastoral.services.kalendar import kalendar_page_context
+from pastoral.services.kalendar import calendar_page_context
 from pastoral.services.nakane import nakane_page_context
 from pastoral.services.public_submissions_page import public_submissions_context
 from pastoral.services.streets import streets_page_context
@@ -17,6 +15,8 @@ from pastoral.services.zupni_listic import (
     migrate_listic_data,
     zupni_listic_page_context,
 )
+from pastoral.services.deanery import deanery_page_context
+from pastoral.services.operations import operations_page_context
 from pastoral.services.sacraments import (
     anointing_context,
     baptisms_context,
@@ -26,10 +26,6 @@ from pastoral.services.sacraments import (
     krizma_page_context,
     weddings_context,
 )
-
-
-def _svc(request):
-    return ParishDataService()
 
 
 PAGE_META = {
@@ -59,7 +55,16 @@ PAGE_META = {
     'kalendar': ('Događaji i zadaci', 'Župni kalendar, liturgija i obaveze ureda'),
     'javne-prijave': ('Javne prijave', 'Prijave s weba'),
     'postavke': ('Postavke', 'Naziv župe, logo, boje'),
+    'web-stranica': (
+        'Javna web-stranica',
+        'Aktivacija, izrada i objava stranice župe',
+    ),
     'posjete': ('Posjete', 'Pastoralni posjeti obiteljima i bolesnicima'),
+    'dekanat': ('Dekanat i suradnja', 'Sigurni zahtjevi, potvrde i koordinacija između župa'),
+    'operativno-srediste': (
+        'Operativno središte',
+        'Jedinstveni radni red: uredska pošta, ljudi, prostori, imovina, kontrole i komunikacija',
+    ),
 }
 
 
@@ -67,218 +72,215 @@ def page_title_subtitle(slug: str) -> tuple[str, str]:
     return PAGE_META.get(slug, (slug.replace('-', ' ').title(), ''))
 
 
-def dashboard_context(request, svc: ParishDataService) -> dict:
-    data = svc.load()
-    today = svc.today_iso()
-    stats = svc.office_stats(data)
-    intentions_today = [n for n in data.get('intentions', []) if n.get('date') == today]
-    open_tasks = sorted(
-        [t for t in data.get('tasks', []) if not t.get('done')],
-        key=lambda t: t.get('due') or '9999',
-    )[:6]
-    year = date.today().year
-    conf = next((c for c in data.get('confirmations', []) if c.get('year') == year), None)
-    conf = conf or (data.get('confirmations') or [{}])[0]
-    lukno_unpaid = []
-    for fam in data.get('families', []):
-        row = next((c for c in fam.get('contributions', []) if c.get('year') == year), None)
-        if row and not row.get('luknoPaid'):
-            lukno_unpaid.append(fam)
-    sacraments = []
-    for b in data.get('baptisms', [])[:2]:
-        sacraments.append({'type': 'krštenje', 'name': b.get('childName'), 'date': b.get('baptismDate')})
-    for w in data.get('weddings', [])[:1]:
-        sacraments.append({'type': 'vjenčanje', 'name': w.get('couple'), 'date': w.get('weddingDate')})
-    for f in data.get('funerals', [])[:1]:
-        sacraments.append({'type': 'pogreb', 'name': f.get('deceased'), 'date': f.get('funeralDate')})
-    return {
-        'stats': stats,
-        'intentions_today': intentions_today,
-        'open_tasks': open_tasks,
-        'conf_year': conf,
-        'lukno_unpaid': lukno_unpaid[:6],
-        'sacraments_upcoming': sacraments,
-        'reminders': svc.collect_reminders(data)[:8],
-        'today': today,
-        'liturgical_day': LiturgicalService().get_day(today),
-    }
+def dashboard_context(request, parish_data_service: ParishDataService) -> dict:
+    return build_dashboard_context(parish_data_service)
 
 
-def generic_table_context(request, svc: ParishDataService, slug: str) -> dict:
-    data = svc.load()
-    ctx = {'data': data}
-    if slug == 'kalendar':
-        ctx['parish_events'] = data.get('events', [])
-        ctx['rows'] = data.get('tasks', [])
-    elif slug == 'pomazanje':
-        ctx['rows'] = data.get('anointing', [])
-        ctx['columns'] = [
+def generic_table_context(
+    request,
+    parish_data_service: ParishDataService,
+    page_slug: str,
+) -> dict:
+    parish_data = parish_data_service.load()
+    page_context = {'data': parish_data}
+    if page_slug == 'kalendar':
+        page_context['parish_events'] = parish_data.get('events', [])
+        page_context['rows'] = parish_data.get('tasks', [])
+    elif page_slug == 'pomazanje':
+        page_context['rows'] = parish_data.get('anointing', [])
+        page_context['columns'] = [
             ('person', 'Osoba'),
             ('address', 'Adresa'),
             ('scheduled', 'Datum'),
             ('priest', 'Svećenik'),
             ('done', 'Obavljeno'),
         ]
-    elif slug == 'krsenja':
-        ctx['rows'] = data.get('baptisms', [])
-        ctx['columns'] = [
+    elif page_slug == 'krsenja':
+        page_context['rows'] = parish_data.get('baptisms', [])
+        page_context['columns'] = [
             ('childName', 'Dijete'),
             ('baptismDate', 'Datum'),
             ('parents', 'Roditelji'),
             ('status', 'Status'),
             ('stipendPaid', 'Stipendij'),
         ]
-    elif slug == 'vjencanja':
-        ctx['rows'] = data.get('weddings', [])
-        ctx['columns'] = [
+    elif page_slug == 'vjencanja':
+        page_context['rows'] = parish_data.get('weddings', [])
+        page_context['columns'] = [
             ('couple', 'Par'),
             ('weddingDate', 'Datum'),
             ('status', 'Status'),
             ('stipendPaid', 'Stipendij'),
         ]
-    elif slug == 'pogrebi':
-        ctx['rows'] = data.get('funerals', [])
-        ctx['columns'] = [
+    elif page_slug == 'pogrebi':
+        page_context['rows'] = parish_data.get('funerals', [])
+        page_context['columns'] = [
             ('deceased', 'Pokojnik'),
             ('funeralDate', 'Datum'),
             ('cemetery', 'Groblje'),
             ('status', 'Status'),
         ]
-    elif slug == 'ulice':
-        ctx['rows'] = data.get('streets', [])
-        ctx['columns'] = [
+    elif page_slug == 'ulice':
+        page_context['rows'] = parish_data.get('streets', [])
+        page_context['columns'] = [
             ('name', 'Ulica'),
             ('zone', 'Zona'),
             ('sortOrder', 'Red'),
         ]
-    elif slug == 'dugovanja':
-        ctx['rows'] = data.get('parishDebts', [])
-        ctx['columns'] = [
+    elif page_slug == 'dugovanja':
+        page_context['rows'] = parish_data.get('parishDebts', [])
+        page_context['columns'] = [
             ('label', 'Opis'),
             ('category', 'Kategorija'),
             ('amount', 'Iznos'),
             ('paid', 'Plaćeno'),
             ('dueDate', 'Rok'),
         ]
-    elif slug == 'racuni':
-        ctx['rows'] = [
-            i for i in data.get('invoices', [])
-            if i.get('direction') != 'outgoing'
+    elif page_slug == 'racuni':
+        page_context['rows'] = [
+            invoice
+            for invoice in parish_data.get('invoices', [])
+            if invoice.get('direction') != 'outgoing'
         ]
-        ctx['columns'] = [
+        page_context['columns'] = [
             ('number', 'Broj'),
             ('supplierName', 'Dobavljač'),
             ('total', 'Iznos'),
             ('status', 'Status'),
             ('dueDate', 'Rok'),
         ]
-    elif slug == 'blagajna':
-        ctx['rows'] = data.get('cashbook', [])
-        ctx['columns'] = [
+    elif page_slug == 'blagajna':
+        page_context['rows'] = parish_data.get('cashbook', [])
+        page_context['columns'] = [
             ('date', 'Datum'),
             ('type', 'Smjer'),
             ('description', 'Opis'),
             ('amount', 'Iznos'),
             ('ledger', 'Dnevnik'),
         ]
-    elif slug == 'maticne-knjige':
-        ctx['rows'] = data.get('registryBooks', [])
-        ctx['columns'] = [
+    elif page_slug == 'maticne-knjige':
+        page_context['rows'] = parish_data.get('registryBooks', [])
+        page_context['columns'] = [
             ('title', 'Knjiga'),
             ('type', 'Vrsta'),
             ('lastNo', 'Zadnji broj'),
             ('status', 'Status'),
         ]
-    elif slug == 'javne-prijave':
-        ctx['rows'] = data.get('publicSubmissions', [])
-        ctx['columns'] = [
+    elif page_slug == 'javne-prijave':
+        page_context['rows'] = parish_data.get('publicSubmissions', [])
+        page_context['columns'] = [
             ('formType', 'Obrazac'),
             ('submittedAt', 'Datum'),
             ('name', 'Ime'),
             ('status', 'Status'),
         ]
     else:
-        ctx['rows'] = []
-        ctx['columns'] = []
-    return ctx
+        page_context['rows'] = []
+        page_context['columns'] = []
+    return page_context
 
 
-def build_page_context(request, slug: str) -> dict:
-    svc = _svc(request)
-    title, subtitle = page_title_subtitle(slug)
-    ctx = {'page_slug': slug, 'page_title': title, 'page_subtitle': subtitle}
-    data = svc.load()
-    if slug == 'nakane':
-        ctx.update(nakane_page_context(data, request))
-    elif slug == 'mise':
+def build_page_context(request, page_slug: str) -> dict:
+    parish_data_service = ParishDataService()
+    page_title, page_subtitle = page_title_subtitle(page_slug)
+    page_context = {
+        'page_slug': page_slug,
+        'page_title': page_title,
+        'page_subtitle': page_subtitle,
+    }
+    parish_data = parish_data_service.load()
+    if page_slug == 'nakane':
+        page_context.update(nakane_page_context(parish_data, request))
+    elif page_slug == 'mise':
         from pastoral.services.mass_schedule import migrate_mass_schedule
-        migrate_mass_schedule(data)
-        ctx['mise_bootstrap'] = {
-            'massSchedule': data.get('massSchedule', []),
-            'massExceptions': data.get('massExceptions', []),
-            'massScheduleLog': data.get('massScheduleLog', []),
-            'intentions': data.get('intentions', []),
+        migrate_mass_schedule(parish_data)
+        page_context['mise_bootstrap'] = {
+            'massSchedule': parish_data.get('massSchedule', []),
+            'massExceptions': parish_data.get('massExceptions', []),
+            'massScheduleLog': parish_data.get('massScheduleLog', []),
+            'intentions': parish_data.get('intentions', []),
         }
-    elif slug == 'zupni-listic':
-        settings = svc.load_settings()
-        had_layout = bool(data.get('zupniListicLayout', {}).get('blocks'))
-        migrate_listic_data(data)
-        if not had_layout and data.get('zupniListicLayout', {}).get('blocks'):
-            svc.save(data)
-        ctx.update(zupni_listic_page_context(data, settings, request))
-        cfg = load_config()
-        ctx['listic_bootstrap'] = {
-            'config': {'blockTypes': cfg['blockTypes'], 'defaultLayout': cfg['defaultLayout']},
-            'editLayout': ctx['listic_edit_layout'],
-            'savedLayout': ctx['listic_layout'],
+    elif page_slug == 'zupni-listic':
+        parish_settings = parish_data_service.load_settings()
+        had_saved_layout = bool(parish_data.get('zupniListicLayout', {}).get('blocks'))
+        migrate_listic_data(parish_data)
+        if not had_saved_layout and parish_data.get('zupniListicLayout', {}).get('blocks'):
+            parish_data_service.save(parish_data)
+        page_context.update(
+            zupni_listic_page_context(parish_data, parish_settings, request)
+        )
+        bulletin_configuration = load_config()
+        page_context['listic_bootstrap'] = {
+            'config': {
+                'blockTypes': bulletin_configuration['blockTypes'],
+                'defaultLayout': bulletin_configuration['defaultLayout'],
+            },
+            'editLayout': page_context['listic_edit_layout'],
+            'savedLayout': page_context['listic_layout'],
         }
-    elif slug == 'obitelji':
-        ctx.update(families_page_context(data, request))
-    elif slug == 'krizma':
-        ctx.update(krizma_page_context(data, request))
-    elif slug == 'prva-pricest':
-        ctx.update(first_communion_page_context(data, request))
-    elif slug == 'krsenja':
-        ctx.update(baptisms_context(data, request))
-    elif slug == 'vjencanja':
-        ctx.update(weddings_context(data, request))
-    elif slug == 'pogrebi':
-        ctx.update(funerals_context(data, request))
-    elif slug == 'pomazanje':
-        ctx.update(anointing_context(data, request))
-    elif slug == 'dugovanja':
-        ctx.update(debts_page_context(data, request))
-    elif slug == 'vijeca':
-        data = svc.load()
-        ctx['pastoral_council'] = data.get('pastoralCouncil', {})
-        ctx['economic_council'] = data.get('economicCouncil', {})
-    elif slug == 'podsjetnici':
-        ctx['reminders'] = svc.collect_reminders()
-    elif slug == 'postavke':
-        ctx['settings'] = svc.load_settings()
-        ctx['parish_decree'] = svc.load().get('parishDecree', {})
-    elif slug == 'ulice':
-        ctx.update(streets_page_context(data, request))
-    elif slug == 'blagajna':
-        ctx.update(cashbook_page_context(data, request))
-    elif slug == 'racuni':
-        ctx.update(invoices_page_context(data, request))
-    elif slug == 'javne-prijave':
-        ctx.update(public_submissions_context(data, request))
-    elif slug == 'financijska-izvjestaja':
-        ctx.update(finance_reports_context(data, request))
-    elif slug == 'kalendar':
-        ctx.update(kalendar_page_context(data, request))
-    elif slug == 'formulari':
-        ctx.update(documents_page_context(data, svc.load_settings(), request, 'formulari'))
-    elif slug == 'potvrde':
-        ctx.update(documents_page_context(data, svc.load_settings(), request, 'potvrde'))
-    elif slug == 'dokumenti':
-        ctx.update(documents_page_context(data, svc.load_settings(), request, 'dokumenti'))
-    elif slug == 'maticne-knjige':
-        ctx['registry_books'] = data.get('registryBooks', [])
-    elif slug == 'posjete':
-        ctx.update(visits_page_context(data, request))
+    elif page_slug == 'obitelji':
+        page_context.update(families_page_context(parish_data, request))
+    elif page_slug == 'krizma':
+        page_context.update(krizma_page_context(parish_data, request))
+    elif page_slug == 'prva-pricest':
+        page_context.update(first_communion_page_context(parish_data, request))
+    elif page_slug == 'krsenja':
+        page_context.update(baptisms_context(parish_data, request))
+    elif page_slug == 'vjencanja':
+        page_context.update(weddings_context(parish_data, request))
+    elif page_slug == 'pogrebi':
+        page_context.update(funerals_context(parish_data, request))
+    elif page_slug == 'pomazanje':
+        page_context.update(anointing_context(parish_data, request))
+    elif page_slug == 'dugovanja':
+        page_context.update(debts_page_context(parish_data, request))
+    elif page_slug == 'vijeca':
+        page_context['pastoral_council'] = parish_data.get('pastoralCouncil', {})
+        page_context['economic_council'] = parish_data.get('economicCouncil', {})
+    elif page_slug == 'podsjetnici':
+        page_context['reminders'] = parish_data_service.collect_reminders()
+    elif page_slug == 'postavke':
+        page_context['settings'] = parish_data_service.load_settings()
+        page_context['parish_decree'] = parish_data.get('parishDecree', {})
+    elif page_slug == 'web-stranica':
+        page_context['settings'] = parish_data_service.load_settings()
+    elif page_slug == 'ulice':
+        page_context.update(streets_page_context(parish_data, request))
+    elif page_slug == 'blagajna':
+        page_context.update(cashbook_page_context(parish_data, request))
+    elif page_slug == 'racuni':
+        page_context.update(invoices_page_context(parish_data, request))
+    elif page_slug == 'javne-prijave':
+        page_context.update(public_submissions_context(parish_data, request))
+    elif page_slug == 'financijska-izvjestaja':
+        page_context.update(finance_reports_context(parish_data, request))
+    elif page_slug == 'kalendar':
+        page_context.update(calendar_page_context(parish_data, request))
+    elif page_slug in {'formulari', 'potvrde', 'dokumenti'}:
+        page_context.update(
+            documents_page_context(
+                parish_data,
+                parish_data_service.load_settings(),
+                request,
+                page_slug,
+            )
+        )
+    elif page_slug == 'maticne-knjige':
+        page_context['registry_books'] = parish_data.get('registryBooks', [])
+    elif page_slug == 'posjete':
+        page_context.update(visits_page_context(parish_data, request))
+    elif page_slug == 'dekanat':
+        page_context.update(
+            deanery_page_context(
+                parish_data,
+                request,
+                parish_data_service.load_settings(),
+            )
+        )
+    elif page_slug == 'operativno-srediste':
+        page_context.update(operations_page_context(parish_data, request))
     else:
-        ctx.update(generic_table_context(request, svc, slug))
-    return ctx
+        page_context.update(
+            generic_table_context(request, parish_data_service, page_slug)
+        )
+    return page_context

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from pastoral.services.analytics import compute_stats
+from pastoral.services.analytics import compute_cashbook_months, compute_stats
 from pastoral.services.cashbook import summarize_year
 
 
@@ -43,10 +43,32 @@ def finance_reports_context(data: dict, request) -> dict:
         quarter = 1
     quarter = max(1, min(4, quarter))
 
+    year_summary = summarize_year(data, year)
+    quarter_rows = []
+    for quarter_no in range(1, 5):
+        row = quarter_summary(data, year, quarter_no)
+        row.update({
+            'quarter': quarter_no,
+            'status': 'Aktivno' if quarter_no == quarter else ('Zaključeno' if quarter_no < quarter else 'Čeka podatke'),
+            'progress': 78 if quarter_no == quarter else (100 if quarter_no < quarter else 18),
+        })
+        quarter_rows.append(row)
+
+    category_rows = [
+        {'label': category, 'in': values['in'], 'out': values['out']}
+        for category, values in year_summary.get('by_category', {}).items()
+    ]
+    current_stats = compute_stats(data)
     return {
         'report_year': year,
         'report_quarter': quarter,
-        'year_summary': summarize_year(data, year),
+        'year_summary': year_summary,
         'quarter_summary': quarter_summary(data, year, quarter),
-        'stats': compute_stats(data),
+        'quarter_rows': quarter_rows,
+        'stats': current_stats,
+        'report_health': min(96, 58 + year_summary.get('count', 0) * 6),
+        'report_charts': {
+            'cashflow': compute_cashbook_months(data, months=6),
+            'categories': category_rows,
+        },
     }

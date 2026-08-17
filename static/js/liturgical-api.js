@@ -2,7 +2,7 @@
  * Katolički liturgijski kalendar — vanjski API-ji
  *
  * Izvori:
- * - LitCal API (https://litcal.johnromanodorazio.com) — blagdani, boja, čitanja (referenca)
+ * - Romcal Croatia + LitCal VA — slavlja, liturgijsko vrijeme, boja i čitanja
  * - Church Calendar API (http://calapi.inadiutorium.cz) — rezerva za dan (bez čitanja)
  * - HILP liturgija dana — puni hrvatski tekst (poveznica, nema javnog API-ja)
  */
@@ -226,16 +226,6 @@
     return events;
   }
 
-  function prefetchDjangoYear(year) {
-    if (!useDjangoLiturgical() || djangoYearInFlight[year]) return djangoYearInFlight[year];
-    djangoYearInFlight[year] = fetchDjangoLiturgicalYear(year)
-      .catch((e) => console.warn("[PastoralLiturgical] Django godina (pozadina):", e.message))
-      .finally(() => {
-        delete djangoYearInFlight[year];
-      });
-    return djangoYearInFlight[year];
-  }
-
   async function prefetchMonthHr(civilYear, month) {
     if (!useDjangoLiturgical()) return;
     const monthNum = month + 1;
@@ -268,10 +258,22 @@
   async function fetchAndIndexLitcalYear(year) {
     if (yearIndexCache[year]) return yearIndexCache[year];
 
+    if (useDjangoLiturgical()) {
+      try {
+        await fetchDjangoLiturgicalYear(year);
+        yearIndexCache[year] = {};
+        return yearIndexCache[year];
+      } catch (djangoError) {
+        console.warn(
+          "[PastoralLiturgical] Django kalendar nije dostupan, koristim postojeću rezervu:",
+          djangoError.message
+        );
+      }
+    }
+
     const stored = loadYearFromStorage(year);
     if (stored) {
       yearIndexCache[year] = stored;
-      prefetchDjangoYear(year);
       return stored;
     }
 
@@ -286,7 +288,6 @@
     const byDay = buildIndexFromLitcal(events);
     yearIndexCache[year] = byDay;
     saveYearToStorage(year, byDay);
-    prefetchDjangoYear(year);
     return byDay;
   }
 
@@ -477,6 +478,7 @@
           <div>
             <h2 class="section-title">${compact ? "Liturgija danas" : `Liturgijski dan — ${esc(fmtHrDate(day.date))}`}</h2>
             <p class="lit-card-feast">${esc(day.title)}</p>
+            ${day.temporalTitle ? `<p class="card-sub"><strong>Liturgijsko vrijeme:</strong> ${esc(day.temporalTitle)}</p>` : ""}
             ${meta ? `<p class="card-sub">${esc(meta)}</p>` : ""}
             ${extras}
           </div>
@@ -629,6 +631,11 @@
     const rankLabel = s.rankLabel || formatRankHr(s.rank);
     const feast = s.shortTitle || s.title;
     const tip = [s.title, rankLabel, s.colorLabel || s.color, s.subtitle].filter(Boolean).join(" · ");
+    const observanceColors = Array.isArray(s.observances) && s.observances.length > 1
+      ? `<span class="cal-lit-observance-colors" aria-label="Boje slavlja dana">${s.observances
+          .map((o) => `<span class="cal-lit-observance-dot ${liturgicalColorClass(o.color)}" title="${esc(`${o.title} — ${o.colorLabel || o.color}`)}"></span>`)
+          .join("")}</span>`
+      : "";
 
     if (!s.loaded) {
       return `
@@ -646,6 +653,7 @@
         <span class="cal-lit-feast">${esc(feast || "—")}</span>
         <span class="cal-lit-meta">
           <span class="cal-lit-color-tag ${colorCls}">${esc(s.colorLabel || s.color || "—")}</span>
+          ${observanceColors}
           <a class="cal-lit-link" href="${esc(s.hilpUrl || hilpUrlForDate(s.date))}" target="_blank" rel="noopener" title="Liturgija dana (HILP)" onclick="event.stopPropagation()">HILP</a>
         </span>
       </span>`;
@@ -675,9 +683,25 @@
       d.celebrations?.length
         ? `<p class="card-sub">Također: ${d.celebrations.map(esc).join(" · ")}</p>`
         : "";
+    const observances = Array.isArray(d.observances) ? d.observances : [];
+    const observancesHtml = observances.length > 1
+      ? `<div class="lit-observances">
+          <p class="card-label">Slavlja dana</p>
+          ${observances.map((o) => `
+            <div class="lit-observance-row">
+              <span class="cal-lit-observance-dot ${liturgicalColorClass(o.color)}" aria-hidden="true"></span>
+              <span class="lit-observance-title">${esc(o.title)}</span>
+              <span class="badge">${esc(o.rankLabel || o.rank)}</span>
+              <span class="cal-lit-color-tag ${liturgicalColorClass(o.color)}">${esc(o.colorLabel || o.color)}</span>
+              ${o.primary ? `<span class="badge">Glavno slavlje</span>` : ""}
+            </div>`).join("")}
+        </div>`
+      : "";
     const sourceNote =
-      d.source === "litcal"
-        ? "LitCal API"
+      d.source === "romcal+litcal-va"
+        ? "Romcal Croatia + LitCal VA"
+        : d.source === "litcal"
+          ? "LitCal API"
         : d.source === "calapi"
           ? "Church Calendar API"
           : d.source === "offline"
@@ -699,11 +723,13 @@
         <div>
           ${rank ? `<span class="cal-lit-rank">${esc(rank)}</span>` : ""}
           <h3 class="nakane-lit-feast">${esc(d.title)}</h3>
+          ${d.temporalTitle ? `<p class="card-sub"><strong>Liturgijsko vrijeme:</strong> ${esc(d.temporalTitle)}</p>` : ""}
           ${meta.length ? `<p class="card-sub">${esc(meta.join(" · "))}</p>` : ""}
           ${extras}
         </div>
         <span class="lit-color-badge ${colorCls}">${esc(d.colorLabel || d.color || "—")}</span>
       </div>
+      ${observancesHtml}
       <div class="nakane-lit-detail-actions">
         <a href="${esc(d.hilpUrl || hilpUrlForDate(d.date))}" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Liturgija dana (HILP)</a>
       </div>
@@ -712,7 +738,7 @@
 
   function renderNakaneLitLoading(iso) {
     return `<div class="nakane-lit-detail nakane-lit-detail--loading" id="nakane-lit-detail">
-      <p class="card-sub">Učitavam liturgijski dan (LitCal)…</p>
+      <p class="card-sub">Učitavam liturgijski dan (Romcal + LitCal)…</p>
       <a href="${esc(hilpUrlForDate(iso))}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Liturgija dana (HILP)</a>
     </div>`;
   }
@@ -737,7 +763,7 @@
         <div>
           ${s.rankLabel || s.rank ? `<span class="cal-lit-rank">${esc(s.rankLabel || formatRankHr(s.rank))}</span> ` : ""}
           <strong class="lit-day-strip-feast">${esc(s.title)}</strong>
-          ${s.subtitle ? `<span class="card-sub"> · ${esc(s.subtitle)}</span>` : ""}
+          ${s.temporalTitle || s.subtitle ? `<span class="card-sub"> · ${esc(s.temporalTitle || s.subtitle)}</span>` : ""}
         </div>
       </div>
       <a href="${esc(s.hilpUrl)}" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Liturgija dana (HILP)</a>

@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import date
 
 from pastoral.services.dates import add_days_iso, days_since, today_iso
+from pastoral.services.operations import build_work_queue
 
 
 def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[dict]:
@@ -11,6 +12,40 @@ def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[di
     today = today_iso()
     year = date.today().year
     items: list[dict] = []
+
+    for operation in build_work_queue(data):
+        if not operation['isOpen']:
+            continue
+        needs_attention = (
+            operation['isOverdue'] or operation['isDueToday']
+            or operation.get('priority') in {'urgent', 'high'}
+            or operation['category'] in {'approval', 'rota', 'room'}
+        )
+        if not needs_attention:
+            continue
+        items.append({
+            'id': f"ops_{operation.get('itemId')}",
+            'priority': 'visoka' if operation['isOverdue'] or operation.get('priority') in {'urgent', 'high'} else 'srednja',
+            'category': 'operativa',
+            'title': operation.get('title') or operation['categoryMeta']['label'],
+            'sub': operation.get('nextAction') or operation.get('meta', ''),
+            'href': f"operativno-srediste?item={operation.get('itemId', '')}",
+            'due': operation.get('due') or today,
+        })
+
+    for req in data.get('interparishRequests') or []:
+        if req.get('direction') != 'incoming' or req.get('status') not in {'received', 'needs_info'}:
+            continue
+        due = req.get('dueAt') or today
+        items.append({
+            'id': f"dekanat_{req.get('id')}",
+            'priority': 'visoka' if req.get('priority') in {'urgent', 'high'} or due < today else 'srednja',
+            'category': 'dekanat',
+            'title': req.get('subject') or 'Novi međužupni zahtjev',
+            'sub': f"{req.get('reference', '')} · rok {due}",
+            'href': f"dekanat?request={req.get('id', '')}",
+            'due': due,
+        })
 
     for s in data.get('publicSubmissions') or []:
         if s.get('status') != 'nova':

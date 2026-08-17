@@ -1,0 +1,27 @@
+{% load i18n admin_reorder %}
+{% get_admin_reorder_groups as admin_groups %}
+{% if admin_groups %}
+<div class="pastoral-admin-grid{% if compact %} pastoral-admin-grid--compact{% endif %}">
+  {% for group in admin_groups %}
+  <section class="module pastoral-admin-group" aria-labelledby="{{ group.id }}">
+    <div class="pastoral-admin-group__head">
+      <h2 id="{{ group.id }}">{{ group.label }}</h2>
+      {% if not compact and group.description %}<p>{{ group.description }}</p>{% endif %}
+    </div>
+    <table>
+      <tbody>
+      {% for model in group.models %}
+        <tr class="model-{{ model.model_name }}{% if model.url in request.path %} current-model{% endif %}">
+          <th scope="row"><a href="{{ model.url }}"{% if model.url in request.path %} aria-current="page"{% endif %}>{{ model.name }}</a></th>
+          {% if model.add_url %}<td><a href="{{ model.add_url }}" class="addlink">{% translate "Add" %}</a></td>{% else %}<td></td>{% endif %}
+          <td><a href="{{ model.url }}" class="changelink">{% translate "View" %}</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<p>{% translate "You don’t have permission to view or edit anything." %}</p>
+{% endif %}
