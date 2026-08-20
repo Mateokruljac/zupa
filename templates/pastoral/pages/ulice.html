@@ -1,238 +1,109 @@
 {% extends "pastoral/base.html" %}
 {% load pastoral_tags %}
-
-{% block extra_head %}
-<style>
-  .streets-table .data-table tbody tr.street-row-active td {
-    background: color-mix(in srgb, var(--primary) 8%, var(--surface));
-  }
-  .streets-table .street-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: flex-end;
-  }
-  .street-detail-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 12px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-  }
-  .street-detail-notes {
-    background: var(--surface-elevated);
-    border-left: 3px solid var(--accent);
-    padding: 10px 14px;
-    border-radius: var(--radius-sm);
-    margin: 0 0 16px;
-    font-size: 0.92rem;
-    color: var(--text-muted);
-  }
-  .street-family-list a.street-family-link {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    text-decoration: none;
-    color: inherit;
-    background: var(--surface);
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-  .street-family-list a.street-family-link:hover {
-    border-color: var(--primary);
-    box-shadow: var(--shadow);
-  }
-  .street-family-link strong {
-    font-family: var(--font-serif);
-    color: var(--primary);
-  }
-  .street-family-link span {
-    font-size: 0.88rem;
-    color: var(--text-muted);
-    text-align: right;
-  }
-  .street-form-card .form-grid {
-    display: grid;
-    gap: 12px;
-    max-width: 560px;
-  }
-  @media (min-width: 720px) {
-    .street-form-card .form-grid--split {
-      grid-template-columns: 1fr 1fr;
-    }
-    .street-form-card .form-grid--split .form-span-2 {
-      grid-column: 1 / -1;
-    }
-  }
-</style>
-{% endblock %}
+{% load static %}
 
 {% block topbar_actions %}
-<a href="{% page_url 'obitelji' %}" class="btn btn-primary btn-sm">Obitelji</a>
+<a href="{% page_url 'obitelji' %}" class="btn btn-ghost btn-sm">Obitelji</a>
+<a href="{% page_url 'ulice' %}?new=1" class="btn btn-primary btn-sm">+ Nova ulica</a>
 {% endblock %}
 
 {% block content %}
-<div class="kpi-row" style="margin-bottom:16px">
-  <article class="card kpi-card">
-    <p class="card-label">Ulica u župi</p>
-    <p class="card-value">{{ streets|length }}</p>
-  </article>
-  <article class="card kpi-card">
-    <p class="card-label">Obitelji na ulicama</p>
-    <p class="card-value">{{ assigned_families_count }}</p>
-  </article>
-  <article class="card kpi-card">
-    <p class="card-label">Bez dodijeljene ulice</p>
-    <p class="card-value">{{ unassigned_families|length }}</p>
-  </article>
-</div>
-
-<section class="card" style="margin-bottom:16px">
-  <h2 class="section-title">Ulice i kvartovi župe</h2>
-  <p class="card-sub">Pregled po ulicama olakšava obilazak i pastoralno planiranje. Odaberite ulicu za popis obitelji na toj adresi.</p>
-  <div style="margin-top:12px">
-    <a href="{% page_url 'ulice' %}?new=1" class="btn btn-primary btn-sm">+ Dodaj ulicu</a>
-  </div>
+<section class="kpi-row street-summary" aria-label="Sažetak ulica">
+  <article class="card kpi-card"><p class="card-label">Ulice</p><p class="card-value">{{ streets|length }}</p><p class="card-sub">u teritoriju župe</p></article>
+  <article class="card kpi-card"><p class="card-label">Povezane obitelji</p><p class="card-value">{{ assigned_families_count }}</p><p class="card-sub">imaju dodijeljenu ulicu</p></article>
+  <article class="card kpi-card"><p class="card-label">Treba povezati</p><p class="card-value">{{ unassigned_families|length }}</p><p class="card-sub">obitelji bez ulice</p></article>
 </section>
 
-{% if show_street_form %}
-<section class="card street-form-card" style="margin-bottom:16px" id="street-form-card">
-  <h2 class="section-title">{% if street_form_mode == 'edit' %}Uredi ulicu{% else %}Nova ulica{% endif %}</h2>
-  <form method="post" class="form-grid form-grid--split">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="upsert_street">
-    {% if selected_street and street_form_mode == 'edit' %}
-    <input type="hidden" name="street_id" value="{{ selected_street.id }}">
-    {% endif %}
-    <div class="form-group">
-      <label for="{{ street_form.name.id_for_label }}">{{ street_form.name.label }}</label>
-      {{ street_form.name }}
-    </div>
-    <div class="form-group">
-      <label for="{{ street_form.zone.id_for_label }}">{{ street_form.zone.label }}</label>
-      {{ street_form.zone }}
-    </div>
-    <div class="form-group form-span-2">
-      <label for="{{ street_form.notes.id_for_label }}">{{ street_form.notes.label }}</label>
-      {{ street_form.notes }}
-    </div>
-    <div class="form-span-2" style="display:flex;gap:8px;flex-wrap:wrap">
-      <button type="submit" class="btn btn-primary btn-sm">Spremi</button>
-      <a href="{% page_url 'ulice' %}{% if selected_street %}?street={{ selected_street.id }}{% endif %}" class="btn btn-ghost btn-sm">Odustani</a>
-    </div>
-  </form>
-</section>
-{% endif %}
-
-<div class="ulice-layout">
+<div class="ulice-layout street-workspace">
   <section class="card families-table-card streets-table">
-    <div class="families-table-head">
-      <h2 class="section-title" style="margin:0">Popis ulica</h2>
-      <span class="card-sub">{{ streets|length }} ulica</span>
-    </div>
+    <header class="families-table-head street-list-header">
+      <div><p class="card-label">Teritorij župe</p><h2 class="section-title">Popis ulica</h2></div>
+      <span class="badge">{{ streets|length }}</span>
+    </header>
     <div class="table-wrap">
       <table class="data-table">
-        <thead>
-          <tr>
-            <th>Ulica</th>
-            <th>Kvart</th>
-            <th>Obitelji</th>
-            <th>Napomena</th>
-            <th></th>
-          </tr>
-        </thead>
+        <thead><tr><th>Ulica</th><th>Kvart</th><th>Obitelji</th><th></th></tr></thead>
         <tbody>
-          {% for s in streets %}
-          <tr class="{% if selected_street_id == s.id and not show_street_form %}street-row-active{% endif %}">
-            <td><strong>{{ s.name }}</strong></td>
-            <td>{{ s.zone|default:"—" }}</td>
-            <td><strong>{{ family_counts|get_item:s.id|default:0 }}</strong></td>
-            <td class="family-addr-cell">{{ s.notes|default:"—"|truncatechars:48 }}</td>
+          {% for street in streets %}
+          <tr class="{% if selected_street_id == street.id and not show_street_form %}street-row-active{% endif %}">
+            <td><strong>{{ street.name }}</strong>{% if street.notes %}<small>{{ street.notes|truncatechars:55 }}</small>{% endif %}</td>
+            <td>{{ street.zone|default:"—" }}</td>
+            <td><strong>{{ family_counts|get_item:street.id|default:0 }}</strong></td>
             <td>
               <div class="street-actions">
-                <a href="?street={{ s.id }}" class="btn btn-primary btn-sm">Prikaži</a>
-                <a href="?street={{ s.id }}&edit=1" class="btn btn-ghost btn-sm">Uredi</a>
-                <form method="post" style="display:inline" onsubmit="return confirm('Obrisati ulicu {{ s.name|escapejs }}?')">
+                <a href="?street={{ street.id }}" class="btn btn-primary btn-sm">Otvori</a>
+                <a href="?street={{ street.id }}&edit=1" class="btn btn-ghost btn-sm">Uredi</a>
+                <form method="post" onsubmit="return confirm('Obrisati ulicu {{ street.name|escapejs }}?')">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="delete_street">
-                  <input type="hidden" name="street_id" value="{{ s.id }}">
-                  <button type="submit" class="btn btn-ghost btn-sm" title="Obriši">×</button>
+                  <input type="hidden" name="street_id" value="{{ street.id }}">
+                  <button type="submit" class="btn btn-ghost btn-sm" title="Obriši ulicu" aria-label="Obriši ulicu {{ street.name }}">×</button>
                 </form>
               </div>
             </td>
           </tr>
-          {% empty %}
-          <tr><td colspan="5"><div class="empty-state ui-empty-fancy"><p>Još nema upisanih ulica. Dodajte prvu ulicu župe.</p></div></td></tr>
-          {% endfor %}
+          {% empty %}<tr><td colspan="4" class="empty-state">Još nema upisanih ulica.</td></tr>{% endfor %}
         </tbody>
       </table>
     </div>
   </section>
 
-  <section class="card" id="street-families-panel">
+  <section class="card street-families-card">
     {% if selected_street and not show_street_form %}
-    <div class="street-detail-head">
-      <div>
-        <h2 class="section-title" style="margin:0">{{ selected_street.name }}</h2>
-        <p class="card-sub" style="margin:6px 0 0">
-          {% if selected_street.zone %}{{ selected_street.zone }} · {% endif %}
-          {{ street_families|length }} {% if street_families|length == 1 %}obitelj{% else %}obitelji{% endif %}
-        </p>
-      </div>
+    <header class="street-detail-head">
+      <div><p class="card-label">Odabrana ulica</p><h2 class="section-title">{{ selected_street.name }}</h2><p class="card-sub">{% if selected_street.zone %}{{ selected_street.zone }} · {% endif %}{{ street_families|length }} obitelji</p></div>
       <a href="?street={{ selected_street.id }}&edit=1" class="btn btn-ghost btn-sm">Uredi</a>
-    </div>
-    {% if selected_street.notes %}
-    <p class="street-detail-notes">{{ selected_street.notes }}</p>
-    {% endif %}
+    </header>
+    {% if selected_street.notes %}<p class="street-detail-notes">{{ selected_street.notes }}</p>{% endif %}
+    <section class="street-map" aria-label="Položaj ulice {{ selected_street.name }}">
+      <iframe
+        title="Karta — {{ street_map_query }}"
+        src="{{ street_map_embed_url }}"
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade"
+        allowfullscreen>
+      </iframe>
+      <div class="street-map__footer">
+        <span>{{ street_map_query }}</span>
+        <a href="{{ street_map_external_url }}" target="_blank" rel="noopener noreferrer">Otvori veću kartu ↗</a>
+      </div>
+    </section>
     <ul class="street-family-list">
-      {% for f in street_families %}
-      <li>
-        <a href="{% page_url 'obitelji' %}?family={{ f.id }}" class="street-family-link">
-          <strong>{{ f.surname }}</strong>
-          <span>{{ f.address|default:"—" }} · {{ f.members|length }} čl.</span>
-        </a>
-      </li>
-      {% empty %}
-      <li class="empty-state">Nema upisanih obitelji na ovoj ulici.</li>
-      {% endfor %}
+      {% for family in street_families %}
+      <li><a href="{% page_url 'obitelji' %}?family={{ family.id }}" class="street-family-link"><strong>{{ family.surname }}</strong><span>{{ family.address|default:"—" }} · {{ family.members|length }} čl.</span></a></li>
+      {% empty %}<li class="empty-state">Na ovoj ulici još nema povezanih obitelji.</li>{% endfor %}
     </ul>
-    {% if street_families %}
-    <a href="{% page_url 'obitelji' %}?street={{ selected_street.id }}" class="btn btn-primary btn-sm" style="margin-top:16px">Sve obitelji na ulici</a>
-    {% endif %}
+    {% if street_families %}<a href="{% page_url 'obitelji' %}?street={{ selected_street.id }}" class="btn btn-primary btn-sm street-all-families">Prikaži u Obiteljima</a>{% endif %}
     {% elif not show_street_form %}
-    <div class="empty-state ui-empty-fancy">
-      <p>Odaberite ulicu u tablici za pregled obitelji na toj adresi.</p>
-    </div>
+    <div class="empty-state street-selection-empty"><p>Odaberite ulicu za pregled obitelji.</p></div>
     {% endif %}
   </section>
 </div>
 
 {% if unassigned_families %}
 <section class="card ulice-unassigned-card">
-  <div class="families-table-head">
-    <h2 class="section-title" style="margin:0">Obitelji bez ulice</h2>
-    <span class="card-sub">{{ unassigned_families|length }} obitelji</span>
-  </div>
-  <p class="families-toolbar-hint">Dodijelite ulicu u kartonu obitelji u modulu Obitelji.</p>
-  <ul class="street-family-list" style="margin-top:12px">
-    {% for f in unassigned_families|slice:":8" %}
-    <li>
-      <a href="{% page_url 'obitelji' %}?family={{ f.id }}" class="street-family-link">
-        <strong>{{ f.surname }}</strong>
-        <span>{{ f.address|default:"—" }}</span>
-      </a>
-    </li>
+  <header class="families-table-head street-list-header"><div><p class="card-label">Za dopunu</p><h2 class="section-title">Obitelji bez ulice</h2></div><span class="badge badge-urgent">{{ unassigned_families|length }}</span></header>
+  <p class="card-sub">Otvorite karton i odaberite pripadajuću ulicu.</p>
+  <ul class="street-family-list street-family-list--unassigned">
+    {% for family in unassigned_families|slice:":8" %}
+    <li><a href="{% page_url 'obitelji' %}?family={{ family.id }}" class="street-family-link"><strong>{{ family.surname }}</strong><span>{{ family.address|default:"Adresa nije upisana" }}</span></a></li>
     {% endfor %}
   </ul>
-  {% if unassigned_families|length > 8 %}
-  <a href="{% page_url 'obitelji' %}" class="btn btn-ghost btn-sm" style="margin-top:12px">Prikaži sve obitelji</a>
-  {% endif %}
 </section>
 {% endif %}
+
+{% if show_street_form %}
+<dialog id="street-record-dialog" class="family-record-dialog" data-record-dialog-root data-record-dialog-open>
+  <form method="post" class="family-record-dialog__form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upsert_street">
+    {% if selected_street and street_form_mode == 'edit' %}<input type="hidden" name="street_id" value="{{ selected_street.id }}">{% endif %}
+    <header><div><p class="card-label">{% if street_form_mode == 'edit' %}Uređivanje{% else %}Novi zapis{% endif %}</p><h2>{% if street_form_mode == 'edit' %}Uredi ulicu{% else %}Dodaj ulicu{% endif %}</h2></div><button type="button" data-record-dialog-close aria-label="Zatvori">×</button></header>
+    <div class="family-record-form-grid">{{ street_form.as_p }}</div>
+    <footer><a href="{% page_url 'ulice' %}{% if selected_street %}?street={{ selected_street.id }}{% endif %}" class="btn btn-ghost">Odustani</a><button type="submit" class="btn btn-primary">Spremi</button></footer>
+  </form>
+</dialog>
+{% endif %}
 {% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/record-dialog.js' %}"></script>{% endblock %}

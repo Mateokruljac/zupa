@@ -90,11 +90,13 @@
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
-        const detail = data.detail ? `: ${data.detail}` : "";
+        const serverMessage = data.detail || data.message;
         setCredentialsError(
           data.error === "invalid_input"
             ? "Provjerite unesene podatke."
-            : `Nije moguće poslati e-mail${detail}. SMTP mora ići na port 1025 (Mailhog web sučelje je na 8025).`
+            : serverMessage
+              ? `Nije moguće poslati kod: ${serverMessage}`
+              : "Nije moguće poslati kod. Pokušajte ponovno."
         );
         return;
       }

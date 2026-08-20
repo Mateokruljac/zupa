@@ -1,13 +1,16 @@
-import os
 from pathlib import Path
+
+import environ
 
 from .admin_sidebar import ADMIN_REORDER
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+environment = environ.Env()
+environment.read_env(BASE_DIR / '.env')
 
-SECRET_KEY = os.environ.get(
+SECRET_KEY = environment.str(
     'SECRET_KEY',
-    'django-insecure-dev-only-change-in-production',
+    default='django-insecure-dev-only-change-in-production',
 )
 
 DEBUG = True
@@ -26,7 +29,6 @@ INSTALLED_APPS = [
     'pastoral',
     'users',
     'control_plane.apps.ControlPlaneConfig',
-    'public_site.apps.PublicSiteConfig',
     'debug_toolbar',
 ]
 
@@ -72,11 +74,11 @@ WSGI_APPLICATION = 'zupa.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME'),
-        'USER': os.environ.get('DB_USER'),
-        'PASSWORD': os.environ.get('DB_PASS'),
-        'HOST': os.environ.get('DB_HOST', 'db'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+        'NAME': environment.str('DB_NAME', default=None),
+        'USER': environment.str('DB_USER', default=None),
+        'PASSWORD': environment.str('DB_PASS', default=None),
+        'HOST': environment.str('DB_HOST', default='db'),
+        'PORT': environment.str('DB_PORT', default='5432'),
     }
 }
 
@@ -89,6 +91,9 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = 'hr'
+LANGUAGES = (
+    ('hr', 'Hrvatski'),
+)
 TIME_ZONE = 'Europe/Zagreb'
 USE_I18N = True
 USE_L10N = True
@@ -107,38 +112,59 @@ AUTH_USER_MODEL = "users.User"
 LOGIN_URL = 'pastoral:login'
 LOGOUT_REDIRECT_URL = 'pastoral:login'
 
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@pastoral.local')
+DEFAULT_FROM_EMAIL = environment.str('DEFAULT_FROM_EMAIL', default='noreply@pastoral.local')
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
-OTP_RECIPIENT = os.environ.get('OTP_RECIPIENT', 'mateokruljac123@gmail.com')
-OTP_TTL_MINUTES = int(os.environ.get('OTP_TTL_MINUTES', '10'))
+OTP_RECIPIENT = environment.str('OTP_RECIPIENT', default='mateokruljac123@gmail.com')
+OTP_TTL_MINUTES = environment.int('OTP_TTL_MINUTES', default=10)
+OTP_MAX_ATTEMPTS = environment.int('OTP_MAX_ATTEMPTS', default=5)
+OTP_RESEND_COOLDOWN_SECONDS = environment.int(
+    'OTP_RESEND_COOLDOWN_SECONDS',
+    default=60,
+)
 
 # Mailhog SMTP (slanje maila): port 1025
 # Mailhog web sučelje (pregled mailova): http://localhost:8025
-MAILHOG_SMTP_HOST = os.environ.get('MAILHOG_SMTP_HOST', os.environ.get('EMAIL_HOST', 'mailhog'))
-MAILHOG_SMTP_PORT = int(os.environ.get('MAILHOG_SMTP_PORT', os.environ.get('EMAIL_PORT', '1025')))
+MAILHOG_SMTP_HOST = environment.str(
+    'MAILHOG_SMTP_HOST',
+    default=environment.str('EMAIL_HOST', default='mailhog'),
+)
+MAILHOG_SMTP_PORT = environment.int(
+    'MAILHOG_SMTP_PORT',
+    default=environment.int('EMAIL_PORT', default=1025),
+)
 if MAILHOG_SMTP_PORT == 8025:
     MAILHOG_SMTP_PORT = 1025
 
-EMAIL_BACKEND = os.environ.get(
+EMAIL_BACKEND = environment.str(
     'EMAIL_BACKEND',
-    'django.core.mail.backends.smtp.EmailBackend',
+    default='django.core.mail.backends.smtp.EmailBackend',
 )
 EMAIL_HOST = MAILHOG_SMTP_HOST
 EMAIL_PORT = MAILHOG_SMTP_PORT
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False') == 'True'
-EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False') == 'True'
-EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
+EMAIL_USE_TLS = environment.bool('EMAIL_USE_TLS', default=False)
+EMAIL_USE_SSL = environment.bool('EMAIL_USE_SSL', default=False)
+EMAIL_TIMEOUT = environment.int('EMAIL_TIMEOUT', default=10)
 
-CELERY_BROKER_URL = os.environ.get(
+REDIS_PASSWORD = environment.str('REDIS_PASSWORD', default='password')
+REDIS_HOST = environment.str('REDIS_HOST', default='cache')
+REDIS_PORT = environment.str('REDIS_PORT', default='6379')
+CELERY_BROKER_URL = environment.str(
     'CELERY_BROKER_URL',
-    f"redis://:{os.environ.get('REDIS_PASSWORD', 'password')}@{os.environ.get('REDIS_HOST', 'cache')}:{os.environ.get('REDIS_PORT', '6379')}/0",
+    default=f'redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0',
 )
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
+CELERY_RESULT_BACKEND = environment.str('CELERY_RESULT_BACKEND', default=CELERY_BROKER_URL)
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'False') == 'True'
+CELERY_TASK_ALWAYS_EAGER = environment.bool('CELERY_TASK_ALWAYS_EAGER', default=False)
+
+CACHES = {
+    'default': environment.cache(
+        'CACHE_URL',
+        default='locmemcache://pastoral-default',
+    ),
+}
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
@@ -148,12 +174,18 @@ SESSION_COOKIE_AGE = 8 * 60 * 60
 PARISH_DEFAULT_SLUG = 'bdm-slavonski-brod'
 TENANCY_LEGACY_FALLBACK_ENABLED = False
 LICENSE_ENFORCEMENT_ENABLED = False
-PUBLIC_WEBSITE_DEMO_AUTO_ACTIVATE = False
+# Funkcionalnosti s višom fazom ostaju u kodu i podacima, ali nisu dostupne u
+# redovnom radu dok se planski ne aktivira sljedeća faza proizvoda.
+PASTORAL_PRODUCT_PHASE = environment.int('PASTORAL_PRODUCT_PHASE', default=1)
+
+if PASTORAL_PRODUCT_PHASE >= 2:
+    TEMPLATES[0]['DIRS'].append(BASE_DIR / 'phase_two' / 'templates')
+    STATICFILES_DIRS.append(BASE_DIR / 'phase_two' / 'static')
 
 # Romcal se najprije može testirati usporednim API-jem. Postojeći LitCal ostaje
 # oba izvora rade paralelno; vrijednosti litcal i romcal ostaju za dijagnostiku.
-LITURGICAL_PRIMARY_PROVIDER = os.environ.get(
+LITURGICAL_PRIMARY_PROVIDER = environment.str(
     'LITURGICAL_PRIMARY_PROVIDER',
-    'hybrid',
+    default='hybrid',
 ).strip().lower()
-LITURGICAL_ROMCAL_ENABLED = os.environ.get('LITURGICAL_ROMCAL_ENABLED', 'True') == 'True'
+LITURGICAL_ROMCAL_ENABLED = environment.bool('LITURGICAL_ROMCAL_ENABLED', default=True)

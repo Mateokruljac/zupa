@@ -1,52 +1,78 @@
 {% extends "pastoral/base.html" %}
-{% load pastoral_tags %}
+{% load static pastoral_tags %}
 
 {% block topbar_actions %}
 <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('add-baptism-form').hidden=false">+ Krštenje</button>
 {% endblock %}
 
 {% block content %}
-<div class="kpi-row" style="margin-bottom:16px">
+<div class="kpi-row anointing-summary">
   <article class="card kpi-card"><p class="card-label">Krštenja u evidenciji</p><p class="card-value">{{ stats.total }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Nadolazeća</p><p class="card-value">{{ stats.upcoming }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Obavljena</p><p class="card-value">{{ stats.done }}</p></article>
 </div>
 
-<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
-  <div class="form-group"><label>Pretraži</label><input type="search" name="q" value="{{ filters.q }}" class="form-control"></div>
-  <button type="submit" class="btn btn-primary btn-sm">Filtriraj</button>
-  {% if filters.q %}<a href="{% page_url 'krsenja' %}" class="btn btn-ghost btn-sm">Poništi</a>{% endif %}
+<form method="get" class="card sacrament-filter-toolbar">
+  <div class="sacrament-filter-toolbar__field"><label for="baptism-search">Pretraži dijete, roditelje, kumove ili svećenika</label><input type="search" id="baptism-search" name="q" value="{{ filters.q }}" class="form-control" placeholder="Upišite pojam…"></div>
+  <div class="sacrament-filter-toolbar__field sacrament-filter-toolbar__field--period"><label for="baptism-period">Vrijeme</label><select id="baptism-period" name="period" class="form-control"><option value="upcoming" {% if filters.period == 'upcoming' %}selected{% endif %}>Nadolazeći termini</option><option value="today" {% if filters.period == 'today' %}selected{% endif %}>Danas</option><option value="past" {% if filters.period == 'past' %}selected{% endif %}>Prošli termini</option><option value="all" {% if filters.period == 'all' %}selected{% endif %}>Svi termini</option></select></div>
+  <button type="submit" class="btn btn-primary">Filtriraj</button>
+  {% if filters.q or filters.period != 'all' %}<a href="{% page_url 'krsenja' %}" class="btn btn-ghost">Poništi</a>{% endif %}
 </form>
 
-<section id="add-baptism-form" class="card" style="margin-bottom:16px" hidden>
-  <h2 class="section-title">Novo krštenje</h2>
-  <form method="post" style="display:grid;gap:12px;max-width:640px">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="add_baptism">
-    {{ baptism_form.as_p }}
-    <button type="submit" class="btn btn-primary btn-sm">Spremi</button>
+<section id="add-baptism-form" class="card sacrament-entry-card" hidden>
+  <header class="sacrament-entry-card__header"><span class="sacrament-entry-card__icon" aria-hidden="true">✦</span><div><p class="card-label">Evidencija sakramenta</p><h2 class="section-title">Novo krštenje</h2><p class="card-sub">Unesite podatke potrebne za pripravu, slavlje i kasniji upis u maticu.</p></div></header>
+  <form method="post" class="sacrament-entry-form">
+    {% csrf_token %}<input type="hidden" name="action" value="add_baptism">{{ baptism_form.non_field_errors }}
+    <div class="sacrament-entry-form__grid">
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide">{{ baptism_form.child_name.label_tag }}{{ baptism_form.child_name }}{{ baptism_form.child_name.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ baptism_form.birth_date.label_tag }}{{ baptism_form.birth_date }}{{ baptism_form.birth_date.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ baptism_form.baptism_date.label_tag }}{{ baptism_form.baptism_date }}{{ baptism_form.baptism_date.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ baptism_form.parents.label_tag }}{{ baptism_form.parents }}{{ baptism_form.parents.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ baptism_form.godparents.label_tag }}{{ baptism_form.godparents }}{{ baptism_form.godparents.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ baptism_form.celebrant.label_tag }}{{ baptism_form.celebrant }}{{ baptism_form.celebrant.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ baptism_form.registry_number.label_tag }}{{ baptism_form.registry_number }}{{ baptism_form.registry_number.errors }}</div>
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide sacrament-entry-form__checkbox"><label>{{ baptism_form.godparent_certificate_received }}<span>{{ baptism_form.godparent_certificate_received.label }}</span></label>{{ baptism_form.godparent_certificate_received.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ baptism_form.status.label_tag }}{{ baptism_form.status }}{{ baptism_form.status.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ baptism_form.stipend.label_tag }}{{ baptism_form.stipend }}{{ baptism_form.stipend.errors }}</div>
+    </div>
+    <footer class="sacrament-entry-form__actions"><button type="button" class="btn btn-ghost" onclick="document.getElementById('add-baptism-form').hidden=true">Odustani</button><button type="submit" class="btn btn-primary">Spremi krštenje</button></footer>
   </form>
 </section>
 
-<section class="card">
-  <div class="table-wrap">
-    <table class="data-table">
-      <thead><tr><th>Predmet / dijete</th><th>Datum</th><th>Roditelji</th><th>Spremnost</th><th>Stipendij</th><th></th></tr></thead>
-      <tbody>
-        {% for r in rows %}
-        <tr>
-          <td><small>{{ r.caseRef }}</small><br><strong>{{ r.childName }}</strong></td>
-          <td>{{ r.baptismDate|hr_date }}</td>
-          <td>{{ r.parents|default:"—" }}</td>
-          <td>{% if r.workflowReady %}<span class="badge badge-done">spremno</span>{% else %}<span class="badge badge-urgent">{{ r.workflowMissing|length }} nedostaje</span>{% endif %}<br><small>{{ r.nextStep }}</small></td>
-          <td>{% if r.stipendPaid %}<span class="badge badge-done">plaćeno</span>{% elif r.stipend %}<span class="badge badge-urgent">{{ r.stipend|money_eur }}</span>{% else %}—{% endif %}</td>
-          <td>
-            <details class="case-inline"><summary class="btn btn-ghost btn-sm">Kontrolna lista</summary><div>{% for check in r.workflowChecks %}<span class="{% if check.done %}is-done{% endif %}">{% if check.done %}✓{% else %}!{% endif %} {{ check.label }}</span>{% endfor %}</div></details>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="empty-state">Nema zapisa.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
+<section class="card"><div class="table-wrap"><table class="data-table">
+  <thead><tr><th>Predmet / dijete</th><th>Datum</th><th>Roditelji</th><th>Spremnost</th><th>Stipendij</th><th></th></tr></thead>
+  <tbody>
+    {% for baptism_record in rows %}
+    <tr><td><small>{{ baptism_record.caseRef }}</small><br><strong>{{ baptism_record.childName }}</strong></td><td><span class="record-date-with-badge">{{ baptism_record.baptismDate|hr_date }}<span class="time-badge time-badge--{{ baptism_record.time_badge_tone }}">{{ baptism_record.time_badge_label }}</span></span></td><td>{{ baptism_record.parents|default:"—" }}</td><td>{% if baptism_record.workflowReady %}<span class="badge badge-done">spremno</span>{% else %}<span class="badge badge-urgent">{{ baptism_record.workflowMissing|length }} nedostaje</span>{% endif %}<br><small>{{ baptism_record.nextStep }}</small></td><td>{% if baptism_record.stipendPaid %}<span class="badge badge-done">plaćeno</span>{% elif baptism_record.stipend %}<span class="badge badge-urgent">{{ baptism_record.stipend|money_eur }}</span>{% else %}—{% endif %}</td><td><button type="button" class="btn btn-ghost btn-sm" data-sacrament-dialog="baptism-record-{{ baptism_record.id }}">Detalji</button></td></tr>
+    {% empty %}<tr><td colspan="6" class="empty-state">Nema zapisa.</td></tr>{% endfor %}
+  </tbody>
+</table></div></section>
+
+{% for baptism_record in rows %}
+<dialog id="baptism-record-{{ baptism_record.id }}" class="sacrament-record-dialog">
+  <form method="post" class="sacrament-record-dialog__form">
+    {% csrf_token %}<input type="hidden" name="action" value="update_baptism"><input type="hidden" name="record_id" value="{{ baptism_record.id }}">
+    <header><div><p class="card-label">Detalji krštenja</p><h2>{{ baptism_record.childName }}</h2></div><button type="button" class="dialog-close" data-sacrament-dialog-close aria-label="Zatvori">×</button></header>
+    <div class="sacrament-entry-form__grid sacrament-record-dialog__body">
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide"><label for="baptism-child-{{ baptism_record.id }}">Ime djeteta</label><input class="form-control" id="baptism-child-{{ baptism_record.id }}" name="child_name" maxlength="120" required value="{{ baptism_record.childName }}"></div>
+      <div class="sacrament-entry-form__field"><label for="birth-date-{{ baptism_record.id }}">Datum rođenja</label><input class="form-control" id="birth-date-{{ baptism_record.id }}" name="birth_date" type="date" value="{{ baptism_record.birthDate|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="baptism-date-{{ baptism_record.id }}">Datum krštenja</label><input class="form-control" id="baptism-date-{{ baptism_record.id }}" name="baptism_date" type="date" value="{{ baptism_record.baptismDate|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="baptism-parents-{{ baptism_record.id }}">Roditelji</label><input class="form-control" id="baptism-parents-{{ baptism_record.id }}" name="parents" maxlength="200" required value="{{ baptism_record.parents|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="baptism-godparents-{{ baptism_record.id }}">Kumovi</label><input class="form-control" id="baptism-godparents-{{ baptism_record.id }}" name="godparents" maxlength="200" value="{{ baptism_record.godparents|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="baptism-celebrant-{{ baptism_record.id }}">Svećenik</label><input class="form-control" id="baptism-celebrant-{{ baptism_record.id }}" name="celebrant" maxlength="100" value="{{ baptism_record.celebrant|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="registry-number-{{ baptism_record.id }}">Matični broj</label><input class="form-control" id="registry-number-{{ baptism_record.id }}" name="registry_number" maxlength="60" value="{{ baptism_record.registryNo|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide sacrament-entry-form__checkbox"><label><input name="godparent_certificate_received" type="checkbox" {% if baptism_record.godparentCertReceived %}checked{% endif %}><span>Potvrda kuma je zaprimljena</span></label></div>
+      <div class="sacrament-entry-form__field"><label for="baptism-status-{{ baptism_record.id }}">Status</label><input class="form-control" id="baptism-status-{{ baptism_record.id }}" name="status" maxlength="50" value="{{ baptism_record.status|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="baptism-stipend-{{ baptism_record.id }}">Stipendij</label><input class="form-control" id="baptism-stipend-{{ baptism_record.id }}" name="stipend" type="number" min="0" step="0.01" value="{{ baptism_record.stipend|default:0 }}"></div>
+    </div>
+    <footer><button type="submit" class="btn btn-danger sacrament-record-dialog__delete-button" form="delete-baptism-{{ baptism_record.id }}">Obriši</button><button type="button" class="btn btn-ghost" data-sacrament-dialog-close>Odustani</button><button type="submit" class="btn btn-primary">Spremi promjene</button></footer>
+  </form>
+</dialog>
+<form id="delete-baptism-{{ baptism_record.id }}" method="post" data-confirm-delete data-record-label="krštenje za {{ baptism_record.childName }}">{% csrf_token %}<input type="hidden" name="action" value="delete_baptism"><input type="hidden" name="record_id" value="{{ baptism_record.id }}"></form>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/modal-kit.js' %}"></script>
+<script src="{% static 'js/sacrament-record-dialog.js' %}"></script>
 {% endblock %}

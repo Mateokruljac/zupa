@@ -1,111 +1,64 @@
 {% extends "pastoral/base.html" %}
-{% load static pastoral_tags %}
+{% load pastoral_tags %}
 
 {% block topbar_actions %}
 <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">Ispiši pregled</button>
-<a href="{% page_url 'blagajna' %}" class="btn btn-primary btn-sm">Otvori blagajnu</a>
+<a href="{% page_url 'blagajna' %}" class="btn btn-primary btn-sm">+ Novo knjiženje</a>
 {% endblock %}
 
 {% block content %}
-<section class="report-hero">
+{% include "pastoral/partials/finance_nav.html" %}
+
+<section class="page-intro finance-page-intro">
   <div>
-    <p class="command-eyebrow">Financijsko upravljanje · {{ report_year }}</p>
-    <h2>Izvještajno središte župe</h2>
-    <p>Jedinstven pregled blagajne, lukna, obveza i pripreme podataka za biskupiju i župno ekonomsko vijeće.</p>
-  </div>
-  <div class="report-hero-health">
-    <span class="command-health-ring" style="--progress:{{ report_health }}"><strong>{{ report_health }}</strong><small>%</small></span>
-    <span><strong>Spremnost izvješća</strong><small>{{ year_summary.count }} knjiženih stavki u {{ report_year }}.</small></span>
+    <p class="command-eyebrow">Financije · {{ report_year }}</p>
+    <h2>Financijski pregled</h2>
+    <p>Stvarno evidentirani prihodi, rashodi, računi i dugovanja na jednom mjestu.</p>
   </div>
 </section>
 
-<form method="get" class="card report-period-toolbar">
+<form method="get" class="card report-period-toolbar finance-filter-card">
   <div class="form-group">
-    <label>Izvještajna godina</label>
-    <input type="number" name="year" value="{{ report_year }}" min="2020" max="2035" class="form-control">
-  </div>
-  <div class="form-group">
-    <label>Aktivni kvartal</label>
-    <select name="q">
-      <option value="1" {% if report_quarter == 1 %}selected{% endif %}>Q1 · siječanj–ožujak</option>
-      <option value="2" {% if report_quarter == 2 %}selected{% endif %}>Q2 · travanj–lipanj</option>
-      <option value="3" {% if report_quarter == 3 %}selected{% endif %}>Q3 · srpanj–rujan</option>
-      <option value="4" {% if report_quarter == 4 %}selected{% endif %}>Q4 · listopad–prosinac</option>
+    <label>Godina</label>
+    <select name="year" onchange="this.form.submit()">
+      {% for year in report_years %}<option value="{{ year }}" {% if year == report_year %}selected{% endif %}>{{ year }}</option>{% endfor %}
     </select>
   </div>
-  <button type="submit" class="btn btn-primary btn-sm">Primijeni razdoblje</button>
-  <span class="report-toolbar-note">Zadnja priprema: danas · podaci iz blagajničkih dnevnika</span>
+  <span class="report-toolbar-note">Pregled se računa iz spremljenih blagajničkih stavki.</span>
 </form>
 
-<section class="signal-grid report-signal-grid" aria-label="Financijski pokazatelji">
-  <article class="signal-card signal-card--finance"><span class="signal-icon">↗</span><div><small>Godišnji ulaz</small><strong>{{ year_summary.in_sum|floatformat:0 }} €</strong><em>{{ year_summary.count }} ukupnih knjiženja</em></div></article>
-  <article class="signal-card signal-card--alert"><span class="signal-icon">↘</span><div><small>Godišnji izlaz</small><strong>{{ year_summary.out_sum|floatformat:0 }} €</strong><em>Plavi i crveni dnevnik</em></div></article>
-  <article class="signal-card signal-card--liturgy"><span class="signal-icon">=</span><div><small>Godišnji saldo</small><strong>{{ year_summary.balance|floatformat:0 }} €</strong><em>Trenutno evidentirano stanje</em></div></article>
-  <article class="signal-card signal-card--pastoral"><span class="signal-icon">Q</span><div><small>Q{{ report_quarter }} saldo</small><strong>{{ quarter_summary.balance|floatformat:0 }} €</strong><em>{{ quarter_summary.count }} stavki u kvartalu</em></div></article>
+<section class="kpi-row finance-kpi-row" aria-label="Godišnji sažetak">
+  <article class="card kpi-card"><p class="card-label">Prihodi</p><p class="card-value amount-positive">{{ year_summary.in_sum|money_eur }}</p><p class="card-sub">{{ report_year }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Rashodi</p><p class="card-value amount-negative">{{ year_summary.out_sum|money_eur }}</p><p class="card-sub">{{ report_year }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Saldo</p><p class="card-value">{{ year_summary.balance|money_eur }}</p><p class="card-sub">{{ year_summary.count }} knjiženja</p></article>
+  <article class="card kpi-card"><p class="card-label">Neplaćeni računi</p><p class="card-value">{{ invoice_summary.unpaid_sum|money_eur }}</p><p class="card-sub">{{ invoice_summary.open }} otvoreno</p></article>
 </section>
 
-<div class="finance-report-grid">
-  <section class="card finance-report-chart">
+<div class="finance-mvp-grid">
+  <section class="card">
     <div class="pro-section-head">
-      <div><p class="card-label">Novčani tok</p><h2 class="section-title">Ulaz i izlaz · 6 mjeseci</h2></div>
-      <div class="chart-legend"><span><i class="legend-in"></i>Ulaz</span><span><i class="legend-out"></i>Izlaz</span></div>
+      <div><p class="card-label">Otvorene stavke</p><h2 class="section-title">Što traži pažnju</h2></div>
+      <a href="{% page_url 'dugovanja' %}" class="btn btn-ghost btn-sm">Otvori dugovanja</a>
     </div>
-    <div class="pro-chart" data-pastoral-chart="grouped-bars" data-source="finance-cashflow-data" data-series="in,out" data-labels="Ulaz,Izlaz" aria-label="Graf financijskog toka"></div>
-  </section>
-
-  <section class="card finance-report-checklist">
-    <div class="pro-section-head"><div><p class="card-label">Kontrolna lista</p><h2 class="section-title">Prije predaje biskupiji</h2></div><span class="badge badge-pending">u pripremi</span></div>
-    <ul class="report-checklist">
-      <li class="is-done"><span>✓</span><div><strong>Blagajnički dnevnici</strong><small>{{ year_summary.count }} unosa uključeno</small></div></li>
-      <li class="{% if stats.luknoUnpaid == 0 %}is-done{% endif %}"><span>{% if stats.luknoUnpaid == 0 %}✓{% else %}{{ stats.luknoUnpaid }}{% endif %}</span><div><strong>Evidencija lukna</strong><small>{{ stats.luknoPaid }} plaćeno sve · {{ stats.luknoUnpaid }} nije</small></div></li>
-      <li class="{% if not stats.debtCategories %}is-done{% endif %}"><span>{% if not stats.debtCategories %}✓{% else %}!{% endif %}</span><div><strong>Otvorene obveze</strong><small>{% if stats.debtCategories %}Potrebna provjera dugovanja{% else %}Nema otvorenih kategorija{% endif %}</small></div></li>
-      <li><span>↗</span><div><strong>Odobrenje ŽEV-a</strong><small>Digitalni tijek odobravanja — sljedeća faza</small></div></li>
-    </ul>
-    <button type="button" class="btn btn-primary btn-sm btn-block" disabled title="Vizualni prototip — predaja će se povezati s backendom">Pripremi paket za predaju</button>
-  </section>
-</div>
-
-<section class="card quarter-board">
-  <div class="pro-section-head"><div><p class="card-label">Godišnji ciklus</p><h2 class="section-title">Status kvartalnih izvješća</h2></div><span class="card-sub">Standardizirani tijek: priprema → pregled → odobreno → predano</span></div>
-  <div class="quarter-card-grid">
-    {% for row in quarter_rows %}
-    <a href="?year={{ report_year }}&q={{ row.quarter }}" class="quarter-card {% if row.quarter == report_quarter %}is-active{% endif %}">
-      <span class="quarter-card-top"><strong>Q{{ row.quarter }}</strong><span class="badge">{{ row.status }}</span></span>
-      <span class="progress-track"><span style="width:{{ row.progress }}%"></span></span>
-      <span class="quarter-money"><small>Ulaz <b>{{ row.in_sum|money_eur }}</b></small><small>Izlaz <b>{{ row.out_sum|money_eur }}</b></small></span>
-      <span class="quarter-card-foot"><small>{{ row.count }} stavki</small><strong>{{ row.progress }}% spremno</strong></span>
-    </a>
-    {% endfor %}
-  </div>
-</section>
-
-<div class="finance-report-grid finance-report-grid--bottom">
-  <section class="card">
-    <div class="pro-section-head"><div><p class="card-label">Pastoralno-financijska slika</p><h2 class="section-title">Ključne evidencije</h2></div></div>
-    <div class="report-mini-metrics">
-      <a href="{% page_url 'nakane' %}"><small>Nakane ovaj mjesec</small><strong>{{ stats.intentionsMonth }}</strong><em>{{ stats.paidPct }}% plaćeno</em></a>
-      <a href="{% page_url 'obitelji' %}"><small>Lukno — plaćeno sve</small><strong>{{ stats.luknoPaid }}</strong><em>{{ stats.luknoUnpaid }} nije plaćeno sve</em></a>
-      <a href="{% page_url 'dugovanja' %}"><small>Kategorije obveza</small><strong>{{ stats.debtCategories|length }}</strong><em>za provjeru i zatvaranje</em></a>
-      <a href="{% page_url 'blagajna' %}"><small>Stipendiji mjeseca</small><strong>{{ stats.stipendSum|floatformat:0 }} €</strong><em>iz evidentiranih nakana</em></a>
+    <div class="finance-action-list">
+      <a href="{% page_url 'racuni' %}?year={{ report_year }}"><span><strong>Ulazni računi za platiti</strong><small>{{ invoice_summary.open }} računa u {{ report_year }}.</small></span><b>{{ invoice_summary.unpaid_sum|money_eur }}</b></a>
+      <a href="{% page_url 'dugovanja' %}?view=zupa-duguje"><span><strong>Ostale obveze župe</strong><small>{{ finance_obligations.payable_count }} otvorenih stavki.</small></span><b>{{ finance_obligations.payable_sum|money_eur }}</b></a>
+      <a href="{% page_url 'dugovanja' %}?view=prema-zupi"><span><strong>Potraživanja prema župi</strong><small>{{ finance_obligations.receivable_count }} otvorenih stavki.</small></span><b>{{ finance_obligations.receivable_sum|money_eur }}</b></a>
     </div>
   </section>
 
   <section class="card">
-    <div class="pro-section-head"><div><p class="card-label">Struktura</p><h2 class="section-title">Prihodi i rashodi po kategoriji</h2></div></div>
-    {% if report_charts.categories %}
+    <div class="pro-section-head">
+      <div><p class="card-label">Struktura</p><h2 class="section-title">Prihodi i rashodi po kategoriji</h2></div>
+      <a href="{% page_url 'blagajna' %}?year={{ report_year }}" class="btn btn-ghost btn-sm">Otvori blagajnu</a>
+    </div>
+    {% if finance_categories %}
     <div class="category-ledger-list">
-      {% for category in report_charts.categories %}
-      <div><span><strong>{{ category.label }}</strong><small>kategorija knjiženja</small></span><span class="amount-positive">+{{ category.in|money_eur }}</span><span class="amount-negative">−{{ category.out|money_eur }}</span></div>
+      {% for category in finance_categories %}
+      <div><span><strong>{{ category.label }}</strong></span><span class="amount-positive">+{{ category.in|money_eur }}</span><span class="amount-negative">−{{ category.out|money_eur }}</span></div>
       {% endfor %}
     </div>
-    {% else %}<p class="empty-state">Nema kategorija za odabranu godinu.</p>{% endif %}
+    {% else %}<p class="empty-state">Nema knjiženja za odabranu godinu.</p>{% endif %}
   </section>
 </div>
-
-{{ report_charts.cashflow|json_script:"finance-cashflow-data" }}
-{% endblock %}
-
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="{% static 'js/dashboard-insights.js' %}"></script>
 {% endblock %}

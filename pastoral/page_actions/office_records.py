@@ -6,8 +6,15 @@ from typing import TYPE_CHECKING
 import uuid
 
 from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.db import transaction
 
-from pastoral.forms import RegistryBookForm, StreetForm, VisitForm
+from pastoral.forms import (
+    RegistryBookForm,
+    RegistryRecordForm,
+    StreetForm,
+    VisitForm,
+)
 from pastoral.services.api_actions import (
     delete_street,
     import_public_submission,
@@ -15,9 +22,11 @@ from pastoral.services.api_actions import (
     toggle_visit_done,
     upsert_street,
     upsert_visit,
+    upsert_confirmation_candidate,
 )
-from pastoral.services.document_import import delete_binding, save_binding
-from pastoral.services.documents import get_template
+from pastoral.services.mutations import add_sacrament_record, update_sacrament_record
+from pastoral.services.baptism_records import synchronize_baptism_record
+from pastoral.services.registry_entry_records import synchronize_registry_entry
 
 if TYPE_CHECKING:
     from pastoral.services.data import ParishDataService
@@ -74,21 +83,56 @@ def handle_office_records_action(
         if not public_submission:
             messages.error(request, 'Prijava nije pronađena.')
             return True
-        selected_year = int(request.POST.get('year') or date.today().year)
+        if public_submission.get('status') != 'nova':
+            messages.error(
+                request,
+                'Samo novu prijavu moguće je uvesti u evidenciju.',
+            )
+            return True
+        if not public_submission.get('consentGranted'):
+            messages.error(
+                request,
+                'Prijavu nije moguće uvesti jer privola nije evidentirana.',
+            )
+            return True
+        try:
+            selected_year = int(
+                request.POST.get('year') or date.today().year
+            )
+        except (TypeError, ValueError):
+            messages.error(request, 'Godina upisa nije ispravna.')
+            return True
         normalize_parish_data(parish_data)
         operation_result = import_public_submission(
             parish_data,
             {'submission': public_submission, 'year': selected_year},
         )
         if operation_result.get('ok'):
-            parish_data_service.save(parish_data)
+            with transaction.atomic():
+                parish_data_service.save(parish_data)
+                if public_submission.get('type') in {
+                    'krstenje', 'prijava-krsenje',
+                } or public_submission.get('formType') in {
+                    'krstenje', 'prijava-krsenje',
+                }:
+                    newest_baptism = parish_data.get('baptisms', [])[-1]
+                    synchronize_baptism_record(
+                        parish_data_service.parish,
+                        newest_baptism,
+                        actor=request.user,
+                    )
             messages.success(request, 'Prijava uvezena u evidenciju.')
         else:
             messages.error(request, 'Uvoz nije uspio.')
         return True
 
     if (
-        action_name == 'mark_submission_imported'
+        action_name in {
+            'mark_submission_imported',
+            'archive_submission',
+            'mark_submission_duplicate',
+            'reopen_submission',
+        }
         and page_slug == 'javne-prijave'
     ):
         submission_id = request.POST.get('submission_id', '')
@@ -101,13 +145,28 @@ def handle_office_records_action(
             None,
         )
         if public_submission:
-            public_submission['status'] = 'preuzeto'
+            submission_statuses = {
+                'mark_submission_imported': 'preuzeto',
+                'archive_submission': 'arhivirano',
+                'mark_submission_duplicate': 'duplikat',
+                'reopen_submission': 'nova',
+            }
+            public_submission['status'] = submission_statuses[action_name]
             parish_data_service.save(parish_data)
-            messages.success(request, 'Prijava označena kao preuzeta.')
+            status_messages = {
+                'mark_submission_imported': 'Prijava je označena kao preuzeta.',
+                'archive_submission': 'Prijava je arhivirana bez uvoza.',
+                'mark_submission_duplicate': 'Prijava je označena kao duplikat.',
+                'reopen_submission': 'Prijava je vraćena među nove.',
+            }
+            messages.success(request, status_messages[action_name])
         return True
 
     if action_name == 'upsert_visit' and page_slug == 'posjete':
-        visit_form = VisitForm(request.POST)
+        visit_form = VisitForm(
+            request.POST,
+            families=parish_data.get('families', []),
+        )
         if visit_form.is_valid():
             cleaned_data = visit_form.cleaned_data
             visit_payload = {
@@ -213,48 +272,347 @@ def handle_office_records_action(
             messages.error(request, 'Provjerite unos.')
         return True
 
+    if action_name == 'add_registry_year' and page_slug == 'maticne-knjige':
+        registry_book_id = request.POST.get('book_id', '')
+        registry_year_value = request.POST.get('registry_year', '').strip()
+        try:
+            registry_year = int(registry_year_value)
+        except ValueError:
+            registry_year = None
+
+        if registry_year is None or registry_year < 1000 or registry_year > 9999:
+            messages.error(request, 'Upišite valjanu godinu s četiri znamenke.')
+            return True
+
+        registry_book = next(
+            (
+                existing_book
+                for existing_book in parish_data.get('registryBooks', [])
+                if existing_book.get('id') == registry_book_id
+            ),
+            None,
+        )
+        if not registry_book:
+            messages.error(request, 'Matična knjiga nije pronađena.')
+            return True
+
+        configured_years = registry_book.setdefault('years', [])
+        normalized_years = {
+            int(existing_year)
+            for existing_year in configured_years
+            if str(existing_year).isdigit()
+        }
+        if registry_year in normalized_years:
+            messages.info(request, f'{registry_year}. godina već postoji u knjizi.')
+            return True
+
+        normalized_years.add(registry_year)
+        registry_book['years'] = sorted(normalized_years, reverse=True)
+        parish_data_service.save(parish_data)
+        messages.success(request, f'{registry_year}. godina dodana je u matičnu knjigu.')
+        return True
+
+    if action_name == 'add_registry_record' and page_slug == 'maticne-knjige':
+        registry_book_id = request.POST.get('book_id', '')
+        try:
+            registry_year = int(request.POST.get('registry_year', ''))
+        except ValueError:
+            registry_year = None
+
+        registry_book = next(
+            (
+                existing_book
+                for existing_book in parish_data.get('registryBooks', [])
+                if existing_book.get('id') == registry_book_id
+            ),
+            None,
+        )
+        if not registry_book or registry_year is None:
+            messages.error(request, 'Matična knjiga ili godina nije pronađena.')
+            return True
+
+        registry_type = registry_book.get('type', 'ostalo')
+        registry_record_form = RegistryRecordForm(
+            request.POST,
+            registry_type=registry_type,
+            selected_year=registry_year,
+        )
+        if not registry_record_form.is_valid():
+            messages.error(request, 'Provjerite obvezna polja novog zapisa.')
+            return True
+
+        cleaned_data = registry_record_form.cleaned_data
+        record_date = cleaned_data['record_date']
+        if record_date.year != registry_year:
+            messages.error(
+                request,
+                f'Datum zapisa mora pripadati {registry_year}. godini.',
+            )
+            return True
+
+        record_date_value = record_date.isoformat()
+        shared_record_values = {
+            'registryNo': cleaned_data.get('registry_number') or '',
+            'celebrant': cleaned_data.get('celebrant') or '',
+            'status': cleaned_data.get('status') or 'upisano',
+        }
+        baptism_record = None
+        registry_source_record = None
+        if registry_type == 'krštenja':
+            baptism_record = add_sacrament_record(parish_data, 'baptisms', {
+                **shared_record_values,
+                'childName': cleaned_data['subject_name'],
+                'baptismDate': record_date_value,
+                'birthDate': (
+                    cleaned_data['birth_date'].isoformat()
+                    if cleaned_data.get('birth_date')
+                    else ''
+                ),
+                'parents': cleaned_data.get('related_people') or '',
+                'godparents': cleaned_data.get('sponsors') or '',
+                'stipend': 0,
+                'stipendPaid': False,
+            })
+        elif registry_type == 'vjenčanja':
+            registry_source_record = add_sacrament_record(parish_data, 'weddings', {
+                **shared_record_values,
+                'couple': cleaned_data['subject_name'],
+                'weddingDate': record_date_value,
+                'church': cleaned_data.get('place') or '',
+                'witnesses': cleaned_data.get('related_people') or '',
+                'stipend': 0,
+                'stipendPaid': False,
+            })
+        elif registry_type == 'umrli':
+            registry_source_record = add_sacrament_record(parish_data, 'funerals', {
+                **shared_record_values,
+                'deceased': cleaned_data['subject_name'],
+                'funeralDate': record_date_value,
+                'deathDate': (
+                    cleaned_data['birth_date'].isoformat()
+                    if cleaned_data.get('birth_date')
+                    else ''
+                ),
+                'cemetery': cleaned_data.get('place') or '',
+                'stipend': 0,
+                'stipendPaid': False,
+            })
+        elif registry_type == 'krizma':
+            operation_result = upsert_confirmation_candidate(parish_data, {
+                'year': registry_year,
+                'name': cleaned_data['subject_name'],
+                'birthDate': (
+                    cleaned_data['birth_date'].isoformat()
+                    if cleaned_data.get('birth_date')
+                    else ''
+                ),
+                'baptized': (
+                    cleaned_data['baptism_date'].isoformat()
+                    if cleaned_data.get('baptism_date')
+                    else ''
+                ),
+                'sponsor': cleaned_data.get('sponsors') or '',
+                'status': cleaned_data.get('status') or 'upisano',
+            })
+            confirmation_candidate = operation_result.get('item', {})
+            registry_source_record = confirmation_candidate
+            confirmation_candidate['registryNo'] = (
+                cleaned_data.get('registry_number') or ''
+            )
+            confirmation_group = next(
+                (
+                    existing_group
+                    for existing_group in parish_data.get('confirmations', [])
+                    if existing_group.get('year') == registry_year
+                ),
+                None,
+            )
+            if confirmation_group:
+                confirmation_group['ceremonyDate'] = record_date_value
+                if cleaned_data.get('celebrant'):
+                    confirmation_group['bishop'] = cleaned_data['celebrant']
+        else:
+            add_sacrament_record(parish_data, 'registryEntries', {
+                'bookId': registry_book_id,
+                'year': registry_year,
+                'registryNo': cleaned_data.get('registry_number') or '',
+                'subjectName': cleaned_data['subject_name'],
+                'recordDate': record_date_value,
+                'place': cleaned_data.get('place') or '',
+                'celebrant': cleaned_data.get('celebrant') or '',
+                'status': cleaned_data.get('status') or 'upisano',
+            })
+
+        if record_date_value >= registry_book.get('lastEntry', ''):
+            registry_book['lastEntry'] = record_date_value
+            if cleaned_data.get('registry_number'):
+                registry_book['lastNo'] = cleaned_data['registry_number']
+        try:
+            with transaction.atomic():
+                parish_data_service.save(parish_data)
+                if baptism_record:
+                    synchronize_baptism_record(
+                        parish_data_service.parish,
+                        baptism_record,
+                        actor=request.user,
+                    )
+                elif registry_source_record and registry_type in {
+                    'vjenčanja', 'umrli', 'krizma',
+                }:
+                    synchronize_registry_entry(
+                        parish_data_service.parish,
+                        registry_book_id,
+                        registry_year,
+                        registry_type,
+                        registry_source_record['id'],
+                        cleaned_data.get('registry_number') or '',
+                        actor=request.user,
+                    )
+        except ValidationError as validation_error:
+            messages.error(request, ' '.join(validation_error.messages))
+            return True
+        messages.success(request, 'Novi matični zapis je spremljen.')
+        return True
+
+    if action_name == 'update_registry_record' and page_slug == 'maticne-knjige':
+        registry_book_id = request.POST.get('book_id', '')
+        source_identifier = request.POST.get('record_id', '')
+        try:
+            registry_year = int(request.POST.get('registry_year', ''))
+        except ValueError:
+            registry_year = None
+        registry_book = next((
+            existing_book
+            for existing_book in parish_data.get('registryBooks', [])
+            if existing_book.get('id') == registry_book_id
+        ), None)
+        if not registry_book or registry_year is None or not source_identifier:
+            messages.error(request, 'Matični zapis nije pronađen.')
+            return True
+
+        registry_type = registry_book.get('type', 'ostalo')
+        registry_record_form = RegistryRecordForm(
+            request.POST,
+            registry_type=registry_type,
+            selected_year=registry_year,
+        )
+        if not registry_record_form.is_valid():
+            messages.error(request, 'Provjerite unesene podatke zapisa.')
+            return True
+        cleaned_data = registry_record_form.cleaned_data
+        record_date = cleaned_data['record_date']
+        if record_date.year != registry_year:
+            messages.error(
+                request, f'Datum zapisa mora pripadati {registry_year}. godini.'
+            )
+            return True
+
+        record_date_value = record_date.isoformat()
+        shared_values = {
+            'celebrant': cleaned_data.get('celebrant') or '',
+            'status': cleaned_data.get('status') or 'upisano',
+        }
+        updated = False
+        if registry_type == 'krštenja':
+            updated = update_sacrament_record(
+                parish_data, 'baptisms', source_identifier, {
+                    **shared_values,
+                    'childName': cleaned_data['subject_name'],
+                    'baptismDate': record_date_value,
+                    'birthDate': (
+                        cleaned_data['birth_date'].isoformat()
+                        if cleaned_data.get('birth_date') else ''
+                    ),
+                    'parents': cleaned_data.get('related_people') or '',
+                    'godparents': cleaned_data.get('sponsors') or '',
+                },
+            )
+        elif registry_type == 'vjenčanja':
+            updated = update_sacrament_record(
+                parish_data, 'weddings', source_identifier, {
+                    **shared_values,
+                    'couple': cleaned_data['subject_name'],
+                    'weddingDate': record_date_value,
+                    'church': cleaned_data.get('place') or '',
+                    'witnesses': cleaned_data.get('related_people') or '',
+                },
+            )
+        elif registry_type == 'umrli':
+            updated = update_sacrament_record(
+                parish_data, 'funerals', source_identifier, {
+                    **shared_values,
+                    'deceased': cleaned_data['subject_name'],
+                    'funeralDate': record_date_value,
+                    'deathDate': (
+                        cleaned_data['birth_date'].isoformat()
+                        if cleaned_data.get('birth_date') else ''
+                    ),
+                    'cemetery': cleaned_data.get('place') or '',
+                },
+            )
+        elif registry_type == 'krizma':
+            operation_result = upsert_confirmation_candidate(parish_data, {
+                'id': source_identifier,
+                'year': registry_year,
+                'name': cleaned_data['subject_name'],
+                'birthDate': (
+                    cleaned_data['birth_date'].isoformat()
+                    if cleaned_data.get('birth_date') else ''
+                ),
+                'baptized': (
+                    cleaned_data['baptism_date'].isoformat()
+                    if cleaned_data.get('baptism_date') else ''
+                ),
+                'sponsor': cleaned_data.get('sponsors') or '',
+                'status': cleaned_data.get('status') or 'upisano',
+            })
+            updated = operation_result.get('ok', False)
+            confirmation_group = next((
+                existing_group
+                for existing_group in parish_data.get('confirmations', [])
+                if existing_group.get('year') == registry_year
+            ), None)
+            if confirmation_group:
+                confirmation_group['ceremonyDate'] = record_date_value
+                confirmation_group['bishop'] = cleaned_data.get('celebrant') or ''
+        else:
+            updated = update_sacrament_record(
+                parish_data, 'registryEntries', source_identifier, {
+                    **shared_values,
+                    'subjectName': cleaned_data['subject_name'],
+                    'recordDate': record_date_value,
+                    'place': cleaned_data.get('place') or '',
+                },
+            )
+
+        if not updated:
+            messages.error(request, 'Matični zapis nije pronađen.')
+            return True
+        try:
+            with transaction.atomic():
+                parish_data_service.save(parish_data)
+                if registry_type in {'vjenčanja', 'umrli', 'krizma'}:
+                    synchronize_registry_entry(
+                        parish_data_service.parish,
+                        registry_book_id,
+                        registry_year,
+                        registry_type,
+                        source_identifier,
+                        '',
+                        actor=request.user,
+                    )
+        except ValidationError as validation_error:
+            messages.error(request, ' '.join(validation_error.messages))
+            return True
+        messages.success(request, 'Promjene su spremljene.')
+        return True
+
     if action_name == 'delete_registry_book' and page_slug == 'maticne-knjige':
         messages.error(
             request,
             'Matična knjiga se ne briše. Promijenite status i evidentirajte '
             'lokaciju, skrbnika te razlog promjene.',
         )
-        return True
-
-    if action_name == 'save_doc_binding' and page_slug == 'dokumenti':
-        template_id = request.POST.get('template_id', '')
-        document_template = get_template(template_id)
-        if not document_template:
-            messages.error(request, 'Predložak nije pronađen.')
-            return True
-        column_mapping = {}
-        for field_name in request.POST:
-            if field_name.startswith('map_'):
-                column_mapping[field_name[4:]] = request.POST.get(
-                    field_name,
-                    '',
-                )
-        import_data = request.session.get('doc_import') or {}
-        imported_rows = import_data.get('rows') or []
-        save_binding(
-            parish_data,
-            template_id,
-            document_template.get('name', ''),
-            import_data.get('fileName', ''),
-            column_mapping,
-            len(imported_rows),
-        )
-        parish_data_service.save(parish_data)
-        messages.success(request, 'Povezivanje stupaca spremljeno.')
-        return True
-
-    if action_name == 'delete_doc_binding' and page_slug == 'dokumenti':
-        if delete_binding(
-            parish_data,
-            request.POST.get('binding_id', ''),
-        ):
-            parish_data_service.save(parish_data)
-            messages.success(request, 'Povezivanje uklonjeno.')
         return True
 
     return False

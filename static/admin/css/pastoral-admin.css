@@ -1,7 +1,9 @@
 :root {
-  --pastoral-admin-primary: #5c2e3a;
-  --pastoral-admin-accent: #b8922a;
-  --pastoral-admin-soft: #f5eff1;
+  --pastoral-admin-soft: color-mix(
+    in srgb,
+    var(--pastoral-admin-primary, #5c2e3a) 8%,
+    #ffffff
+  );
 }
 
 #header {

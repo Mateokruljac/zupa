@@ -6,12 +6,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Prijava — Pastoral</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  {{ parish_settings|json_script:"parish-settings-data" }}
   <script src="{% static 'js/theme-init.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
   <meta name="csrf-token" content="{{ csrf_token }}">
   <script src="{% static 'js/parish-config.js' %}"></script>
   <script src="{% static 'js/theme-picker.js' %}"></script>
-  <style>:root { --tenant-primary: #5c2e3a; --tenant-accent: #b8922a; }</style>
+  <style>
+    :root {
+      --tenant-primary: {{ parish_settings.primaryColor|default:'#5c2e3a' }};
+      --tenant-accent: {{ parish_settings.accentColor|default:'#b8922a' }};
+    }
+  </style>
 </head>
 <body data-page="login" class="auth-page"{% if otp_mode %} data-otp-mode="1"{% endif %}>
   {% if messages %}
@@ -27,7 +33,9 @@
       </span>
     </div>
     <h1>Župni ured</h1>
-    <p style="color:var(--text-muted);font-size:0.9rem;margin:0">Prijava</p>
+    <p style="color:var(--text-muted);font-size:0.9rem;margin:0">
+      {% if technical_admin_login %}Prijava u tehničku administraciju{% else %}Prijava{% endif %}
+    </p>
 
     <div id="login-step-otp" class="login-step{% if not otp_mode %} hidden{% endif %}" style="margin-top:24px">
       <p id="login-otp-status" class="card-sub{% if not otp_mode %} hidden{% endif %}" style="margin:0 0 12px">

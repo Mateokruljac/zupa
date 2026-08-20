@@ -1,50 +1,127 @@
 {% extends "pastoral/base.html" %}
-{% load pastoral_tags %}
+{% load static pastoral_tags %}
 
 {% block topbar_actions %}
 <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('add-wedding-form').hidden=false">+ Vjenčanje</button>
 {% endblock %}
 
 {% block content %}
-<div class="kpi-row" style="margin-bottom:16px">
+<div class="kpi-row anointing-summary">
   <article class="card kpi-card"><p class="card-label">Vjenčanja u evidenciji</p><p class="card-value">{{ stats.total }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Nadolazeća</p><p class="card-value">{{ stats.upcoming }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Obavljena</p><p class="card-value">{{ stats.done }}</p></article>
 </div>
 
-<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
-  <div class="form-group"><label>Pretraži</label><input type="search" name="q" value="{{ filters.q }}" class="form-control"></div>
-  <button type="submit" class="btn btn-primary btn-sm">Filtriraj</button>
+<form method="get" class="card sacrament-filter-toolbar">
+  <div class="sacrament-filter-toolbar__field">
+    <label for="wedding-search">Pretraži par, datum ili status</label>
+    <input type="search" id="wedding-search" name="q" value="{{ filters.q }}" class="form-control" placeholder="Upišite pojam…">
+  </div>
+  <div class="sacrament-filter-toolbar__field sacrament-filter-toolbar__field--period">
+    <label for="wedding-period">Vrijeme</label>
+    <select id="wedding-period" name="period" class="form-control">
+      <option value="upcoming" {% if filters.period == 'upcoming' %}selected{% endif %}>Nadolazeći termini</option>
+      <option value="today" {% if filters.period == 'today' %}selected{% endif %}>Danas</option>
+      <option value="past" {% if filters.period == 'past' %}selected{% endif %}>Prošli termini</option>
+      <option value="all" {% if filters.period == 'all' %}selected{% endif %}>Svi termini</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary">Filtriraj</button>
+  {% if filters.q or filters.period != 'all' %}<a href="{% page_url 'vjencanja' %}" class="btn btn-ghost">Poništi</a>{% endif %}
 </form>
 
-<section id="add-wedding-form" class="card" style="margin-bottom:16px" hidden>
-  <h2 class="section-title">Novo vjenčanje</h2>
-  <form method="post" style="display:grid;gap:12px;max-width:640px">
+<section id="add-wedding-form" class="card sacrament-entry-card" hidden>
+  <header class="sacrament-entry-card__header">
+    <span class="sacrament-entry-card__icon" aria-hidden="true">♥</span>
+    <div>
+      <p class="card-label">Priprava za ženidbu</p>
+      <h2 class="section-title">Novo vjenčanje</h2>
+      <p class="card-sub">Unesite termin, kontakt i podatke potrebne za pripravu i slavlje.</p>
+    </div>
+  </header>
+  <form method="post" class="sacrament-entry-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="add_wedding">
-    {{ wedding_form.as_p }}
-    <button type="submit" class="btn btn-primary btn-sm">Spremi</button>
+    {{ wedding_form.non_field_errors }}
+    <div class="sacrament-entry-form__grid">
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide">{{ wedding_form.couple.label_tag }}{{ wedding_form.couple }}{{ wedding_form.couple.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ wedding_form.wedding_date.label_tag }}{{ wedding_form.wedding_date }}{{ wedding_form.wedding_date.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ wedding_form.church.label_tag }}{{ wedding_form.church }}{{ wedding_form.church.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ wedding_form.contact.label_tag }}{{ wedding_form.contact }}{{ wedding_form.contact.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ wedding_form.celebrant.label_tag }}{{ wedding_form.celebrant }}{{ wedding_form.celebrant.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ wedding_form.preparatory_sessions.label_tag }}{{ wedding_form.preparatory_sessions }}{{ wedding_form.preparatory_sessions.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ wedding_form.witnesses.label_tag }}{{ wedding_form.witnesses }}{{ wedding_form.witnesses.errors }}</div>
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide sacrament-entry-form__checkbox"><label>{{ wedding_form.documents_ok }}<span>{{ wedding_form.documents_ok.label }}</span></label>{{ wedding_form.documents_ok.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ wedding_form.status.label_tag }}{{ wedding_form.status }}{{ wedding_form.status.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ wedding_form.stipend.label_tag }}{{ wedding_form.stipend }}{{ wedding_form.stipend.errors }}</div>
+    </div>
+    <footer class="sacrament-entry-form__actions">
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-wedding-form').hidden=true">Odustani</button>
+      <button type="submit" class="btn btn-primary">Spremi vjenčanje</button>
+    </footer>
   </form>
 </section>
 
 <section class="card">
   <div class="table-wrap">
     <table class="data-table">
-      <thead><tr><th>Predmet / par</th><th>Datum</th><th>Spremnost</th><th>Stipendij</th><th></th></tr></thead>
+      <thead><tr><th>Predmet / par</th><th>Datum</th><th>Crkva</th><th>Spremnost</th><th>Stipendij</th><th></th></tr></thead>
       <tbody>
         {% for r in rows %}
         <tr>
           <td><small>{{ r.caseRef }}</small><br><strong>{{ r.couple }}</strong></td>
-          <td>{{ r.weddingDate|hr_date }}</td>
+          <td><span class="record-date-with-badge">{{ r.weddingDate|hr_date }}<span class="time-badge time-badge--{{ r.time_badge_tone }}">{{ r.time_badge_label }}</span></span></td>
+          <td>{{ r.church|default:"—" }}</td>
           <td>{% if r.workflowReady %}<span class="badge badge-done">spremno</span>{% else %}<span class="badge badge-urgent">{{ r.workflowMissing|length }} nedostaje</span>{% endif %}<br><small>{{ r.nextStep }}</small></td>
           <td>{% if r.stipendPaid %}<span class="badge badge-done">plaćeno</span>{% elif r.stipend %}<span class="badge badge-urgent">{{ r.stipend|money_eur }}</span>{% else %}—{% endif %}</td>
           <td>
-            <details class="case-inline"><summary class="btn btn-ghost btn-sm">Kontrolna lista</summary><div>{% for check in r.workflowChecks %}<span class="{% if check.done %}is-done{% endif %}">{% if check.done %}✓{% else %}!{% endif %} {{ check.label }}</span>{% endfor %}<a href="{% page_url 'dekanat' %}?compose=1&type=marriage_certificate&person={{ r.couple|urlencode }}" class="text-link">Zatraži potvrdu iz druge župe →</a></div></details>
+            <button type="button" class="btn btn-ghost btn-sm" data-sacrament-dialog="wedding-record-{{ r.id }}">Detalji</button>
           </td>
         </tr>
         {% empty %}
-        <tr><td colspan="5" class="empty-state">Nema zapisa.</td></tr>
+        <tr><td colspan="6" class="empty-state">Nema zapisa.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </section>
+
+{% for wedding_record in rows %}
+<dialog id="wedding-record-{{ wedding_record.id }}" class="sacrament-record-dialog">
+  <form method="post" class="sacrament-record-dialog__form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_wedding">
+    <input type="hidden" name="record_id" value="{{ wedding_record.id }}">
+    <header>
+      <div><p class="card-label">Detalji vjenčanja</p><h2>{{ wedding_record.couple }}</h2></div>
+      <button type="button" class="dialog-close" data-sacrament-dialog-close aria-label="Zatvori">×</button>
+    </header>
+    <div class="sacrament-entry-form__grid sacrament-record-dialog__body">
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide"><label for="couple-{{ wedding_record.id }}">Par</label><input class="form-control" id="couple-{{ wedding_record.id }}" name="couple" maxlength="200" required value="{{ wedding_record.couple }}"></div>
+      <div class="sacrament-entry-form__field"><label for="wedding-date-{{ wedding_record.id }}">Datum vjenčanja</label><input class="form-control" id="wedding-date-{{ wedding_record.id }}" name="wedding_date" type="date" value="{{ wedding_record.weddingDate }}"></div>
+      <div class="sacrament-entry-form__field"><label for="church-{{ wedding_record.id }}">Crkva</label><input class="form-control" id="church-{{ wedding_record.id }}" name="church" maxlength="160" value="{{ wedding_record.church|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="wedding-contact-{{ wedding_record.id }}">Kontakt para</label><input class="form-control" id="wedding-contact-{{ wedding_record.id }}" name="contact" maxlength="100" value="{{ wedding_record.contact|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="wedding-celebrant-{{ wedding_record.id }}">Svećenik</label><input class="form-control" id="wedding-celebrant-{{ wedding_record.id }}" name="celebrant" maxlength="100" value="{{ wedding_record.celebrant|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="preparatory-sessions-{{ wedding_record.id }}">Broj susreta priprave</label><input class="form-control" id="preparatory-sessions-{{ wedding_record.id }}" name="preparatory_sessions" type="number" min="0" value="{{ wedding_record.preparatorySessions|default:0 }}"></div>
+      <div class="sacrament-entry-form__field"><label for="witnesses-{{ wedding_record.id }}">Svjedoci</label><input class="form-control" id="witnesses-{{ wedding_record.id }}" name="witnesses" maxlength="240" value="{{ wedding_record.witnesses|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide sacrament-entry-form__checkbox"><label><input id="documents-ok-{{ wedding_record.id }}" name="documents_ok" type="checkbox" {% if wedding_record.documentsOk %}checked{% endif %}><span>Dokumenti su potpuni</span></label></div>
+      <div class="sacrament-entry-form__field"><label for="wedding-status-{{ wedding_record.id }}">Status</label><input class="form-control" id="wedding-status-{{ wedding_record.id }}" name="status" maxlength="50" value="{{ wedding_record.status|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="wedding-stipend-{{ wedding_record.id }}">Stipendij</label><input class="form-control" id="wedding-stipend-{{ wedding_record.id }}" name="stipend" type="number" min="0" step="0.01" value="{{ wedding_record.stipend|default:0 }}"></div>
+    </div>
+    <footer>
+      <button type="submit" class="btn btn-danger sacrament-record-dialog__delete-button" form="delete-wedding-{{ wedding_record.id }}">Obriši</button>
+      <button type="button" class="btn btn-ghost" data-sacrament-dialog-close>Odustani</button>
+      <button type="submit" class="btn btn-primary">Spremi promjene</button>
+    </footer>
+  </form>
+</dialog>
+<form id="delete-wedding-{{ wedding_record.id }}" method="post" data-confirm-delete data-record-label="vjenčanje za {{ wedding_record.couple }}">
+  {% csrf_token %}<input type="hidden" name="action" value="delete_wedding"><input type="hidden" name="record_id" value="{{ wedding_record.id }}">
+</form>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/modal-kit.js' %}"></script>
+<script src="{% static 'js/sacrament-record-dialog.js' %}"></script>
 {% endblock %}

@@ -1,0 +1,40 @@
+:root {
+  --primary: var(--pastoral-admin-primary, #5c2e3a);
+  --secondary: color-mix(in srgb, var(--pastoral-admin-primary, #5c2e3a) 86%, #000000);
+  --accent: var(--pastoral-admin-accent, #b8922a);
+  --primary-fg: #ffffff;
+  --header-color: #ffffff;
+  --header-branding-color: #ffffff;
+  --header-bg: var(--primary);
+  --header-link-color: #ffffff;
+  --breadcrumbs-fg: #ffffff;
+  --breadcrumbs-link-fg: #ffffff;
+  --breadcrumbs-bg: var(--secondary);
+  --link-fg: var(--primary);
+  --link-hover-color: var(--secondary);
+  --link-selected-fg: var(--accent);
+  --button-fg: #ffffff;
+  --button-bg: var(--primary);
+  --button-hover-bg: var(--secondary);
+  --default-button-bg: var(--primary);
+  --default-button-hover-bg: var(--secondary);
+}
+
+form:has(select[name="language"]),
+#language-chooser,
+.language-chooser {
+  display: none !important;
+}
+
+/* Kompaktni prikaz tehničke administracije na laptopima. */
+@media (min-width: 1101px) and (max-width: 1600px) {
+  body {
+    min-height: 149.2538vh;
+    overflow-x: hidden;
+    zoom: 0.67;
+  }
+
+  #container {
+    min-height: 149.2538vh;
+  }
+}

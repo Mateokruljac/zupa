@@ -96,10 +96,16 @@ def format_nakane_html(data: dict, week_start: str) -> str:
     return render_to_string('pastoral/listic/nakane_table.html', {'rows_html': body})
 
 
-def format_announcements(data: dict) -> str:
+def format_announcements(data: dict, body_html: str = '') -> str:
+    if body_html.strip():
+        return (
+            plain_text_to_html(body_html)
+            if '<' not in body_html
+            else body_html
+        )
     items = (data.get('announcements') or [])[:8]
     if not items:
-        return '<p>Nema aktivnih obavijesti — unesite u modulu Obavijesti.</p>'
+        return '<p>Upišite obavijesti za ovaj tjedan.</p>'
     lis = ''.join(
         f'<li><strong>{escape(a.get("title") or "")}</strong><br>{escape(a.get("body") or "")}</li>'
         for a in items
@@ -161,7 +167,7 @@ def render_block_html(block: dict, data: dict, settings: dict, week_start: str) 
     if btype == 'announcements':
         return render_to_string('pastoral/listic/section.html', {
             'title': title or 'Obavijesti župe',
-            'body_html': format_announcements(data),
+            'body_html': format_announcements(data, body_html),
         })
     if btype == 'custom_text':
         return render_to_string('pastoral/listic/section.html', {

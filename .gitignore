@@ -19,6 +19,8 @@ venv/
 # Frontend dependencies and generated output
 node_modules/
 staticfiles/
+website_project/website.sqlite3
+website_project/media/
 
 # Operating-system metadata
 .DS_Store

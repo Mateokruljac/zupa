@@ -12,6 +12,66 @@ ADMIN_REORDER = [
         ),
     },
     {
+        'label': _('Crkvena struktura'),
+        'description': _(
+            'Kontrolirani referentni podaci za Crkve sui iuris, jurisdikcije i liturgijske tradicije.'
+        ),
+        'models': (
+            'pastoral.ChurchSuiIuris',
+            'pastoral.EcclesiasticalJurisdiction',
+            'pastoral.LiturgicalTradition',
+        ),
+    },
+    {
+        'label': _('Osobe i kanonska pripadnost'),
+        'description': _(
+            'Osjetljiva tenant evidencija osoba, povijesti pripadnosti i nepromjenjivog matičnog audita.'
+        ),
+        'models': (
+            'pastoral.Person',
+            'pastoral.ChurchEnrollment',
+            'pastoral.RegistryAuditEvent',
+        ),
+    },
+    {
+        'label': _('Matične knjige — predlošci'),
+        'description': _(
+            'Verzionirani predlošci i pravila prikaza; kompatibilni predložak nije službeni obrazac.'
+        ),
+        'models': (
+            'pastoral.RegisterTemplate',
+            'pastoral.RegisterTemplateVersion',
+        ),
+    },
+    {
+        'label': _('Sakramentalna priprava'),
+        'description': _(
+            'Godine, skupine i kandidati prve pričesti i krizme, odvojeni od potvrđenih matičnih činjenica.'
+        ),
+        'models': (
+            'pastoral.FormationProgramYear',
+            'pastoral.FormationCandidate',
+        ),
+    },
+    {
+        'label': _('Matične knjige — relacijska jezgra'),
+        'description': _(
+            'Kontrolirani prijelaz postojećih zapisa u događaje, knjige i godine bez promjene aktivnog sučelja.'
+        ),
+        'models': (
+            'pastoral.RegisterBook',
+            'pastoral.RegisterBookYear',
+            'pastoral.SacramentalEvent',
+            'pastoral.EventParticipant',
+            'pastoral.BaptismDetails',
+            'pastoral.MarriageDetails',
+            'pastoral.FuneralDetails',
+            'pastoral.AnointingDetails',
+            'pastoral.RegisterEntry',
+            'pastoral.GeneralRegisterEntry',
+        ),
+    },
+    {
         'label': _('Liturgijski kalendar'),
         'description': _(
             'Kontrolirani godišnji uvoz svetaca i liturgijskih događaja koje koristi Pastoral.'
@@ -41,15 +101,6 @@ ADMIN_REORDER = [
         ),
     },
     {
-        'label': _('Javne web-stranice'),
-        'description': _('Aktivacija dodatne usluge, domene, predlošci i proizvodni buildovi.'),
-        'models': (
-            'public_site.ParishWebsite',
-            'public_site.ParishWebsiteMedia',
-            'public_site.WebsiteBuild',
-        ),
-    },
-    {
         'label': _('Control-plane audit'),
         'description': _('Nepromenjivi trag upravljačkih i sigurnosnih događaja.'),
         'models': (
@@ -61,13 +112,6 @@ ADMIN_REORDER = [
         'description': _('Nadzor OTP challengea bez prikaza samog tajnog koda.'),
         'models': (
             'pastoral.OtpChallenge',
-        ),
-    },
-    {
-        'label': _('Izgled administracije'),
-        'description': _('Vizualne postavke isključivo klasičnog Django admina.'),
-        'models': (
-            'admin_interface.Theme',
         ),
     },
 ]

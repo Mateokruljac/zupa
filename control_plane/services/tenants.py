@@ -11,30 +11,27 @@ def resolve_request_tenant(request):
     if not request.user.is_authenticated:
         return None
 
-    now = timezone.now()
+    current_date_time = timezone.now()
     memberships = (
         ParishMembership.objects
         .select_related('parish')
         .filter(
             user=request.user,
             status=ParishMembership.Status.ACTIVE,
-            valid_from__lte=now,
+            valid_from__lte=current_date_time,
         )
-        .filter(Q(valid_until__isnull=True) | Q(valid_until__gte=now))
+        .filter(
+            Q(valid_until__isnull=True)
+            | Q(valid_until__gte=current_date_time)
+        )
     )
 
-    requested_tenant_id = request.session.get('active_tenant_id')
-    membership = None
-    if requested_tenant_id:
-        membership = memberships.filter(parish__tenant_id=requested_tenant_id).first()
-        if membership is None:
-            request.session.pop('active_tenant_id', None)
-
-    if membership is None:
-        candidates = list(memberships[:2])
-        if len(candidates) == 1:
-            membership = candidates[0]
-            request.session['active_tenant_id'] = str(membership.parish.tenant_id)
+    membership_candidates = list(memberships[:2])
+    membership = (
+        membership_candidates[0]
+        if len(membership_candidates) == 1
+        else None
+    )
 
     if membership is not None:
         tenant_database = getattr(membership.parish, 'tenant_database', None)
@@ -61,4 +58,4 @@ def resolve_request_tenant(request):
                 used_legacy_fallback=True,
             )
 
-    raise PermissionDenied('Nemate aktivno članstvo ni odabranu župu.')
+    raise PermissionDenied('Morate imati točno jedno aktivno članstvo u župi.')

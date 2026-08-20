@@ -1,60 +1,89 @@
 {% extends "pastoral/base.html" %}
 {% load pastoral_tags %}
+{% load static %}
 
 {% block topbar_actions %}
-<a href="{% url 'pastoral:public_index' %}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Javni obrasci</a>
+<a href="{% url 'pastoral:public_index' %}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Otvori javne obrasce</a>
 {% endblock %}
 
 {% block content %}
-<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;align-items:end;flex-wrap:wrap">
-  <div class="form-group"><label>Pretraži</label><input type="search" name="q" value="{{ submission_filters.q }}" class="form-control" placeholder="Ime, kontakt, adresa…"></div>
-  <div class="form-group">
-    <label>Status</label>
-    <select name="status" onchange="this.form.submit()">
-      <option value="all" {% if submission_filters.status == 'all' %}selected{% endif %}>Sve</option>
-      <option value="nova" {% if submission_filters.status == 'nova' %}selected{% endif %}>Nove ({{ submission_nova_count }})</option>
-      <option value="preuzeto" {% if submission_filters.status == 'preuzeto' %}selected{% endif %}>Preuzeto</option>
-    </select>
-  </div>
-  <div class="form-group"><label>Obrazac</label><select name="type"><option value="">Svi obrasci</option>{% for form_type in submission_form_types %}<option value="{{ form_type }}" {% if submission_filters.type == form_type %}selected{% endif %}>{{ form_labels|get_item:form_type|default:form_type }}</option>{% endfor %}</select></div>
-  <button type="submit" class="btn btn-primary btn-sm">Primijeni</button>
-  {% if submission_filters.q or submission_filters.type or submission_filters.status != 'all' %}<a href="{% page_url 'javne-prijave' %}" class="btn btn-ghost btn-sm">Poništi</a>{% endif %}
-</form>
+<section class="kpi-row submission-summary" aria-label="Sažetak javnih prijava">
+  <article class="card kpi-card"><p class="card-label">Nove prijave</p><p class="card-value">{{ submission_stats.new }}</p><p class="card-sub">čekaju pregled</p></article>
+  <article class="card kpi-card"><p class="card-label">Treba provjeriti</p><p class="card-value">{{ submission_stats.review }}</p><p class="card-sub">kontakt, adresa ili duplikat</p></article>
+  <article class="card kpi-card"><p class="card-label">Obrađeno</p><p class="card-value">{{ submission_stats.processed }}</p><p class="card-sub">uvezeno ili arhivirano</p></article>
+</section>
 
-<section class="card">
-  <h2 class="section-title">Prijave s weba {% if submission_nova_count %}<span class="badge badge-urgent">{{ submission_nova_count }} novih</span>{% endif %}</h2>
+<section class="card submission-list-card">
+  <header class="submission-list-header">
+    <div><p class="card-label">Prijave s javnih obrazaca</p><h2 class="section-title">Ulazne prijave</h2></div>
+    {% if submission_nova_count %}<span class="badge badge-urgent">{{ submission_nova_count }} novih</span>{% endif %}
+  </header>
+
+  <form method="get" class="submission-filters">
+    <div class="form-group submission-filter-search"><label for="submission-search">Pretraži</label><input id="submission-search" type="search" name="q" value="{{ submission_filters.q }}" class="form-control" placeholder="Ime, kontakt ili adresa"></div>
+    <div class="form-group"><label for="submission-status">Status</label><select id="submission-status" name="status"><option value="nova" {% if submission_filters.status == 'nova' %}selected{% endif %}>Nove</option><option value="obradeno" {% if submission_filters.status == 'obradeno' %}selected{% endif %}>Obrađene</option><option value="all" {% if submission_filters.status == 'all' %}selected{% endif %}>Sve</option></select></div>
+    <div class="form-group"><label for="submission-type">Vrsta prijave</label><select id="submission-type" name="type"><option value="">Sve vrste</option>{% for form_type in submission_form_types %}<option value="{{ form_type }}" {% if submission_filters.type == form_type %}selected{% endif %}>{{ form_labels|get_item:form_type|default:form_type }}</option>{% endfor %}</select></div>
+    <button type="submit" class="btn btn-primary btn-sm">Prikaži</button>
+    {% if submission_filters.q or submission_filters.type or submission_filters.status != 'nova' %}<a href="{% page_url 'javne-prijave' %}" class="btn btn-ghost btn-sm">Poništi</a>{% endif %}
+  </form>
+
   <div class="table-wrap">
-    <table class="data-table">
-      <thead><tr><th>Obrazac</th><th>Zaprimljeno</th><th>Osoba i kontakt</th><th>Trijaža</th><th>Status</th><th></th></tr></thead>
+    <table class="data-table submission-list-table">
+      <thead><tr><th>Prijava</th><th>Zaprimljeno</th><th>Osoba i kontakt</th><th>Provjera</th><th>Status</th><th></th></tr></thead>
       <tbody>
-        {% for s in submission_rows %}
+        {% for submission in submission_rows %}
         <tr>
-          <td>{{ form_labels|get_item:s.formType|default:s.formType|default:s.type }}</td>
-          <td>{{ s.submittedAt|hr_datetime }}{% if s.ageDays != None %}<br><small>{{ s.ageDays }} dana u redu</small>{% endif %}</td>
-          <td><strong>{{ s.name|default:"—" }}</strong><br><small>{{ s.phone|default:s.email|default:"kontakt nije upisan" }}</small></td>
-          <td class="submission-triage">
-            <span class="{% if s.consentGranted %}is-ok{% else %}is-alert{% endif %}">{% if s.consentGranted %}✓{% else %}!{% endif %} privola</span>
-            <span class="{% if s.jurisdictionKnown %}is-ok{% else %}is-alert{% endif %}">{% if s.jurisdictionKnown %}✓{% else %}!{% endif %} nadležnost</span>
-            <span class="{% if s.possibleDuplicate %}is-alert{% else %}is-ok{% endif %}">{% if s.possibleDuplicate %}! mogući duplikat{% else %}✓ nema duplikata{% endif %}</span>
+          <td><strong>{{ form_labels|get_item:submission.formType|default:submission.formType|default:submission.type }}</strong></td>
+          <td>{{ submission.submittedAt|hr_datetime }}{% if submission.ageDays != None %}<small>prije {{ submission.ageDays }} dana</small>{% endif %}</td>
+          <td><strong>{{ submission.name|default:"—" }}</strong><small>{{ submission.phone|default:submission.email|default:"kontakt nije upisan" }}</small></td>
+          <td>{% if submission.triageReady %}<span class="badge badge-done">spremno</span>{% else %}<span class="badge badge-urgent">provjeriti</span><small>{{ submission.reviewReasons|join:", " }}</small>{% endif %}</td>
+          <td>
+            {% if submission.status == 'nova' %}<span class="badge badge-urgent">nova</span>
+            {% elif submission.status == 'preuzeto' %}<span class="badge badge-done">uvezena</span>
+            {% elif submission.status == 'duplikat' %}<span class="badge">duplikat</span>
+            {% elif submission.status == 'arhivirano' %}<span class="badge">arhivirana</span>
+            {% else %}<span class="badge">{{ submission.status }}</span>{% endif %}
           </td>
-          <td>{% if s.status == 'nova' %}<span class="badge badge-urgent">nova</span>{% else %}<span class="badge badge-done">preuzeto</span>{% endif %}</td>
-          <td style="white-space:nowrap">
-            {% if s.status == 'nova' %}
-            <form method="post" style="display:inline">{% csrf_token %}
-              <input type="hidden" name="action" value="import_submission">
-              <input type="hidden" name="submission_id" value="{{ s.id }}">
-              <input type="hidden" name="year" value="{{ import_year }}">
-              <button type="submit" class="btn btn-primary btn-sm" {% if not s.triageReady %}title="Trijaža nije potpuna; prije uvoza ručno provjerite upozorenja"{% endif %}>Uvezi u predmet</button>
-            </form>
-            <details class="submission-more"><summary class="btn btn-ghost btn-sm">Provjeri podatke</summary><div>{% for f in s.displayFields %}<p><small>{{ f.label }}</small><strong>{{ f.value }}</strong></p>{% endfor %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="mark_submission_imported"><input type="hidden" name="submission_id" value="{{ s.id }}"><button type="submit" class="btn btn-ghost btn-sm">Arhiviraj bez uvoza</button></form></div></details>
-            {% endif %}
-          </td>
+          <td><a href="?status={{ submission_filters.status }}{% if submission_filters.type %}&type={{ submission_filters.type }}{% endif %}{% if submission_filters.q %}&q={{ submission_filters.q|urlencode }}{% endif %}&submission={{ submission.id }}" class="btn btn-primary btn-sm">Pregledaj</a></td>
         </tr>
-        {% empty %}
-        <tr><td colspan="6" class="empty-state">Nema prijava.</td></tr>
-        {% endfor %}
+        {% empty %}<tr><td colspan="6" class="empty-state">Nema prijava u ovom prikazu.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
 </section>
+
+{% if selected_submission %}
+<dialog id="submission-detail-dialog" class="family-record-dialog submission-detail-dialog" data-record-dialog-root data-record-dialog-open>
+  <div class="submission-detail-dialog__content">
+    <header>
+      <div><p class="card-label">{{ form_labels|get_item:selected_submission.formType|default:selected_submission.formType|default:selected_submission.type }}</p><h2>{{ selected_submission.name|default:"Javna prijava" }}</h2><p>Zaprimljeno {{ selected_submission.submittedAt|hr_datetime }}</p></div>
+      <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
+    </header>
+    <div class="submission-detail-dialog__body">
+      <section class="submission-review-summary">
+        <div class="{% if selected_submission.consentGranted %}is-ok{% else %}is-alert{% endif %}"><strong>{% if selected_submission.consentGranted %}✓{% else %}!{% endif %}</strong><span>Privola<small>{% if selected_submission.consentGranted %}evidentirana{% else %}nedostaje{% endif %}</small></span></div>
+        <div class="{% if selected_submission.hasContact %}is-ok{% else %}is-alert{% endif %}"><strong>{% if selected_submission.hasContact %}✓{% else %}!{% endif %}</strong><span>Kontakt<small>{% if selected_submission.hasContact %}dostupan{% else %}nedostaje{% endif %}</small></span></div>
+        <div class="{% if selected_submission.jurisdictionKnown %}is-ok{% else %}is-alert{% endif %}"><strong>{% if selected_submission.jurisdictionKnown %}✓{% else %}!{% endif %}</strong><span>Adresa<small>{% if selected_submission.jurisdictionKnown %}prepoznata u župi{% else %}provjeriti pripadnost{% endif %}</small></span></div>
+        <div class="{% if selected_submission.possibleDuplicate %}is-alert{% else %}is-ok{% endif %}"><strong>{% if selected_submission.possibleDuplicate %}!{% else %}✓{% endif %}</strong><span>Duplikat<small>{% if selected_submission.possibleDuplicate %}moguće podudaranje{% else %}nije pronađen{% endif %}</small></span></div>
+      </section>
+      {% if selected_submission.reviewReasons %}<aside class="operational-warning"><strong>Prije odluke provjerite:</strong><span>{{ selected_submission.reviewReasons|join:", " }}</span></aside>{% endif %}
+
+      <section class="submission-field-list">
+        {% for display_field in selected_submission.displayFields %}<div><small>{{ display_field.label }}</small><strong>{{ display_field.value }}</strong></div>{% empty %}<p class="empty-state">Nema dodatnih podataka prijave.</p>{% endfor %}
+      </section>
+    </div>
+    <footer class="submission-detail-actions">
+      {% if selected_submission.status == 'nova' %}
+      <form method="post" class="submission-secondary-actions">{% csrf_token %}<input type="hidden" name="submission_id" value="{{ selected_submission.id }}"><button type="submit" name="action" value="mark_submission_duplicate" class="btn btn-ghost">Označi kao duplikat</button><button type="submit" name="action" value="archive_submission" class="btn btn-ghost">Arhiviraj bez uvoza</button></form>
+      <form method="post" class="submission-import-action">{% csrf_token %}<input type="hidden" name="action" value="import_submission"><input type="hidden" name="submission_id" value="{{ selected_submission.id }}">{% if selected_submission.formType == 'prijava-krizma' or selected_submission.formType == 'prijava-pricest' or selected_submission.type == 'prijava-krizma' or selected_submission.type == 'prijava-pricest' %}<label>Godina priprave <input type="number" name="year" value="{{ import_year }}" min="1900" max="2100"></label>{% else %}<input type="hidden" name="year" value="{{ import_year }}">{% endif %}<button type="submit" class="btn btn-primary" {% if not selected_submission.consentGranted %}disabled title="Privola nije evidentirana"{% endif %}>Uvezi u evidenciju</button></form>
+      {% else %}
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="reopen_submission"><input type="hidden" name="submission_id" value="{{ selected_submission.id }}"><button type="submit" class="btn btn-ghost">Vrati među nove</button></form>
+      {% endif %}
+      <a href="?status={{ submission_filters.status }}{% if submission_filters.type %}&type={{ submission_filters.type }}{% endif %}{% if submission_filters.q %}&q={{ submission_filters.q|urlencode }}{% endif %}" class="btn btn-secondary">Zatvori</a>
+    </footer>
+  </div>
+</dialog>
+{% endif %}
 {% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/record-dialog.js' %}"></script>{% endblock %}

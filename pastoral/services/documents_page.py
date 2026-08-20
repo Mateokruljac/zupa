@@ -1,23 +1,10 @@
-"""Stranice formulari / potvrde / dokumenti — server-side ispis."""
+"""Jedinstveni ekran za izdavanje župnih dokumenata i potvrda."""
 from __future__ import annotations
 
 from datetime import date
 
-from pastoral.services.data import ParishDataService
-from pastoral.services.documents import get_template, list_templates, load_templates, merge_template, render_template
+from pastoral.services.documents import get_template, load_templates, render_template
 from pastoral.services.matica import search_all
-
-
-CERTIFICATE_IDS = frozenset({
-    'pristupnica_krizma',
-    'potvrda_krsenja',
-    'potvrda_vjencanja',
-    'potvrda_pricest',
-    'potvrda_pogreba',
-    'potvrda_lukno',
-    'potvrda_uplate',
-    'potvrda_nakane',
-})
 
 
 def parish_doc_defaults(settings: dict) -> dict:
@@ -31,13 +18,6 @@ def parish_doc_defaults(settings: dict) -> dict:
         'danas': danas,
         'godina': str(today.year),
     }
-
-
-def filter_templates(mode: str) -> list[dict]:
-    all_tpl = load_templates()
-    if mode == 'potvrde':
-        return [t for t in all_tpl if t.get('id') in CERTIFICATE_IDS or str(t.get('id', '')).startswith('potvrda_')]
-    return all_tpl
 
 
 def templates_by_category(templates: list[dict]) -> list[dict]:
@@ -96,8 +76,8 @@ def build_field_values(request, template: dict, defaults: dict) -> dict:
     return values
 
 
-def documents_page_context(data: dict, settings: dict, request, mode: str) -> dict:
-    templates = filter_templates(mode)
+def documents_page_context(data: dict, settings: dict, request) -> dict:
+    templates = load_templates()
     selected_id = (request.GET.get('tpl') or request.POST.get('template_id') or '').strip()
     selected = get_template(selected_id) if selected_id else None
     defaults = parish_doc_defaults(settings)
@@ -105,7 +85,7 @@ def documents_page_context(data: dict, settings: dict, request, mode: str) -> di
     if request.GET.get('record_type') and request.GET.get('record_id'):
         prefill = prefill_from_matica(data, request.GET.get('record_type'), request.GET.get('record_id'))
     matica_q = (request.GET.get('q') or '').strip()
-    matica_results = search_all(data, matica_q, 12) if matica_q and mode == 'potvrde' else []
+    matica_results = search_all(data, matica_q, 12) if matica_q else []
 
     preview_html = ''
     if request.method == 'GET' and request.GET.get('preview') == '1' and selected:
@@ -118,7 +98,6 @@ def documents_page_context(data: dict, settings: dict, request, mode: str) -> di
         preview_html = render_template(selected['id'], vals)
 
     result = {
-        'doc_mode': mode,
         'doc_templates': templates,
         'doc_categories': templates_by_category(templates),
         'selected_template': selected,
@@ -128,17 +107,6 @@ def documents_page_context(data: dict, settings: dict, request, mode: str) -> di
         'matica_results': matica_results,
         'preview_html': preview_html,
     }
-    if mode == 'dokumenti':
-        import_data = request.session.get('doc_import') or {}
-        if selected_id and import_data.get('templateId') == selected_id:
-            result['import_columns'] = import_data.get('columns', [])
-            result['import_rows'] = (import_data.get('rows') or [])[:500]
-            result['import_file_name'] = import_data.get('fileName', '')
-        else:
-            result['import_columns'] = []
-            result['import_rows'] = []
-            result['import_file_name'] = ''
-        result['doc_bindings'] = data.get('docBindings', [])
     return result
 
 

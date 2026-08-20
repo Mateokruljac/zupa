@@ -18,8 +18,8 @@
     },
     "announcements": {
       "label": "Obavijesti župe",
-      "desc": "Automatski iz modula Obavijesti",
-      "auto": true
+      "desc": "Upišite obavijesti koje želite objaviti u ovom izdanju",
+      "auto": false
     },
     "custom_text": {
       "label": "Slobodni tekst",

@@ -54,7 +54,19 @@ def normalize_schedule_entry(entry: dict) -> dict:
     out.setdefault('celebrant', '')
     out.setdefault('location', '')
     out.setdefault('notes', '')
+    out.setdefault('validFrom', '')
+    out.setdefault('validUntil', '')
     return out
+
+
+def schedule_entry_applies_on_date(entry: dict, iso_date: str) -> bool:
+    valid_from = entry.get('validFrom') or ''
+    valid_until = entry.get('validUntil') or ''
+    if valid_from and iso_date < valid_from:
+        return False
+    if valid_until and iso_date > valid_until:
+        return False
+    return True
 
 
 def migrate_mass_schedule(data: dict) -> None:
@@ -77,6 +89,8 @@ def get_masses_for_date(data: dict, iso: str) -> list[dict]:
     if not exc or not exc.get('cancelAll'):
         for raw in data.get('massSchedule') or []:
             entry = normalize_schedule_entry(raw)
+            if not schedule_entry_applies_on_date(entry, iso):
+                continue
             if js_dow not in weekdays_from_entry(entry):
                 continue
             if exc and entry.get('time') in (exc.get('cancelTimes') or []):
@@ -113,6 +127,11 @@ def format_mass_schedule_html(data: dict) -> str:
         e = normalize_schedule_entry(raw)
         extra = ' · '.join(x for x in (e.get('celebrant'), e.get('notes')) if x)
         line = f'<li><strong>{escape(e.get("day") or "")}</strong> — {escape(e.get("time") or "")}'
+        valid_from = e.get('validFrom') or ''
+        valid_until = e.get('validUntil') or ''
+        if valid_from or valid_until:
+            validity = f'{valid_from or "…"} – {valid_until or "trajno"}'
+            extra = ' · '.join(value for value in (extra, validity) if value)
         if extra:
             line += f' <span class="card-sub">({escape(extra)})</span>'
         line += '</li>'

@@ -32,7 +32,7 @@ def mark_debt_paid(data: dict, source: dict) -> bool:
         n['paymentId'] = n.get('paymentId') or f"MAN-{uuid.uuid4().hex[:6].upper()}"
         n['paidAt'] = datetime.now(timezone.utc).isoformat()
         return True
-    if stype in ('baptisms', 'weddings', 'funerals', 'anointing'):
+    if stype in ('baptisms', 'weddings', 'funerals'):
         n = next((x for x in data.get(stype, []) if x.get('id') == source.get('id')), None)
         if not n:
             return False
@@ -129,6 +129,26 @@ def add_sacrament_record(data: dict, array_key: str, fields: dict) -> dict:
     item = {'id': f"{array_key[:3]}_{uuid.uuid4().hex[:8]}", **fields}
     data.setdefault(array_key, []).append(item)
     return item
+
+
+def update_sacrament_record(
+    data: dict,
+    array_key: str,
+    record_id: str,
+    fields: dict,
+) -> bool:
+    record = next(
+        (
+            existing_record
+            for existing_record in data.get(array_key, [])
+            if existing_record.get('id') == record_id
+        ),
+        None,
+    )
+    if record is None:
+        return False
+    record.update(fields)
+    return True
 
 
 def _parse_optional_date(value):

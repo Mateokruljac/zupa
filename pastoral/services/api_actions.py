@@ -9,6 +9,8 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING
 
+from django.db import transaction
+
 from pastoral.services.dates import today_iso
 from pastoral.services.api_action_handlers.families import (
     create_family,
@@ -24,6 +26,7 @@ from pastoral.services.api_action_handlers.families import (
     upsert_relative,
 )
 from pastoral.services.api_action_handlers.intentions import (
+    create_gregorian_intentions,
     create_intention,
     delete_intention,
     mark_intention_paid,
@@ -602,6 +605,7 @@ def import_krizmanici(data: dict, p: dict) -> dict:
 
 
 ACTION_HANDLERS = {
+    'create_gregorian_intentions': create_gregorian_intentions,
     'create_intention': create_intention,
     'update_intention': update_intention,
     'delete_intention': delete_intention,
@@ -687,10 +691,78 @@ SETTINGS_AWARE_ACTION_NAMES = READ_ONLY_ACTION_NAMES | frozenset({
 })
 
 
+def _public_submission_is_baptism(action_payload: dict) -> bool:
+    public_submission = action_payload.get('submission') or action_payload
+    submission_type = public_submission.get('type') or public_submission.get('formType')
+    return submission_type in {'krstenje', 'prijava-krsenje'}
+
+
+def _action_changes_baptisms(action_name: str, action_payload: dict) -> bool:
+    collection_name = action_payload.get('array_key') or action_payload.get('arrayKey')
+    if action_name in {'upsert_sacrament', 'delete_sacrament'}:
+        return collection_name == 'baptisms'
+    if action_name == 'import_public_submission':
+        return _public_submission_is_baptism(action_payload)
+    if action_name == 'mark_debt_paid':
+        return (action_payload.get('source') or {}).get('type') == 'baptisms'
+    return False
+
+
+def _synchronize_baptism_action(
+    action_name: str,
+    action_payload: dict,
+    action_result: dict,
+    parish_data: dict,
+    parish_data_service: ParishDataService,
+    previous_baptism_identifiers: set[str],
+    actor=None,
+) -> None:
+    from pastoral.services.baptism_records import (
+        cancel_synchronized_baptism,
+        synchronize_baptism_record,
+    )
+
+    if action_name == 'delete_sacrament':
+        cancel_synchronized_baptism(
+            parish_data_service.parish,
+            str(action_payload.get('id') or ''),
+            actor=actor,
+        )
+        return
+
+    baptism_record = action_result.get('item')
+    if action_name == 'mark_debt_paid':
+        source_identifier = (action_payload.get('source') or {}).get('id')
+        baptism_record = next(
+            (
+                existing_baptism
+                for existing_baptism in parish_data.get('baptisms', [])
+                if existing_baptism.get('id') == source_identifier
+            ),
+            None,
+        )
+    elif action_name == 'import_public_submission':
+        baptism_record = next(
+            (
+                existing_baptism
+                for existing_baptism in reversed(parish_data.get('baptisms', []))
+                if existing_baptism.get('id') not in previous_baptism_identifiers
+            ),
+            None,
+        )
+    if baptism_record:
+        synchronize_baptism_record(
+            parish_data_service.parish,
+            baptism_record,
+            actor=actor,
+        )
+
+
 def dispatch_action(
     action_name: str,
     action_payload: dict,
     parish_data_service: ParishDataService,
+    actor=None,
 ) -> dict:
     action_handler = ACTION_HANDLERS.get(action_name)
     if not action_handler:
@@ -702,6 +774,11 @@ def dispatch_action(
 
     parish_data = parish_data_service.load()
     normalize_parish_data(parish_data)
+    previous_baptism_identifiers = {
+        str(baptism_record.get('id'))
+        for baptism_record in parish_data.get('baptisms', [])
+        if baptism_record.get('id')
+    }
     parish_settings = parish_data_service.load_settings()
     if action_name in SETTINGS_AWARE_ACTION_NAMES:
         action_result = action_handler(
@@ -717,7 +794,20 @@ def dispatch_action(
     if not action_result.get('ok', True):
         return action_result
 
-    parish_data_service.save(parish_data)
+    if _action_changes_baptisms(action_name, action_payload):
+        with transaction.atomic():
+            parish_data_service.save(parish_data)
+            _synchronize_baptism_action(
+                action_name,
+                action_payload,
+                action_result,
+                parish_data,
+                parish_data_service,
+                previous_baptism_identifiers,
+                actor=actor,
+            )
+    else:
+        parish_data_service.save(parish_data)
     additional_response_data = {
         response_key: response_value
         for response_key, response_value in action_result.items()

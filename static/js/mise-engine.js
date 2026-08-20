@@ -1,5 +1,5 @@
 /**
- * Raspored misa — Danas / Tjedni raspored / Upravljanje (Django).
+ * Raspored misa — Danas / Tjedni raspored / Uredi raspored (Django).
  *
  * Podaci iz bootstrap JSON-a (#mise-bootstrap-data); CRUD preko PastoralApi.action().
  */
@@ -35,8 +35,8 @@
   const state = {
     massSchedule: [],
     massExceptions: [],
-    massScheduleLog: [],
     intentions: [],
+    defaultStipend: 0,
   };
 
   function esc(s) {
@@ -140,7 +140,6 @@
     if (!data) return;
     if (Array.isArray(data.massSchedule)) state.massSchedule = data.massSchedule;
     if (Array.isArray(data.massExceptions)) state.massExceptions = data.massExceptions;
-    if (Array.isArray(data.massScheduleLog)) state.massScheduleLog = data.massScheduleLog;
     if (Array.isArray(data.intentions)) state.intentions = data.intentions;
   }
 
@@ -159,7 +158,6 @@
     return {
       massSchedule: state.massSchedule,
       massExceptions: state.massExceptions,
-      massScheduleLog: state.massScheduleLog,
       intentions: state.intentions,
     };
   }
@@ -195,7 +193,15 @@
       celebrant: entry.celebrant || "",
       location: entry.location || "",
       notes: entry.notes || "",
+      validFrom: entry.validFrom || "",
+      validUntil: entry.validUntil || "",
     };
+  }
+
+  function scheduleEntryAppliesOnDate(entry, iso) {
+    if (entry.validFrom && iso < entry.validFrom) return false;
+    if (entry.validUntil && iso > entry.validUntil) return false;
+    return true;
   }
 
   function getMassesForDate(data, iso) {
@@ -206,6 +212,7 @@
     if (!exc?.cancelAll) {
       (data.massSchedule || []).forEach((raw) => {
         const entry = normalizeScheduleEntry(raw);
+        if (!scheduleEntryAppliesOnDate(entry, iso)) return;
         if (!weekdaysFromEntry(entry).includes(dow)) return;
         if ((exc?.cancelTimes || []).includes(entry.time)) return;
         slots.push({
@@ -263,37 +270,6 @@
     return `Sljedeća misa: ${upcoming.time} — ${nakane.length} nakana`;
   }
 
-  function formatMassScheduleText(data) {
-    const lines = (data.massSchedule || []).map((raw) => {
-      const e = normalizeScheduleEntry(raw);
-      const extra = [e.celebrant, e.location, e.notes].filter(Boolean).join(" · ");
-      return `${e.day} — ${e.time}${extra ? ` (${extra})` : ""}`;
-    });
-    const excLines = (data.massExceptions || [])
-      .filter((e) => e.date >= todayIso())
-      .slice(0, 8)
-      .map((e) => {
-        if (e.cancelAll) return `${fmtDate(e.date)}: nema redovitih misa${e.note ? ` — ${e.note}` : ""}`;
-        const parts = [];
-        if (e.cancelTimes?.length) parts.push(`otkaz: ${e.cancelTimes.join(", ")}`);
-        if (e.addSlots?.length) parts.push(`dodatno: ${e.addSlots.map((a) => a.time).join(", ")}`);
-        return `${fmtDate(e.date)}: ${parts.join("; ")}${e.note ? ` — ${e.note}` : ""}`;
-      });
-    return [...lines, ...(excLines.length ? ["", "Iznimke:", ...excLines] : [])].join("\n");
-  }
-
-  function formatMassScheduleHtml(data) {
-    const rows = data.massSchedule || [];
-    if (!rows.length) return "<p>Raspored misa nije unesen.</p>";
-    return `<ul class="listic-ul">${rows
-      .map((raw) => {
-        const e = normalizeScheduleEntry(raw);
-        const extra = [e.celebrant, e.notes].filter(Boolean).join(" · ");
-        return `<li><strong>${esc(e.day)}</strong> — ${esc(e.time)}${extra ? ` <span class="card-sub">(${esc(extra)})</span>` : ""}</li>`;
-      })
-      .join("")}</ul>`;
-  }
-
   function buildWeeklyGrid(data) {
     const timeSet = new Set();
     (data.massSchedule || []).forEach((e) => {
@@ -343,6 +319,9 @@
       </div>
       <div class="form-group"><label>Svećenik / služitelj</label><input name="celebrant" value="${esc(entry?.celebrant || "")}" placeholder="vlč. …" /></div>
       <div class="form-group"><label>Mjesto</label><input name="location" value="${esc(entry?.location || "")}" placeholder="Crkva, kapela…" /></div>
+      <div class="form-group"><label>Vrijedi od</label><input name="validFrom" type="date" value="${entry?.validFrom || ""}" /></div>
+      <div class="form-group"><label>Vrijedi do</label><input name="validUntil" type="date" value="${entry?.validUntil || ""}" /></div>
+      <p class="card-sub form-wide">Datume ostavite praznima ako raspored vrijedi trajno.</p>
       <div class="form-group form-wide"><label>Napomena</label><input name="notes" value="${esc(entry?.notes || "")}" placeholder="npr. samo ljeti" /></div>`;
   }
 
@@ -358,6 +337,12 @@
       showToast("Odaberite barem jedan dan");
       return null;
     }
+    const validFrom = fd.get("validFrom") || "";
+    const validUntil = fd.get("validUntil") || "";
+    if (validFrom && validUntil && validFrom > validUntil) {
+      showToast("Datum završetka mora biti nakon početnog datuma");
+      return null;
+    }
     return {
       time: String(time).slice(0, 5),
       weekdays,
@@ -365,6 +350,8 @@
       celebrant: fd.get("celebrant")?.trim() || "",
       location: fd.get("location")?.trim() || "",
       notes: fd.get("notes")?.trim() || "",
+      validFrom,
+      validUntil,
     };
   }
 
@@ -476,6 +463,25 @@
       size: "lg",
       body: exceptionFormBody(entry),
       submitLabel: "Spremi",
+      onOpen: (_overlay, form) => {
+        const updateVisibleFields = () => {
+          const exceptionType = form.querySelector('[name="excType"]')?.value;
+          form.querySelector("[data-exc-cancel-times]")?.classList.toggle(
+            "hidden",
+            exceptionType !== "cancel_times"
+          );
+          form.querySelector("[data-exc-add-time]")?.classList.toggle(
+            "hidden",
+            exceptionType !== "add"
+          );
+          form.querySelector("[data-exc-add-celebrant]")?.classList.toggle(
+            "hidden",
+            exceptionType !== "add"
+          );
+        };
+        form.querySelector('[name="excType"]')?.addEventListener("change", updateVisibleFields);
+        updateVisibleFields();
+      },
       onSubmit: (form) => {
         const fields = readExceptionForm(form);
         if (!fields) return false;
@@ -532,10 +538,10 @@
       body: `
         <div class="form-group"><label>Misa (sat)</label><input name="massTime" value="${esc(massTime)}" readonly /></div>
         <div class="form-group form-wide"><label>Za koga / namjera *</label><input name="intentionFor" required placeholder="Pokoj duše…" /></div>
-        <div class="form-group"><label>Naručitelj</label><input name="requestedBy" placeholder="Ime i prezime" /></div>
-        <div class="form-group"><label>Stipendij (€)</label><input name="stipend" type="number" min="0" value="30" /></div>
+        <div class="form-group"><label>Tko je dao nakanu</label><input name="requestedBy" placeholder="Ime i prezime" /></div>
+        <div class="form-group"><label>Prilog (€)</label><input name="stipend" type="number" min="0" step="0.01" value="${state.defaultStipend}" /></div>
         <div class="form-group form-wide"><label>Bilješka (samo za svećenika)</label><input name="notes" placeholder="Interna bilješka…" /></div>
-        <label class="form-group form-wide" style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="paid" /> Stipendij je već primljen (plaćeno)</label>`,
+        <label class="form-group form-wide" style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="paid" /> Prilog je evidentiran</label>`,
       submitLabel: "Spremi",
       onSubmit: (form) => {
         const fd = new FormData(form);
@@ -665,7 +671,7 @@
     const todayDow = new Date().getDay();
     if (!times.length) return '<p class="empty-state">Nema unesenog rasporeda.</p>';
     return `<section class="card mise-week-card">
-      <p class="card-sub">Stalni tjedni raspored — iznimke po datumu uređujte u Upravljanju.</p>
+      <p class="card-sub">Stalni tjedni raspored — posebne datume uredite u prikazu „Uredi raspored”.</p>
       <div class="table-wrap">
         <table class="data-table mise-week-table">
           <thead><tr><th>Misa</th>${WEEK_HEADERS.map((h) => `<th class="${h.dow === todayDow ? "mise-week-today-col" : ""}">${h.label}</th>`).join("")}</tr></thead>
@@ -676,8 +682,9 @@
                 if (!entry) return `<td class="mise-week-empty">—</td>`;
                 const isToday = dow === todayDow;
                 return `<td class="mise-week-cell${isToday ? " mise-week-today-col" : ""}">
-                  <span class="mise-week-dot" title="${esc(entry.notes || entry.celebrant || "Misa")}">●</span>
-                  ${entry.celebrant ? `<small>${esc(entry.celebrant.split(" ")[0])}</small>` : ""}
+                  <span class="mise-week-dot" aria-hidden="true">●</span>
+                  ${entry.celebrant ? `<small>${esc(entry.celebrant)}</small>` : '<small>Termin</small>'}
+                  ${entry.location ? `<small class="card-sub">${esc(entry.location)}</small>` : ""}
                 </td>`;
               }).join("")}</tr>`;
             })
@@ -694,8 +701,6 @@
     const exceptions = (data.massExceptions || [])
       .slice()
       .sort((a, b) => String(a.date).localeCompare(String(b.date)));
-    const log = (data.massScheduleLog || []).slice(0, 15);
-
     return `<div class="mise-manage-grid">
       <section class="card">
         <div class="mise-manage-head">
@@ -704,22 +709,24 @@
         </div>
         <div class="table-wrap">
           <table class="data-table">
-            <thead><tr><th>Dan</th><th>Misa</th><th>Svećenik</th><th>Napomena</th><th></th></tr></thead>
+            <thead><tr><th>Dan</th><th>Misa</th><th>Svećenik</th><th>Vrijedi</th><th>Napomena</th><th></th></tr></thead>
             <tbody>${scheduleRows.length
               ? scheduleRows
                   .map((e) => {
                     const n = normalizeScheduleEntry(e);
                     return `<tr>
                       <td>${esc(n.day)}</td><td><strong>${esc(n.time)}</strong></td>
-                      <td>${esc(n.celebrant || "—")}</td><td>${esc(n.notes || n.location || "—")}</td>
+                      <td>${esc(n.celebrant || "—")}</td>
+                      <td>${n.validFrom || n.validUntil ? `${esc(n.validFrom ? fmtDate(n.validFrom) : "oduvijek")} – ${esc(n.validUntil ? fmtDate(n.validUntil) : "trajno")}` : "Trajno"}</td>
+                      <td>${esc(n.notes || n.location || "—")}</td>
                       <td class="mise-table-actions">
-                        <button type="button" class="btn btn-ghost btn-sm" data-edit-schedule="${esc(n.id)}">✎</button>
-                        <button type="button" class="btn btn-ghost btn-sm" data-del-schedule="${esc(n.id)}">×</button>
+                        <button type="button" class="btn btn-ghost btn-sm" data-edit-schedule="${esc(n.id)}">Uredi</button>
+                        <button type="button" class="btn btn-ghost btn-sm" data-del-schedule="${esc(n.id)}">Obriši</button>
                       </td>
                     </tr>`;
                   })
                   .join("")
-              : `<tr><td colspan="5" class="empty-state">Nema termina — dodajte prvi.</td></tr>`}</tbody>
+              : `<tr><td colspan="6" class="empty-state">Nema termina — dodajte prvi.</td></tr>`}</tbody>
           </table>
         </div>
       </section>
@@ -742,32 +749,13 @@
                 return `<div class="list-item">
                   <div><strong>${esc(fmtDate(e.date))}</strong><br><small>${esc(desc)}</small>${e.note ? `<br><small class="card-sub">${esc(e.note)}</small>` : ""}</div>
                   <div class="mise-table-actions">
-                    <button type="button" class="btn btn-ghost btn-sm" data-edit-exception="${esc(e.id)}">✎</button>
-                    <button type="button" class="btn btn-ghost btn-sm" data-del-exception="${esc(e.id)}">×</button>
+                    <button type="button" class="btn btn-ghost btn-sm" data-edit-exception="${esc(e.id)}">Uredi</button>
+                    <button type="button" class="btn btn-ghost btn-sm" data-del-exception="${esc(e.id)}">Obriši</button>
                   </div>
                 </div>`;
               })
               .join("")}</div>`
           : '<p class="empty-state">Nema iznimki — blagdani, jednokratne promjene.</p>'}
-      </section>
-      <section class="card">
-        <div class="mise-manage-head">
-          <h2 class="section-title">Za objavu / listić</h2>
-          <button type="button" class="btn btn-ghost btn-sm" id="mise-copy-schedule">Kopiraj tekst</button>
-          <a href="${pageUrl("zupni-listic.html")}" class="btn btn-secondary btn-sm">Župni listić</a>
-        </div>
-        <div class="mise-copy-preview card-sub">${formatMassScheduleHtml(data)}</div>
-      </section>
-      <section class="card">
-        <h2 class="section-title">Povijest promjena</h2>
-        ${log.length
-          ? `<ul class="mise-log-list">${log
-              .map(
-                (l) =>
-                  `<li><small>${new Date(l.at).toLocaleString("hr-HR")}</small> — ${esc(l.summary || l.message || "")}</li>`
-              )
-              .join("")}</ul>`
-          : '<p class="empty-state">Još nema zabilježenih promjena.</p>'}
       </section>
     </div>`;
   }
@@ -784,7 +772,7 @@
            ${hint ? `<span class="mise-next-mass">${esc(hint)}</span>` : ""}`
         : mode === "week"
           ? `<strong>Tjedni raspored</strong><span class="card-sub">${(data.massSchedule || []).length} termina</span>`
-          : `<strong>Upravljanje</strong><span class="card-sub">${(data.massExceptions || []).length} iznimki</span>`;
+          : `<strong>Uredi raspored</strong><span class="card-sub">${(data.massExceptions || []).length} iznimki</span>`;
 
     return `<section class="card mise-command-bar">
       <div class="mise-command-inner">
@@ -792,7 +780,7 @@
           ${[
             ["today", "Danas"],
             ["week", "Tjedni raspored"],
-            ["manage", "Upravljanje"],
+            ["manage", "Uredi raspored"],
           ]
             .map(
               ([id, label]) =>
@@ -802,7 +790,6 @@
         </div>
         <div class="mise-command-meta">${meta}</div>
         <div class="mise-command-actions">
-          <a href="${pageUrl("nakane.html")}?date=today" class="btn btn-secondary btn-sm">Nakane</a>
           ${mode === "today" && slots.length ? `<button type="button" class="btn btn-secondary btn-sm" id="mise-print-day">Ispis dana</button>` : ""}
           ${mode === "week" ? `<button type="button" class="btn btn-ghost btn-sm" data-mise-mode="today">← Natrag</button>` : ""}
         </div>
@@ -868,15 +855,6 @@
     root.querySelectorAll("[data-del-exception]").forEach((btn) => {
       btn.addEventListener("click", () => deleteException(btn.dataset.delException, render));
     });
-    root.querySelector("#mise-copy-schedule")?.addEventListener("click", async () => {
-      const text = formatMassScheduleText(dataView());
-      try {
-        await navigator.clipboard.writeText(text);
-        showToast("Raspored kopiran u međuspremnik");
-      } catch {
-        showToast("Kopiranje nije uspjelo");
-      }
-    });
   }
 
   function render() {
@@ -899,6 +877,7 @@
 
     const boot = readBootstrap();
     syncFromData(boot);
+    state.defaultStipend = Number(boot.defaultStipend) || 0;
 
     const params = new URLSearchParams(location.search);
     const modeParam = params.get("mode");
@@ -920,5 +899,5 @@
     init();
   }
 
-  global.PastoralMise = { render, getMassesForDate, formatMassScheduleHtml };
+  global.PastoralMise = { render, getMassesForDate };
 })(typeof window !== "undefined" ? window : global);

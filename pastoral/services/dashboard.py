@@ -4,7 +4,10 @@ from __future__ import annotations
 from datetime import date
 from typing import TYPE_CHECKING
 
+from django.utils import timezone
+
 from pastoral.services.liturgical import LiturgicalService
+from pastoral.services.mass_schedule import schedule_entry_applies_on_date
 
 if TYPE_CHECKING:
     from pastoral.services.data import ParishDataService
@@ -296,18 +299,29 @@ def build_dashboard_context(parish_data_service: ParishDataService) -> dict:
         for intention in parish_data.get('intentions', [])
         if (intention.get('date') or '').startswith(current_month_prefix)
     )
-    open_tasks = sorted(
+    all_open_tasks = sorted(
         [task for task in parish_data.get('tasks', []) if not task.get('done')],
         key=lambda task: task.get('due') or '9999',
-    )[:6]
+    )
+    open_tasks = all_open_tasks[:6]
 
     weekday = current_date.isoweekday() % 7
     todays_masses = [
         mass
         for mass in parish_data.get('massSchedule', [])
         if weekday in (mass.get('weekdays') or [])
+        and schedule_entry_applies_on_date(mass, current_date.isoformat())
     ]
     todays_masses.sort(key=lambda mass: mass.get('time') or '')
+    current_time = timezone.localtime().strftime('%H:%M')
+    next_mass = next(
+        (
+            mass
+            for mass in todays_masses
+            if (mass.get('time') or '') >= current_time
+        ),
+        None,
+    )
 
     reminders = parish_data_service.collect_reminders(parish_data)
     high_priority_count = sum(
@@ -320,6 +334,7 @@ def build_dashboard_context(parish_data_service: ParishDataService) -> dict:
         'intentions_today': todays_intentions,
         'intentions_this_month': intentions_this_month,
         'open_tasks': open_tasks,
+        'open_tasks_count': len(all_open_tasks),
         'sacraments_upcoming': _collect_upcoming_sacraments(parish_data, today)[:6],
         'sacrament_pipeline': _calculate_sacrament_pipeline(
             parish_data,
@@ -328,6 +343,7 @@ def build_dashboard_context(parish_data_service: ParishDataService) -> dict:
         'work_queue': reminders[:6],
         'high_priority_count': high_priority_count,
         'today_masses': todays_masses,
+        'next_mass': next_mass,
         'unassigned_masses': sum(
             1 for mass in todays_masses if not mass.get('celebrant')
         ),

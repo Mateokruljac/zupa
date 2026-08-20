@@ -7,7 +7,13 @@
 {% endblock %}
 
 {% block content %}
-<nav class="plan-tabs" style="margin-bottom:16px">
+{% include "pastoral/partials/finance_nav.html" %}
+
+<div class="finance-page-heading">
+  <div><p class="command-eyebrow">Financije</p><h2>Dugovanja</h2><p>Potraživanja prema župi i obveze župe prema drugima.</p></div>
+</div>
+
+<nav class="plan-tabs finance-subnavigation">
   <a href="?view=prema-zupi{% if debts_filters.q %}&q={{ debts_filters.q|urlencode }}{% endif %}" class="plan-tab-btn {% if debts_view == 'prema-zupi' %}active{% endif %}">
     Prema župi {% if debts_receivable_count %}<span class="debts-cat-count">{{ debts_receivable_count }}</span>{% endif %}
   </a>
@@ -57,7 +63,7 @@
   {% endif %}
 </form>
 
-<div class="kpi-row" style="margin:16px 0">
+<div class="kpi-row finance-kpi-row">
   <article class="card kpi-card">
     <p class="card-label">{% if debts_view == 'zupa-duguje' %}Neplaćene obveze{% else %}Neplaćeno (filtar){% endif %}</p>
     <p class="card-value">{{ debts_summary.unpaid_count }}</p>
@@ -70,15 +76,15 @@
 </div>
 
 {% if debts_view == 'zupa-duguje' %}
-<section class="card" style="margin-bottom:16px">
-  <h2 class="section-title">Novo dugovanje župe</h2>
-  <form method="post" class="form-grid" style="display:grid;gap:12px;max-width:720px">
+<details class="card cashbook-entry-panel">
+  <summary><span><small class="card-label">Unos</small><strong>Novo dugovanje župe</strong></span><span class="btn btn-primary btn-sm">+ Dodaj dugovanje</span></summary>
+  <form method="post" class="cashbook-entry-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="add_parish_debt">
     {{ debt_form.as_p }}
-    <button type="submit" class="btn btn-primary btn-sm">+ Dodaj</button>
+    <div class="cashbook-entry-actions"><span class="card-sub">Unesite obvezu župe i rok plaćanja.</span><button type="submit" class="btn btn-primary btn-sm">Spremi dugovanje</button></div>
   </form>
-</section>
+</details>
 {% endif %}
 
 <section class="card page-table-section">

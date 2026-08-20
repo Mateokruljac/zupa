@@ -2,18 +2,60 @@
 {% load pastoral_tags %}
 
 {% block content %}
-<section class="card">
-  <h2 class="section-title">Inbox podsjetnika <span class="badge badge-urgent">{{ reminders|length }}</span></h2>
-  {% for r in reminders %}
-  <a href="{% reminder_link r.href %}" class="list-item list-item--clickable">
+<section class="card reminders-page-card">
+  <header class="reminders-page-header">
     <div>
-      <span class="badge">{{ r.category }}</span>
-      <strong>{{ r.title }}</strong><br><small>{{ r.sub }}</small>
+      <p class="card-label">Župni ured</p>
+      <h2 class="section-title">Svi podsjetnici</h2>
+      <p class="card-sub">Na jednom mjestu su obveze koje traže provjeru ili postupanje.</p>
     </div>
-    {% if r.priority == 'visoka' %}<span class="badge badge-urgent">hitno</span>{% endif %}
-  </a>
-  {% empty %}
-  <p class="empty-state">Nema otvorenih podsjetnika.</p>
-  {% endfor %}
+    <div class="reminders-page-summary" aria-label="Sažetak podsjetnika">
+      <span><strong>{{ reminder_count }}</strong> otvoreno</span>
+      <span class="reminders-page-summary__urgent"><strong>{{ high_priority_reminder_count }}</strong> hitno</span>
+    </div>
+  </header>
+
+  <form method="get" class="reminders-filter-form">
+    <label class="reminders-search-field">
+      <span>Pretraži</span>
+      <input type="search" name="search" value="{{ reminder_search_term }}" placeholder="Naziv, osoba ili obveza">
+    </label>
+    <label>
+      <span>Prioritet</span>
+      <select name="priority">
+        <option value="all" {% if selected_reminder_priority == 'all' %}selected{% endif %}>Svi prioriteti</option>
+        <option value="visoka" {% if selected_reminder_priority == 'visoka' %}selected{% endif %}>Hitno</option>
+        <option value="srednja" {% if selected_reminder_priority == 'srednja' %}selected{% endif %}>Redovno</option>
+      </select>
+    </label>
+    <label>
+      <span>Područje</span>
+      <select name="category">
+        <option value="all" {% if selected_reminder_category == 'all' %}selected{% endif %}>Sva područja</option>
+        {% for reminder_category in reminder_categories %}<option value="{{ reminder_category }}" {% if selected_reminder_category == reminder_category %}selected{% endif %}>{{ reminder_category|capfirst }}</option>{% endfor %}
+      </select>
+    </label>
+    <button type="submit" class="btn btn-primary">Prikaži</button>
+    {% if reminder_search_term or selected_reminder_priority != 'all' or selected_reminder_category != 'all' %}<a href="{% page_url 'podsjetnici' %}" class="btn btn-ghost">Očisti</a>{% endif %}
+  </form>
+
+  <div class="reminders-inbox">
+    {% for reminder in reminders %}
+    <article class="reminders-item reminders-item--{{ reminder.priority }}">
+      <a href="{% reminder_link reminder.href %}" class="reminders-item-main">
+        <span class="badge">{{ reminder.category }}</span>
+        <strong>{{ reminder.title }}</strong>
+        <small>{{ reminder.sub|default:"Otvori povezani zapis za više informacija." }}</small>
+      </a>
+      <div class="reminders-item-meta">
+        {% if reminder.priority == 'visoka' %}<span class="badge badge-urgent">Hitno</span>{% else %}<span class="badge">Redovno</span>{% endif %}
+        {% if reminder.due %}<small>Rok {{ reminder.due|hr_date }}</small>{% endif %}
+        <a href="{% reminder_link reminder.href %}" class="btn btn-ghost btn-sm">Otvori</a>
+      </div>
+    </article>
+    {% empty %}
+    <p class="empty-state">Nema podsjetnika koji odgovaraju odabranim filtrima.</p>
+    {% endfor %}
+  </div>
 </section>
 {% endblock %}

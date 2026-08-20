@@ -1,0 +1,36 @@
+services:
+  website_db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${WEBSITE_DB_NAME:-parish_website}
+      POSTGRES_USER: ${WEBSITE_DB_USER:-parish_website}
+      POSTGRES_PASSWORD: ${WEBSITE_DB_PASSWORD:-change-me}
+    volumes:
+      - website_database:/var/lib/postgresql/data
+    networks:
+      - public_website
+    restart: unless-stopped
+
+  website:
+    build: .
+    environment:
+      WEBSITE_DB_HOST: website_db
+      WEBSITE_DB_NAME: ${WEBSITE_DB_NAME:-parish_website}
+      WEBSITE_DB_USER: ${WEBSITE_DB_USER:-parish_website}
+      WEBSITE_DB_PASSWORD: ${WEBSITE_DB_PASSWORD:-change-me}
+      WEBSITE_SECRET_KEY: ${WEBSITE_SECRET_KEY:-development-only-change-me}
+      WEBSITE_ALLOWED_HOSTS: ${WEBSITE_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      WEBSITE_DEBUG: ${WEBSITE_DEBUG:-False}
+    depends_on:
+      - website_db
+    ports:
+      - "${WEBSITE_PORT:-8001}:8000"
+    networks:
+      - public_website
+    restart: unless-stopped
+
+networks:
+  public_website:
+
+volumes:
+  website_database:

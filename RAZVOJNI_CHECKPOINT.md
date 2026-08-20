@@ -37,7 +37,7 @@ Razmotriti opcionalni modul za izradu javne web-stranice župe. Preporučeni po�
 
 ### Implementirani demo temelj
 
-- dodana je odvojena Django aplikacija `public_site`;
+- javna web-stranica izdvojena je u samostalni projekt `website_project`;
 - aktivacija se veže uz licencno pravo `public_website`;
 - u lokalnom demo načinu zahtjev se automatski odobrava;
 - automatski se kreiraju web-stranica, rezervirana poddomena i početni proizvodni build;
@@ -55,7 +55,7 @@ Razmotriti opcionalni modul za izradu javne web-stranice župe. Preporučeni po�
 - dostupni su tenant-specifični obrasci za krštenje, prvu pričest, krizmu i dogovor ukopa;
 - dodane su sekcije o župi, župnom uredu, ispovijedi, kontaktima, karti, društvenim mrežama i donacijama;
 - web-postavke imaju zasebna polja za javni telefon, e-mail, adresu, radno vrijeme, IBAN, primatelja i opis uplate;
-- svi podaci prolaze kroz whitelistani `public_site.snapshots` sloj; obitelji, privatne bilješke, financije, podnositelji i sakramentalni zapisi nisu dio javnog snapshot-a;
+- izdvojeni projekt ne pristupa bazi e-Župe i objavljuje isključivo unaprijed odobreni `published_snapshot`; obitelji, privatne bilješke, financije, podnositelji i sakramentalni zapisi nisu dio javnog snapshot-a;
 - responzivni prikaz provjeren je na desktop i mobilnoj širini od 390 px.
 
 ## Cjenovni smjer

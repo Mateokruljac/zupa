@@ -4,7 +4,10 @@ from __future__ import annotations
 from datetime import date
 
 from pastoral.services.dates import add_days_iso, days_since, today_iso
-from pastoral.services.operations import build_work_queue
+from phase_two.module_registry import (
+    INTERPARISH_COLLABORATION_MODULE,
+    OPERATIONS_CENTER_MODULE,
+)
 
 
 def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[dict]:
@@ -13,39 +16,75 @@ def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[di
     year = date.today().year
     items: list[dict] = []
 
-    for operation in build_work_queue(data):
-        if not operation['isOpen']:
-            continue
-        needs_attention = (
-            operation['isOverdue'] or operation['isDueToday']
-            or operation.get('priority') in {'urgent', 'high'}
-            or operation['category'] in {'approval', 'rota', 'room'}
-        )
-        if not needs_attention:
-            continue
-        items.append({
-            'id': f"ops_{operation.get('itemId')}",
-            'priority': 'visoka' if operation['isOverdue'] or operation.get('priority') in {'urgent', 'high'} else 'srednja',
-            'category': 'operativa',
-            'title': operation.get('title') or operation['categoryMeta']['label'],
-            'sub': operation.get('nextAction') or operation.get('meta', ''),
-            'href': f"operativno-srediste?item={operation.get('itemId', '')}",
-            'due': operation.get('due') or today,
-        })
+    if OPERATIONS_CENTER_MODULE.is_available:
+        from phase_two.operations_center.services import build_work_queue
 
-    for req in data.get('interparishRequests') or []:
-        if req.get('direction') != 'incoming' or req.get('status') not in {'received', 'needs_info'}:
-            continue
-        due = req.get('dueAt') or today
-        items.append({
-            'id': f"dekanat_{req.get('id')}",
-            'priority': 'visoka' if req.get('priority') in {'urgent', 'high'} or due < today else 'srednja',
-            'category': 'dekanat',
-            'title': req.get('subject') or 'Novi međužupni zahtjev',
-            'sub': f"{req.get('reference', '')} · rok {due}",
-            'href': f"dekanat?request={req.get('id', '')}",
-            'due': due,
-        })
+        for operation in build_work_queue(data):
+            if not operation['isOpen']:
+                continue
+            needs_attention = (
+                operation['isOverdue'] or operation['isDueToday']
+                or operation.get('priority') in {'urgent', 'high'}
+                or operation['category'] in {'approval', 'rota', 'room'}
+            )
+            if not needs_attention:
+                continue
+            items.append({
+                'id': f"ops_{operation.get('itemId')}",
+                'priority': (
+                    'visoka'
+                    if operation['isOverdue']
+                    or operation.get('priority') in {'urgent', 'high'}
+                    else 'srednja'
+                ),
+                'category': 'operativa',
+                'title': (
+                    operation.get('title')
+                    or operation['categoryMeta']['label']
+                ),
+                'sub': (
+                    operation.get('nextAction')
+                    or operation.get('meta', '')
+                ),
+                'href': (
+                    'operativno-srediste?item='
+                    f"{operation.get('itemId', '')}"
+                ),
+                'due': operation.get('due') or today,
+            })
+
+    if INTERPARISH_COLLABORATION_MODULE.is_available:
+        for interparish_request in data.get('interparishRequests') or []:
+            if (
+                interparish_request.get('direction') != 'incoming'
+                or interparish_request.get('status')
+                not in {'received', 'needs_info'}
+            ):
+                continue
+            due_date = interparish_request.get('dueAt') or today
+            items.append({
+                'id': f"dekanat_{interparish_request.get('id')}",
+                'priority': (
+                    'visoka'
+                    if interparish_request.get('priority') in {'urgent', 'high'}
+                    or due_date < today
+                    else 'srednja'
+                ),
+                'category': 'dekanat',
+                'title': (
+                    interparish_request.get('subject')
+                    or 'Novi međužupni zahtjev'
+                ),
+                'sub': (
+                    f"{interparish_request.get('reference', '')} · rok "
+                    f'{due_date}'
+                ),
+                'href': (
+                    'dekanat?request='
+                    f"{interparish_request.get('id', '')}"
+                ),
+                'due': due_date,
+            })
 
     for s in data.get('publicSubmissions') or []:
         if s.get('status') != 'nova':
@@ -56,7 +95,7 @@ def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[di
             'category': 'prijava',
             'title': f"Nova javna prijava: {s.get('formType') or s.get('type', 'obrazac')}",
             'sub': s.get('submittedAt', ''),
-            'href': 'javne-prijave',
+            'href': f"javne-prijave?submission={s.get('id', '')}",
             'due': today,
         })
 
@@ -71,7 +110,7 @@ def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[di
             'category': 'zadatak',
             'title': t.get('title', 'Zadatak'),
             'sub': f"{t.get('category', '')} · rok {due or '—'}",
-            'href': 'kalendar',
+            'href': f"kalendar?task={t.get('id', '')}",
             'due': due or today,
         })
 
@@ -127,7 +166,7 @@ def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[di
             'category': 'posjet',
             'title': v.get('purpose') or 'Pastoralni posjet',
             'sub': f"{v.get('person') or v.get('familyLabel') or ''} · {v['scheduled']}",
-            'href': 'podsjetnici',
+            'href': 'posjete',
             'due': v['scheduled'],
         })
 

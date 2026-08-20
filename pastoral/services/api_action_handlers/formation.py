@@ -148,6 +148,40 @@ def create_first_communion_year(parish_data: dict, action_payload: dict) -> dict
     return {'ok': True, 'item': first_communion_group}
 
 
+def update_first_communion_group(
+    parish_data: dict,
+    action_payload: dict,
+) -> dict:
+    first_communion_group = find_first_communion_group(
+        parish_data,
+        int(action_payload.get('year')),
+    )
+    if not first_communion_group:
+        return {'ok': False, 'error': 'not_found'}
+
+    first_communion_group['groupName'] = (
+        action_payload.get('group_name') or ''
+    ).strip()
+    first_communion_group['ceremonyDate'] = normalize_date_value(
+        action_payload.get('ceremony_date')
+    )
+    first_communion_group['celebrant'] = (
+        action_payload.get('celebrant') or ''
+    ).strip()
+    first_communion_group['groupFee'] = float(
+        action_payload.get('group_fee') or 0
+    )
+    first_communion_group['groupFeePaid'] = bool(
+        action_payload.get('group_fee_paid')
+    )
+    if (
+        first_communion_group['groupFeePaid']
+        and not first_communion_group.get('groupFeePaidAt')
+    ):
+        first_communion_group['groupFeePaidAt'] = today_iso()
+    return {'ok': True, 'item': first_communion_group}
+
+
 def upsert_first_communion_candidate(
     parish_data: dict,
     action_payload: dict,

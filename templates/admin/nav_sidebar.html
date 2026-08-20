@@ -1,5 +1,13 @@
 {% load i18n static %}
-<link rel="stylesheet" href="{% static 'admin/css/pastoral-admin.css' %}">
+<style>
+  :root {
+    --pastoral-admin-primary: {{ technical_admin_theme.primary_color|default:'#5c2e3a' }};
+    --pastoral-admin-accent: {{ technical_admin_theme.accent_color|default:'#b8922a' }};
+    --pastoral-admin-secondary: color-mix(in srgb, var(--pastoral-admin-primary) 86%, #000000);
+  }
+</style>
+<link rel="stylesheet" href="{% static 'css/admin.css' %}?v=20260820-5">
+<link rel="stylesheet" href="{% static 'admin/css/pastoral-admin.css' %}?v=20260820-2">
 <button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="{% translate 'Toggle navigation' %}"></button>
 <nav class="sticky" id="nav-sidebar" aria-label="{% translate 'Sidebar' %}">
   <input type="search" id="nav-filter" placeholder="{% translate 'Start typing to filter…' %}" aria-label="{% translate 'Filter navigation items' %}">

@@ -1,30 +1,112 @@
 {% extends "pastoral/base.html" %}
 
 {% block content %}
-<section class="card" style="max-width:640px">
-  <h2 class="section-title">Podaci o župi</h2>
-  <form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="save_settings">
-    {{ settings_form.as_p }}
-    <button type="submit" class="btn btn-primary" style="margin-top:16px">Spremi postavke</button>
-  </form>
-</section>
+<div class="settings-page-layout">
+  <section class="card settings-card">
+    <header class="settings-card__header">
+      <span class="settings-card__icon" aria-hidden="true">⚙</span>
+      <div>
+        <p class="card-label">Postavke župe</p>
+        <h2 class="section-title">Podaci o župi</h2>
+        <p class="card-sub">Ovi podaci koriste se u dokumentima, obavijestima i zaglavlju aplikacije.</p>
+      </div>
+    </header>
 
-{% if parish_decree %}
-<section class="card" style="margin-top:20px">
-  <h2 class="section-title">Kanonski okvir</h2>
-  <p class="card-sub">{{ parish_decree.decreeRef }} · {{ parish_decree.territory }}</p>
-</section>
-{% endif %}
+    <form method="post" class="settings-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_settings">
+      {{ settings_form.non_field_errors }}
 
-<section class="card" style="margin-top:20px">
-  <h2 class="section-title">Demo podaci</h2>
-  <p class="card-sub">Vrati početnu demo bazu (kao nakon instalacije).</p>
-  <form method="post" onsubmit="return confirm('Vratiti demo podatke?');">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="reset_demo">
-    <button type="submit" class="btn btn-ghost">Vrati demo podatke</button>
-  </form>
-</section>
+      <div class="settings-form__section">
+        <h3>Osnovni podaci</h3>
+        <div class="settings-form__grid">
+          <div class="settings-form__field settings-form__field--wide">
+            {{ settings_form.name.label_tag }}
+            {{ settings_form.name }}
+            {{ settings_form.name.errors }}
+          </div>
+          <div class="settings-form__field">
+            {{ settings_form.short_name.label_tag }}
+            {{ settings_form.short_name }}
+            {% if settings_form.short_name.help_text %}<small>{{ settings_form.short_name.help_text }}</small>{% endif %}
+            {{ settings_form.short_name.errors }}
+          </div>
+          <div class="settings-form__field">
+            {{ settings_form.city.label_tag }}
+            {{ settings_form.city }}
+            {{ settings_form.city.errors }}
+          </div>
+          <div class="settings-form__field">
+            {{ settings_form.diocese.label_tag }}
+            {{ settings_form.diocese }}
+            {{ settings_form.diocese.errors }}
+          </div>
+          <div class="settings-form__field">
+            {{ settings_form.pastor.label_tag }}
+            {{ settings_form.pastor }}
+            {{ settings_form.pastor.errors }}
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-form__section">
+        <h3>Kontakt</h3>
+        <div class="settings-form__grid">
+          <div class="settings-form__field">
+            {{ settings_form.phone.label_tag }}
+            {{ settings_form.phone }}
+            {{ settings_form.phone.errors }}
+          </div>
+          <div class="settings-form__field">
+            {{ settings_form.email.label_tag }}
+            {{ settings_form.email }}
+            {{ settings_form.email.errors }}
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-form__section">
+        <h3>Misne nakane</h3>
+        <div class="settings-form__grid">
+          <div class="settings-form__field settings-form__field--wide settings-form__field--compact">
+            {{ settings_form.default_mass_intention_stipend.label_tag }}
+            {{ settings_form.default_mass_intention_stipend }}
+            {% if settings_form.default_mass_intention_stipend.help_text %}<small>{{ settings_form.default_mass_intention_stipend.help_text }}</small>{% endif %}
+            {{ settings_form.default_mass_intention_stipend.errors }}
+          </div>
+        </div>
+      </div>
+
+      <details class="settings-advanced">
+        <summary>
+          <span>Izgled aplikacije</span>
+          <small>Boje i logotip mijenjaju se samo povremeno</small>
+        </summary>
+        <div class="settings-advanced__grid settings-advanced__fields">
+          <div class="settings-form__field settings-color-field">
+            {{ settings_form.primary_color.label_tag }}
+            {{ settings_form.primary_color }}
+            {{ settings_form.primary_color.errors }}
+          </div>
+          <div class="settings-form__field settings-color-field">
+            {{ settings_form.accent_color.label_tag }}
+            {{ settings_form.accent_color }}
+            {{ settings_form.accent_color.errors }}
+          </div>
+          <div class="settings-form__field settings-form__field--wide">
+            {{ settings_form.logo_url.label_tag }}
+            {{ settings_form.logo_url }}
+            <small>Upišite poveznicu samo ako župa ima svoj logotip.</small>
+            {{ settings_form.logo_url.errors }}
+          </div>
+        </div>
+      </details>
+
+      <footer class="settings-form__actions">
+        <p>Promjene vrijede samo za ovu župu.</p>
+        <button type="submit" class="btn btn-primary">Spremi podatke</button>
+      </footer>
+    </form>
+  </section>
+</div>
 {% endblock %}

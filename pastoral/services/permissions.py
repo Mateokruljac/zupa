@@ -1,6 +1,9 @@
+from phase_two.module_registry import is_page_available
+
+
 MODULES = {
     'pregled': {'label': 'Pregled', 'pages': ['dashboard']},
-    'zupa': {'label': 'Župa i vjernici', 'pages': ['podsjetnici', 'obitelji', 'ulice', 'posjete']},
+    'zupa': {'label': 'Župa i vjernici', 'pages': ['obitelji', 'ulice', 'posjete']},
     'liturgija': {'label': 'Liturgija', 'pages': ['nakane', 'mise', 'zupni-listic']},
     'sakramenti': {
         'label': 'Sakramenti',
@@ -16,7 +19,7 @@ MODULES = {
     },
     'isprave': {
         'label': 'Isprave i matice',
-        'pages': ['formulari', 'potvrde', 'dokumenti', 'maticne-knjige'],
+        'pages': ['potvrde', 'maticne-knjige'],
     },
     'suradnja': {
         'label': 'Dekanat i suradnja',
@@ -24,15 +27,15 @@ MODULES = {
     },
     'ured': {
         'label': 'Župni ured',
-        'pages': ['operativno-srediste', 'vijeca', 'kalendar', 'javne-prijave'],
+        'pages': ['podsjetnici', 'operativno-srediste', 'vijeca', 'kalendar', 'javne-prijave'],
     },
-    'postavke': {'label': 'Postavke', 'pages': ['postavke', 'web-stranica']},
+    'postavke': {'label': 'Postavke', 'pages': ['postavke']},
 }
 
 PAGE_TO_MODULE = {}
-for mod, cfg in MODULES.items():
-    for page in cfg['pages']:
-        PAGE_TO_MODULE[page] = mod
+for module_identifier, module_configuration in MODULES.items():
+    for page in module_configuration['pages']:
+        PAGE_TO_MODULE[page] = module_identifier
 
 LOCKED_FINANCE_PAGES = frozenset(MODULES['financije-zakljucano']['pages'])
 
@@ -57,14 +60,13 @@ def can_access_page(page: str, role: str) -> bool:
     module = PAGE_TO_MODULE.get(page)
     if not module:
         return True
-    return module in role_permissions(role)
+    return module in role_permissions(role) and is_page_available(page)
 
 
 NAV = [
     {'type': 'label', 'text': 'Pregled'},
     {'type': 'link', 'page': 'dashboard', 'icon': '⊞', 'label': 'Nadzorna ploča'},
     {'type': 'label', 'text': 'Župa i vjernici'},
-    {'type': 'link', 'page': 'podsjetnici', 'icon': '🔔', 'label': 'Podsjetnici'},
     {'type': 'link', 'page': 'obitelji', 'icon': '👨‍👩‍👧', 'label': 'Obitelji'},
     {'type': 'link', 'page': 'ulice', 'icon': '🛣', 'label': 'Ulice'},
     {'type': 'link', 'page': 'posjete', 'icon': '🏠', 'label': 'Posjete'},
@@ -85,18 +87,16 @@ NAV = [
     {'type': 'link', 'page': 'blagajna', 'icon': '📒', 'label': 'Blagajna'},
     {'type': 'link', 'page': 'financijska-izvjestaja', 'icon': '📊', 'label': 'Fin. izvješća'},
     {'type': 'label', 'text': 'Isprave'},
-    {'type': 'link', 'page': 'formulari', 'icon': '🖨', 'label': 'Formulari (ispis)'},
-    {'type': 'link', 'page': 'potvrde', 'icon': '📜', 'label': 'Potvrde'},
-    {'type': 'link', 'page': 'dokumenti', 'icon': '📄', 'label': 'Dokumenti (Excel)'},
+    {'type': 'link', 'page': 'potvrde', 'icon': '📜', 'label': 'Dokumenti i potvrde'},
     {'type': 'link', 'page': 'maticne-knjige', 'icon': '📖', 'label': 'Matične knjige'},
     {'type': 'label', 'text': 'Dekanat i suradnja'},
     {'type': 'link', 'page': 'dekanat', 'icon': '⇄', 'label': 'Međužupni zahtjevi'},
     {'type': 'label', 'text': 'Župni ured'},
+    {'type': 'link', 'page': 'podsjetnici', 'icon': '🔔', 'label': 'Podsjetnici'},
     {'type': 'link', 'page': 'operativno-srediste', 'icon': '⌘', 'label': 'Operativno središte'},
     {'type': 'link', 'page': 'vijeca', 'icon': '👥', 'label': 'Vijeća ŽPV/ŽEV'},
     {'type': 'link', 'page': 'kalendar', 'icon': '📅', 'label': 'Događaji i zadaci'},
     {'type': 'link', 'page': 'javne-prijave', 'icon': '📝', 'label': 'Javne prijave'},
-    {'type': 'link', 'page': 'web-stranica', 'icon': '◎', 'label': 'Web-stranica'},
     {'type': 'link', 'page': 'postavke', 'icon': '⚙', 'label': 'Postavke'},
 ]
 
@@ -115,22 +115,26 @@ SECTION_IDS = {
 
 def group_nav_sections(nav_items: list) -> list:
     sections = []
-    current = None
+    current_section = None
     for item in nav_items:
         if item['type'] == 'label':
-            if current:
-                sections.append(current)
-            current = {
+            if current_section:
+                sections.append(current_section)
+            current_section = {
                 'id': SECTION_IDS.get(item['text'], item['text'].lower()[:12]),
                 'label': item['text'],
                 'links': [],
             }
             continue
-        if not current:
-            current = {'id': 'pregled', 'label': 'Pregled', 'links': []}
-        current['links'].append(item)
-    if current:
-        sections.append(current)
+        if not current_section:
+            current_section = {
+                'id': 'pregled',
+                'label': 'Pregled',
+                'links': [],
+            }
+        current_section['links'].append(item)
+    if current_section:
+        sections.append(current_section)
     return sections
 
 
@@ -153,34 +157,43 @@ def nav_badges_from_stats(stats: dict) -> dict:
         badges['posjete'] = stats['visits_due']
     if stats.get('interparish_pending'):
         badges['dekanat'] = stats['interparish_pending']
-    if stats.get('operations_attention'):
-        badges['operativno-srediste'] = stats['operations_attention']
     return badges
 
 
 def filter_nav(role: str, current_page: str) -> list:
-    allowed = set(role_permissions(role))
-    out = []
-    section_visible = False
+    allowed_modules = set(role_permissions(role))
+    visible_navigation_items = []
     for item in NAV:
         if item['type'] == 'label':
-            section_visible = False
-            out.append({
+            visible_navigation_items.append({
                 **item,
                 'hidden': True,
                 'section_id': SECTION_IDS.get(item['text'], item['text'].lower()[:12]),
             })
             continue
         module = PAGE_TO_MODULE.get(item['page'], 'pregled')
-        if module not in allowed:
+        if (
+            module not in allowed_modules
+            or not is_page_available(item['page'])
+        ):
             continue
-        if out and out[-1]['type'] == 'label' and out[-1].get('hidden'):
-            out[-1]['hidden'] = False
-            section_visible = True
-        out.append({
+        if (
+            visible_navigation_items
+            and visible_navigation_items[-1]['type'] == 'label'
+            and visible_navigation_items[-1].get('hidden')
+        ):
+            visible_navigation_items[-1]['hidden'] = False
+        visible_navigation_items.append({
             **item,
             'active': item['page'] == current_page or (
                 current_page == 'dashboard' and item['page'] == 'dashboard'
             ),
         })
-    return [i for i in out if not (i['type'] == 'label' and i.get('hidden'))]
+    return [
+        navigation_item
+        for navigation_item in visible_navigation_items
+        if not (
+            navigation_item['type'] == 'label'
+            and navigation_item.get('hidden')
+        )
+    ]

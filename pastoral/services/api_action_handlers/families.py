@@ -28,7 +28,11 @@ def create_family(parish_data: dict, action_payload: dict) -> dict:
         'email': (action_payload.get('email') or '').strip(),
         'status': 'aktivna',
         'preferredMass': '',
-        'pastoralNotes': '',
+        'pastoralNotes': (
+            action_payload.get('pastoral_notes')
+            or action_payload.get('pastoralNotes')
+            or ''
+        ).strip(),
         'originPlace': (
             action_payload.get('origin_place')
             or action_payload.get('originPlace')
@@ -41,6 +45,8 @@ def create_family(parish_data: dict, action_payload: dict) -> dict:
         'members': [],
         'contributions': [],
     }
+    if action_payload.get('status') in {'aktivna', 'neaktivna'}:
+        family['status'] = action_payload['status']
     if not family['surname']:
         return {'ok': False, 'error': 'surname_required'}
 

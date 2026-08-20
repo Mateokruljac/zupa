@@ -10,7 +10,6 @@
   <title>{% block title %}{{ page_title|default:"Pastoral" }}{% endblock %} — Pastoral</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
   {{ parish_settings|json_script:"parish-settings-data" }}
-  {{ office_stats|json_script:"office-stats-data" }}
   <script src="{% static 'js/theme-init.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
   <script src="{% static 'js/path-base.js' %}"></script>
@@ -51,7 +50,17 @@
           </span>
         </a>
       </div>
-      <p class="sidebar-tenant-meta" id="sidebar-tenant-meta">{{ parish_settings.city }} · {{ active_role_label|default:request.user.role_label }}</p>
+      <div class="sidebar-context">
+        <p class="sidebar-tenant-meta" id="sidebar-tenant-meta">{{ parish_settings.city }} · {{ active_role_label|default:request.user.role_label }}</p>
+        <div class="sidebar-navigation-tools" aria-label="Prikaz grupa navigacije">
+          <button type="button" id="nav-expand-all" title="Razvij sve grupe" aria-label="Razvij sve grupe navigacije">
+            <svg viewBox="0 0 18 18" aria-hidden="true"><path d="m5 7 4-4 4 4M5 11l4 4 4-4"/></svg>
+          </button>
+          <button type="button" id="nav-collapse-all" title="Skupi sve grupe" aria-label="Skupi sve grupe navigacije">
+            <svg viewBox="0 0 18 18" aria-hidden="true"><path d="m5 3 4 4 4-4M5 15l4-4 4 4"/></svg>
+          </button>
+        </div>
+      </div>
       <ul class="nav" id="sidebar-nav">
         {% for sec in nav_sections %}
         <li class="nav-section" data-nav-section="{{ sec.id }}">
@@ -74,15 +83,6 @@
         </li>
         {% endfor %}
       </ul>
-      <div class="sidebar-footer">
-        {% if request.user.is_staff %}
-        <a href="{% url 'admin:index' %}" class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:8px">Tehnička administracija</a>
-        {% endif %}
-        <form method="post" action="{% url 'pastoral:logout' %}">
-          {% csrf_token %}
-          <button type="submit" class="btn btn-ghost btn-sm" style="width:100%">Odjava</button>
-        </form>
-      </div>
     </aside>
     <button type="button" class="sidebar-backdrop" id="sidebar-backdrop" aria-label="Zatvori navigaciju" tabindex="-1"></button>
     <div class="main">
@@ -95,37 +95,25 @@
           {% if page_subtitle %}<p>{{ page_subtitle }}</p>{% endif %}
         </div>
         <div class="topbar-actions">
-          <details class="parish-switcher">
-            <summary>
-              <span class="parish-switcher-mark" aria-hidden="true">✦</span>
-              <span><small>Aktivna župa</small><strong>{{ parish_settings.shortName|default:parish_settings.name }}</strong></span>
-              <span class="parish-switcher-chev" aria-hidden="true"></span>
-            </summary>
-            <div class="parish-switcher-menu">
-              <p class="card-label">Moje župe</p>
-              <a href="{% url 'pastoral:app' %}" class="parish-option is-active">
-                <span class="parish-option-icon">✦</span>
-                <span><strong>{{ parish_settings.name }}</strong><small>{{ parish_settings.city }} · aktivna</small></span>
-                <span class="status-dot status-dot--ok"></span>
-              </a>
-              <a href="{% page_url 'postavke' %}" class="parish-option parish-option--add">
-                <span class="parish-option-icon">+</span>
-                <span><strong>Pristup drugoj župi</strong><small>Višežupni rad i ovlasti</small></span>
-              </a>
-            </div>
-          </details>
-          <a href="{% page_url 'operativno-srediste' %}" class="topbar-ops-link" title="Otvori jedinstveni operativni radni red">
-            <span aria-hidden="true">⌘</span><span>Radni red</span>
-            {% with ops_badge=nav_badges|get_item:'operativno-srediste' %}{% if ops_badge %}<b>{{ ops_badge }}</b>{% endif %}{% endwith %}
-          </a>
-          <button type="button" class="topbar-search-btn" onclick="window.PastoralPriestTools?.openGlobalSearch?.()" title="Brza pretraga (Ctrl/Cmd + K)">
-            <span aria-hidden="true">⌕</span><span>Pretraži</span><kbd>⌘K</kbd>
-          </button>
           {% block topbar_actions %}{% endblock %}
+          <div class="topbar-account-actions">
+            {% if request.user.is_staff %}
+            <a href="{% url 'admin:index' %}" class="btn btn-ghost btn-sm topbar-account-action" title="Tehnička administracija">
+              <span class="topbar-account-action__icon" aria-hidden="true">⚙</span>
+              <span>Tehnička administracija</span>
+            </a>
+            {% endif %}
+            <form method="post" action="{% url 'pastoral:logout' %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-ghost btn-sm topbar-account-action" title="Odjava">
+                <span class="topbar-account-action__icon" aria-hidden="true">↪</span>
+                <span>Odjava</span>
+              </button>
+            </form>
+          </div>
         </div>
       </header>
       <main class="content" id="main-content">
-        {% if screen_cockpit %}{% include "pastoral/partials/screen_cockpit.html" %}{% endif %}
         {% block content %}{% endblock %}
       </main>
     </div>

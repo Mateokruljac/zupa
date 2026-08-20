@@ -1,0 +1,123 @@
+{% extends "pastoral/base.html" %}
+{% load static pastoral_tags %}
+
+{% block topbar_actions %}
+<button type="button" class="btn btn-primary btn-sm" data-ops-dialog="office">+ Evidentiraj kontakt</button>
+{% endblock %}
+
+{% block content %}
+<div class="ops-center ops-center--simple">
+  <section class="ops-simple-summary" aria-label="Sažetak radnog reda">
+    <div>
+      <p class="card-label">Župni ured</p>
+      <h2 class="section-title">Radni red</h2>
+      <p class="card-sub">Uredski kontakti, rokovi i poslovi održavanja koje treba pratiti do završetka.</p>
+    </div>
+    <div class="ops-simple-summary__counts">
+      <a href="?view=attention"><strong>{{ operations_stats.attention }}</strong><span>traži pozornost</span></a>
+      <a href="?view=today"><strong>{{ operations_stats.today }}</strong><span>za danas</span></a>
+      <a href="?view=all"><strong>{{ operations_stats.open }}</strong><span>otvoreno</span></a>
+    </div>
+  </section>
+
+  <nav class="ops-quick-actions ops-quick-actions--simple" aria-label="Brze uredske radnje">
+    <button type="button" data-ops-dialog="office"><span>✉</span><strong>Kontakt ili pošta</strong><small>zabilježi i dodijeli rok</small></button>
+    <button type="button" data-ops-dialog="facility"><span>⌂</span><strong>Kvar ili održavanje</strong><small>zapiši posao i odgovornu osobu</small></button>
+    <a href="{% page_url 'podsjetnici' %}"><span>🔔</span><strong>Svi podsjetnici</strong><small>pregled obveza iz cijelog sustava</small></a>
+    <a href="{% page_url 'kalendar' %}"><span>＋</span><strong>Zadatak ili događaj</strong><small>otvori župni kalendar</small></a>
+  </nav>
+
+  <section class="ops-workspace" aria-label="Radni red župnog ureda">
+    <div class="card ops-queue-card">
+      <header class="ops-card-head">
+        <div><p class="card-label">Otvorene stavke</p><h2 class="section-title">Za postupanje</h2></div>
+        <span class="badge">{{ operations_queue|length }}</span>
+      </header>
+      <nav class="ops-filter-tabs ops-filter-tabs--simple" aria-label="Filtri radnog reda">
+        <a href="?view=attention" class="{% if operations_filters.view == 'attention' %}is-active{% endif %}">Važno</a>
+        <a href="?view=today" class="{% if operations_filters.view == 'today' %}is-active{% endif %}">Danas</a>
+        <a href="?view=inbox" class="{% if operations_filters.view == 'inbox' %}is-active{% endif %}">Kontakti</a>
+        <a href="?view=facilities" class="{% if operations_filters.view == 'facilities' %}is-active{% endif %}">Održavanje</a>
+        <a href="?view=all" class="{% if operations_filters.view == 'all' %}is-active{% endif %}">Sve</a>
+        <a href="?view=closed" class="{% if operations_filters.view == 'closed' %}is-active{% endif %}">Završeno</a>
+      </nav>
+      <form method="get" class="case-search-form ops-search-form">
+        <input type="hidden" name="view" value="{{ operations_filters.view }}">
+        <span aria-hidden="true">⌕</span>
+        <input type="search" name="q" value="{{ operations_filters.q }}" placeholder="Pretraži po nazivu, osobi ili oznaci" aria-label="Pretraži radni red">
+      </form>
+      <div class="ops-queue-list">
+        {% for operation_item in operations_queue %}
+        <a href="?view={{ operations_filters.view }}&item={{ operation_item.itemId|urlencode }}{% if operations_filters.q %}&q={{ operations_filters.q|urlencode }}{% endif %}" class="ops-queue-item {% if operations_selected.itemId == operation_item.itemId %}is-selected{% endif %}">
+          <span class="ops-item-icon ops-tone--{{ operation_item.categoryMeta.tone }}">{{ operation_item.categoryMeta.icon }}</span>
+          <span class="ops-item-main">
+            <span class="ops-item-kicker"><small>{{ operation_item.categoryMeta.short }}{% if operation_item.reference %} · {{ operation_item.reference }}{% endif %}</small><span class="case-status case-status--{{ operation_item.statusMeta.tone }}">{{ operation_item.statusMeta.label }}</span></span>
+            <strong>{{ operation_item.title }}</strong>
+            <em>{{ operation_item.nextAction|default:operation_item.meta }}</em>
+            <span class="ops-item-meta"><small>{{ operation_item.owner|default:"Nije dodijeljeno" }}</small>{% if operation_item.due %}<small class="{% if operation_item.isOverdue %}text-danger{% endif %}">{{ operation_item.due|hr_date }}</small>{% endif %}</span>
+          </span>
+        </a>
+        {% empty %}
+        <div class="empty-state-pro"><span>✓</span><strong>Nema stavki u ovom prikazu</strong><small>Promijenite filtar ili evidentirajte novi kontakt.</small></div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <article class="card ops-detail-card">
+      {% if operations_selected %}
+      <header class="ops-detail-head">
+        <div>
+          <span class="ops-detail-eyebrow">{{ operations_selected.categoryMeta.label }}{% if operations_selected.reference %} · {{ operations_selected.reference }}{% endif %}</span>
+          <h2>{{ operations_selected.title }}</h2>
+          <div class="case-detail-badges">
+            <span class="case-status case-status--{{ operations_selected.statusMeta.tone }}">{{ operations_selected.statusMeta.label }}</span>
+            {% if operations_selected.priority %}<span class="badge">Prioritet: {{ operations_selected.priority }}</span>{% endif %}
+          </div>
+        </div>
+      </header>
+
+      {% if operations_selected.isOverdue %}<div class="case-sla-alert case-sla-alert--overdue"><span>!</span><div><strong>Rok je prekoračen</strong><small>Stavka je trebala biti riješena do {{ operations_selected.due|hr_date }}.</small></div></div>{% elif operations_selected.isDueToday %}<div class="case-sla-alert"><span>⌛</span><div><strong>Rok je danas</strong><small>Riješite stavku ili je preuzmite u obradu.</small></div></div>{% endif %}
+
+      <div class="ops-facts-grid ops-facts-grid--simple">
+        <div><small>Odgovorna osoba</small><strong>{{ operations_selected.owner|default:"Nije dodijeljeno" }}</strong></div>
+        <div><small>Rok</small><strong>{% if operations_selected.due %}{{ operations_selected.due|hr_date }}{% else %}Bez roka{% endif %}</strong></div>
+        <div><small>Kontakt ili izvor</small><strong>{{ operations_selected.displaySource }}</strong></div>
+      </div>
+
+      <section class="ops-next-action"><span aria-hidden="true">→</span><div><small>Sljedeći korak</small><strong>{{ operations_selected.nextAction|default:"Preuzmite stavku u obradu ili je označite dovršenom." }}</strong></div></section>
+      {% if operations_selected.detailText %}<section class="case-description"><h3>Bilješka</h3><p>{{ operations_selected.detailText }}</p></section>{% endif %}
+
+      <section class="ops-detail-actions">
+        <div><h3>Status stavke</h3><p>Označite kada je posao preuzet ili završen.</p></div>
+        <div>
+          {% if operations_selected.isOpen and operations_selected.status != 'in_progress' %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="update_operation_status"><input type="hidden" name="collection" value="{{ operations_selected.collection }}"><input type="hidden" name="source_id" value="{{ operations_selected.sourceId }}"><input type="hidden" name="status" value="in_progress"><button class="btn btn-ghost btn-sm">Preuzmi u obradu</button></form>{% endif %}
+          {% if operations_selected.isOpen %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="update_operation_status"><input type="hidden" name="collection" value="{{ operations_selected.collection }}"><input type="hidden" name="source_id" value="{{ operations_selected.sourceId }}"><input type="hidden" name="status" value="completed"><button class="btn btn-primary btn-sm">Označi dovršenim</button></form>{% endif %}
+        </div>
+      </section>
+      {% else %}
+      <div class="empty-state-pro ops-detail-empty"><span>⌘</span><strong>Odaberite stavku</strong><small>Prikazat će se odgovorna osoba, rok i sljedeća radnja.</small></div>
+      {% endif %}
+    </article>
+  </section>
+</div>
+
+<dialog id="ops-office-dialog" class="ops-dialog">
+  <form method="post" class="ops-dialog-form">{% csrf_token %}<input type="hidden" name="action" value="create_office_entry">
+    <header><div><p class="card-label">Uredski zapis</p><h2>Evidentiraj kontakt ili poštu</h2></div><button type="button" data-ops-close aria-label="Zatvori">×</button></header>
+    <p class="ops-dialog-intro">Unesite samo podatke potrebne za daljnje postupanje.</p>
+    <div class="ops-form-grid">{% for form_field in office_entry_form %}<div class="form-group {% if form_field.name == 'subject' or form_field.name == 'note' %}ops-form-wide{% endif %}">{{ form_field.label_tag }}{{ form_field }}{% if form_field.errors %}<small class="text-danger">{{ form_field.errors|join:", " }}</small>{% endif %}</div>{% endfor %}</div>
+    <footer><button type="button" class="btn btn-ghost btn-sm" data-ops-close>Odustani</button><button class="btn btn-primary btn-sm">Evidentiraj</button></footer>
+  </form>
+</dialog>
+
+<dialog id="ops-facility-dialog" class="ops-dialog">
+  <form method="post" class="ops-dialog-form">{% csrf_token %}<input type="hidden" name="action" value="create_facility_issue">
+    <header><div><p class="card-label">Održavanje</p><h2>Prijavi kvar ili zahvat</h2></div><button type="button" data-ops-close aria-label="Zatvori">×</button></header>
+    <p class="ops-dialog-intro">Zapišite objekt, posao, odgovornu osobu i rok.</p>
+    <div class="ops-form-grid">{% for form_field in facility_issue_form %}<div class="form-group {% if form_field.name == 'title' or form_field.name == 'description' %}ops-form-wide{% endif %}">{{ form_field.label_tag }}{{ form_field }}{% if form_field.errors %}<small class="text-danger">{{ form_field.errors|join:", " }}</small>{% endif %}</div>{% endfor %}</div>
+    <footer><button type="button" class="btn btn-ghost btn-sm" data-ops-close>Odustani</button><button class="btn btn-primary btn-sm">Dodaj u radni red</button></footer>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/operations-center.js' %}"></script>{% endblock %}

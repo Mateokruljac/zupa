@@ -43,33 +43,12 @@
     return cache ? JSON.parse(JSON.stringify(cache)) : null;
   }
 
-  function setCache(data) {
-    cache = data;
-  }
-
   async function load() {
     if (cache) return getCache();
     if (!loading) loading = fetchData();
     await loading;
     loading = null;
     return getCache();
-  }
-
-  async function reload() {
-    loading = fetchData();
-    await loading;
-    loading = null;
-    return getCache();
-  }
-
-  function readOfficeStats() {
-    const el = document.getElementById("office-stats-data");
-    if (!el) return null;
-    try {
-      return JSON.parse(el.textContent);
-    } catch {
-      return null;
-    }
   }
 
   function needsParishData() {
@@ -85,35 +64,7 @@
   global.PastoralApi = {
     action,
     load,
-    reload,
-    fetchData,
     getCache,
-    setCache,
-    csrfToken,
     ensureLoaded,
-    readOfficeStats,
-  };
-
-  global.PastoralData = {
-    load() {
-      const c = getCache();
-      if (c) return JSON.parse(JSON.stringify(c));
-      return {};
-    },
-    save() {
-      console.warn("[PastoralData] save() onemogućen — koristite Django POST ili PastoralApi.action()");
-    },
-    ensureSeed() {
-      ensureLoaded().catch(() => {});
-    },
-    loadAsync: () => load(),
-    defaultData() {
-      return global.PastoralData.load();
-    },
-  };
-
-  global.PastoralDataApi = {
-    fetchFromServer: () => reload(),
-    action: (name, payload) => action(name, payload),
   };
 })(typeof window !== "undefined" ? window : global);

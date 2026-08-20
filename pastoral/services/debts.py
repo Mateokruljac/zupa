@@ -12,7 +12,6 @@ RECEIVABLE_CATEGORIES = [
     {'id': 'krizma', 'label': 'Krizma', 'color': '#6b4c9a'},
     {'id': 'vjencanje', 'label': 'Vjenčanja', 'color': '#9b2c5c'},
     {'id': 'pogreb', 'label': 'Pogrebi', 'color': '#4a4a4a'},
-    {'id': 'pomazanje', 'label': 'Pomazanje', 'color': '#b45309'},
     {'id': 'ostalo', 'label': 'Ostalo', 'color': '#6d6760'},
 ]
 
@@ -126,7 +125,6 @@ def collect_receivables(data: dict, *, only_unpaid: bool = True) -> list[dict]:
 
     sacrament('weddings', 'vjencanje', lambda w: w.get('couple', ''), lambda w: w.get('weddingDate', ''))
     sacrament('funerals', 'pogreb', lambda f: f.get('deceased', ''), lambda f: f.get('funeralDate', ''))
-    sacrament('anointing', 'pomazanje', lambda a: a.get('person', ''), lambda a: a.get('scheduled', ''))
     sacrament('baptisms', 'krsenje', lambda b: b.get('childName', ''), lambda b: b.get('baptismDate', ''))
 
     for g in data.get('firstCommunion', []):

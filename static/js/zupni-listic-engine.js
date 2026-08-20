@@ -29,15 +29,6 @@
     w.print();
   }
 
-  function toast(msg) {
-    const el = document.createElement("div");
-    el.className = "card";
-    el.style.cssText = "position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 18px";
-    el.textContent = msg;
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 2500);
-  }
-
   function api() {
     return {
       getData: () => clone(global.PastoralApi?.getCache?.() || {}),
@@ -91,7 +82,6 @@
     let previewTimer;
 
     const builderEdit = $("#listic-builder-edit", root);
-    const builderLayout = $("#listic-builder-layout", root);
     const previewBox = $("#listic-preview", root);
 
     function readBody(id, scope) {
@@ -153,7 +143,7 @@
       if (tab === "edit") updatePreview();
     }
 
-    function bindBuilder(builder, getBlocks, setBlocks, persist, onEdit) {
+    function bindBuilder(builder, getBlocks, setBlocks, onEdit) {
       builder.addEventListener("input", (e) => {
         if (e.target.matches("[data-block-title], [data-block-enabled]")) onEdit?.();
       });
@@ -172,9 +162,7 @@
           blocks = blocks.filter((b) => b.id !== del.dataset.blockDel);
         } else return;
         setBlocks(blocks);
-        const done = () => paintBuilder(builder, blocks, onEdit);
-        if (persist) persist(blocks).then(done);
-        else done();
+        paintBuilder(builder, blocks, onEdit);
         onEdit?.();
       });
     }
@@ -183,19 +171,10 @@
       builderEdit,
       () => editLayout.blocks,
       (blocks) => { editLayout = { blocks }; },
-      null,
       schedulePreview
-    );
-    bindBuilder(
-      builderLayout,
-      () => savedLayout.blocks,
-      (blocks) => { savedLayout = { blocks }; },
-      (blocks) => action("save_listic_layout", { layout: { blocks, updatedAt: new Date().toISOString() } }),
-      null
     );
 
     mountRte(builderEdit, editLayout.blocks, schedulePreview);
-    mountRte(builderLayout, savedLayout.blocks, null);
 
     root.querySelectorAll(".listic-tab").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
 
@@ -207,26 +186,10 @@
     root.querySelectorAll("[data-add-text-block]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const block = { id: `blk_${Date.now().toString(36).slice(-6)}`, type: "custom_text", enabled: true, title: "Nova sekcija", body: "" };
-        if (btn.dataset.addTextBlock === "layout") {
-          const blocks = [...readBlocks(builderLayout, savedLayout.blocks), block];
-          savedLayout = { blocks };
-          action("save_listic_layout", { layout: { blocks, updatedAt: new Date().toISOString() } }).then(() =>
-            paintBuilder(builderLayout, blocks, null)
-          );
-        } else {
-          editLayout = { blocks: [...readBlocks(builderEdit, editLayout.blocks), block] };
-          paintBuilder(builderEdit, editLayout.blocks, schedulePreview);
-          updatePreview();
-        }
+        editLayout = { blocks: [...readBlocks(builderEdit, editLayout.blocks), block] };
+        paintBuilder(builderEdit, editLayout.blocks, schedulePreview);
+        updatePreview();
       });
-    });
-
-    $("#listic-autofill", root)?.addEventListener("click", () => {
-      const data = migrate(getData(), boot.config?.defaultLayout);
-      editLayout = clone(data.zupniListicLayout || defLayout());
-      paintBuilder(builderEdit, editLayout.blocks, schedulePreview);
-      updatePreview();
-      toast("Raspored osvježen iz župe");
     });
 
     $("#listic-print-btn", root)?.addEventListener("click", async () => {
@@ -254,22 +217,6 @@
       $("#listic-week-start", root).value = root.dataset.weekStart || weekStartFrom();
       paintBuilder(builderEdit, editLayout.blocks, schedulePreview);
       updatePreview();
-    });
-
-    $("#listic-save-default-layout", root)?.addEventListener("click", async () => {
-      const blocks = readBlocks(builderLayout, savedLayout.blocks);
-      await action("save_listic_layout", { layout: { blocks, updatedAt: new Date().toISOString() } });
-      toast("Zadani raspored spremljen");
-    });
-
-    $("#listic-reset-layout", root)?.addEventListener("click", async () => {
-      if (!confirm("Vratiti početni raspored?")) return;
-      const layout = defLayout();
-      layout.updatedAt = new Date().toISOString();
-      await action("reset_listic_layout", { layout });
-      savedLayout = layout;
-      paintBuilder(builderLayout, layout.blocks, null);
-      toast("Početni raspored vraćen");
     });
 
     $("#listic-history-body", root)?.addEventListener("click", (e) => {

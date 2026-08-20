@@ -12,7 +12,6 @@
 <div id="page-root" data-django-page="1" data-week-start="{{ week_start }}">
   <div class="listic-tabs card" role="tablist">
     <button type="button" class="listic-tab is-active" data-tab="edit">Sastavi listić</button>
-    <button type="button" class="listic-tab" data-tab="layout">Raspored blokova</button>
     <button type="button" class="listic-tab" data-tab="history">Povijest ({{ listic_issues|length }})</button>
   </div>
 
@@ -20,21 +19,21 @@
     <div class="listic-layout">
       <section class="card listic-form-card">
         <h2 class="section-title">Sastavi listić za tjedan</h2>
+        <p class="card-sub">Raspored misa, nakane, sakramenti i događaji preuzimaju se automatski za odabrani tjedan.</p>
         <div class="listic-week-row">
           <div class="form-group">
             <label for="listic-week-start">Tjedan (ponedjeljak)</label>
             <input type="date" id="listic-week-start" value="{{ week_start }}" />
           </div>
-          <button type="button" class="btn btn-secondary btn-sm" id="listic-autofill">Osvježi iz župe</button>
         </div>
         <div class="listic-blocks-builder" id="listic-builder-edit">
           {% include "pastoral/listic/block_builder.html" with blocks=listic_edit_layout.blocks block_types=block_types %}
         </div>
         <button type="button" class="btn btn-secondary btn-sm" data-add-text-block="edit">+ Tekstualni blok</button>
         <div class="listic-actions">
-          <button type="button" class="btn btn-primary" id="listic-save-issue">Spremi</button>
-          <button type="button" class="btn btn-secondary" id="listic-print-btn">Ispis</button>
-          <button type="button" class="btn btn-ghost hidden" id="listic-cancel-edit">Novi</button>
+          <button type="button" class="btn btn-primary" id="listic-save-issue">Spremi izdanje</button>
+          <button type="button" class="btn btn-secondary" id="listic-print-btn">Ispis / PDF</button>
+          <button type="button" class="btn btn-ghost hidden" id="listic-cancel-edit">Novo izdanje</button>
         </div>
       </section>
       <section class="card listic-preview-card">
@@ -42,20 +41,6 @@
         <div id="listic-preview" class="listic-preview">{{ initial_preview_html|safe }}</div>
       </section>
     </div>
-  </div>
-
-  <div class="listic-panel hidden" data-panel="layout">
-    <section class="card">
-      <h2 class="section-title">Zadani raspored</h2>
-      <div class="listic-blocks-builder" id="listic-builder-layout">
-        {% include "pastoral/listic/block_builder.html" with blocks=listic_layout.blocks block_types=block_types %}
-      </div>
-      <button type="button" class="btn btn-secondary btn-sm" data-add-text-block="layout">+ Tekstualni blok</button>
-      <div class="listic-actions">
-        <button type="button" class="btn btn-primary" id="listic-save-default-layout">Spremi raspored</button>
-        <button type="button" class="btn btn-ghost btn-sm" id="listic-reset-layout">Vrati zadano</button>
-      </div>
-    </section>
   </div>
 
   <div class="listic-panel hidden" data-panel="history">

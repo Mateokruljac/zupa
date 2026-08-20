@@ -7,7 +7,13 @@
 {% endblock %}
 
 {% block content %}
-<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+{% include "pastoral/partials/finance_nav.html" %}
+
+<div class="finance-page-heading">
+  <div><p class="command-eyebrow">Financije</p><h2>Ulazni računi</h2><p>Računi dobavljača, rokovi i status plaćanja.</p></div>
+</div>
+
+<form method="get" class="card report-period-toolbar finance-filter-card">
   <div class="form-group">
     <label>Godina</label>
     <select name="year" onchange="this.form.submit()">
@@ -28,23 +34,25 @@
   </div>
 </form>
 
-<div class="kpi-row" style="margin-bottom:16px">
+<div class="kpi-row finance-kpi-row">
   <article class="card kpi-card"><p class="card-label">Računa u prikazu</p><p class="card-value">{{ invoice_summary.count }}</p></article>
   <article class="card kpi-card"><p class="card-label">Otvoreno</p><p class="card-value">{{ invoice_summary.open }}</p><p class="card-sub">{{ invoice_summary.unpaid_sum|money_eur }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Rok je prošao</p><p class="card-value">{{ invoice_summary.overdue }}</p><p class="card-sub">{{ invoice_summary.overdue_sum|money_eur }}</p></article>
   <article class="card kpi-card"><p class="card-label">Plaćeno</p><p class="card-value">{{ invoice_summary.paid_sum|money_eur }}</p></article>
 </div>
 
-<section class="card" style="margin-bottom:16px">
-  <h2 class="section-title">Novi ulazni račun</h2>
-  <form method="post" class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;max-width:900px">
+<details class="card cashbook-entry-panel">
+  <summary><span><small class="card-label">Unos</small><strong>Novi ulazni račun</strong></span><span class="btn btn-primary btn-sm">+ Dodaj račun</span></summary>
+  <form method="post" class="cashbook-entry-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="add_invoice">
     {{ invoice_form.as_p }}
-    <div style="grid-column:1/-1"><button type="submit" class="btn btn-primary btn-sm">+ Dodaj račun</button></div>
+    <div class="cashbook-entry-actions"><span class="card-sub">Unesite podatke s primljenog računa.</span><button type="submit" class="btn btn-primary btn-sm">Spremi račun</button></div>
   </form>
-</section>
+</details>
 
-<section class="card">
+<section class="card page-table-section finance-table-card">
+  <div class="pro-section-head"><div><p class="card-label">Evidencija</p><h2 class="section-title">Primljeni računi</h2></div><span class="badge">{{ invoice_rows|length }} računa</span></div>
   <div class="table-wrap">
     <table class="data-table">
       <thead><tr><th>Broj</th><th>Dobavljač</th><th>Opis</th><th>Iznos</th><th>Rok</th><th>Status</th><th></th></tr></thead>
@@ -55,7 +63,7 @@
           <td>{{ inv.supplierName|default:"—" }}</td>
           <td>{{ inv.description|default:"—" }}</td>
           <td>{{ inv.total|money_eur }}</td>
-          <td>{{ inv.dueDate|hr_date }}</td>
+          <td>{{ inv.dueDate|hr_date }}{% if inv.is_overdue %}<br><span class="badge badge-urgent">rok prošao</span>{% endif %}</td>
           <td><span class="badge">{{ invoice_status_labels|get_item:inv.status|default:inv.status }}</span></td>
           <td>
             {% if inv.status != 'placen' %}

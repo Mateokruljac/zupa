@@ -32,16 +32,70 @@ class OtpVerifyForm(forms.Form):
 
 
 class ParishSettingsForm(forms.Form):
-    name = forms.CharField(label='Naziv župe', max_length=200)
-    short_name = forms.CharField(label='Kratki naziv', max_length=100, required=False)
-    city = forms.CharField(label='Mjesto', max_length=100)
-    diocese = forms.CharField(label='Biskupija', max_length=200)
-    pastor = forms.CharField(label='Župnik', max_length=100)
-    phone = forms.CharField(label='Telefon', max_length=30, required=False)
-    email = forms.EmailField(label='E-mail župe', required=False)
-    primary_color = forms.CharField(label='Glavna boja', max_length=7, required=False)
-    accent_color = forms.CharField(label='Zlatna boja', max_length=7, required=False)
-    logo_url = forms.URLField(label='Logo URL', required=False)
+    name = forms.CharField(
+        label='Puni naziv župe',
+        max_length=200,
+        widget=forms.TextInput(attrs={**_WIDGET, 'autocomplete': 'organization'}),
+    )
+    short_name = forms.CharField(
+        label='Naziv u zaglavlju',
+        max_length=100,
+        required=False,
+        help_text='Kraći naziv koji se prikazuje u vrhu aplikacije.',
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    city = forms.CharField(
+        label='Mjesto',
+        max_length=100,
+        widget=forms.TextInput(attrs={**_WIDGET, 'autocomplete': 'address-level2'}),
+    )
+    diocese = forms.CharField(
+        label='Nadbiskupija ili biskupija',
+        max_length=200,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    pastor = forms.CharField(
+        label='Župnik',
+        max_length=100,
+        widget=forms.TextInput(attrs={**_WIDGET, 'autocomplete': 'name'}),
+    )
+    phone = forms.CharField(
+        label='Telefon župnog ureda',
+        max_length=30,
+        required=False,
+        widget=forms.TextInput(attrs={**_WIDGET, 'autocomplete': 'tel'}),
+    )
+    email = forms.EmailField(
+        label='E-mail župe',
+        required=False,
+        widget=forms.EmailInput(attrs={**_WIDGET, 'autocomplete': 'email'}),
+    )
+    primary_color = forms.CharField(
+        label='Glavna boja',
+        max_length=7,
+        required=False,
+        widget=forms.TextInput(attrs={**_WIDGET, 'type': 'color'}),
+    )
+    accent_color = forms.CharField(
+        label='Naglasna boja',
+        max_length=7,
+        required=False,
+        widget=forms.TextInput(attrs={**_WIDGET, 'type': 'color'}),
+    )
+    logo_url = forms.URLField(
+        label='Poveznica na logotip',
+        required=False,
+        widget=forms.URLInput(attrs={**_WIDGET, 'placeholder': 'https://…'}),
+    )
+    default_mass_intention_stipend = forms.DecimalField(
+        label='Uobičajeni prilog za misnu nakanu (€)',
+        max_digits=8,
+        decimal_places=2,
+        min_value=0,
+        required=False,
+        help_text='Služi samo kao početna vrijednost i može se promijeniti pri unosu.',
+        widget=forms.NumberInput(attrs={**_WIDGET, 'min': '0', 'step': '0.01'}),
+    )
 
 
 class TaskForm(forms.Form):
@@ -107,6 +161,15 @@ class CouncilMeetingForm(forms.Form):
     meeting_date = forms.DateField(
         label='Datum sljedećeg sastanka ili pregleda',
         widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}),
+    )
+
+
+class ConfirmationYearForm(forms.Form):
+    year = forms.IntegerField(
+        label='Nova godina',
+        min_value=1900,
+        max_value=2100,
+        widget=forms.NumberInput(attrs=_WIDGET),
     )
 
 
@@ -180,13 +243,97 @@ class FirstCommunionCandidateForm(forms.Form):
     paid = forms.BooleanField(label='Naknada je plaćena', required=False)
 
 
+class FirstCommunionYearForm(forms.Form):
+    year = forms.IntegerField(
+        label='Nova godina',
+        min_value=1900,
+        max_value=2100,
+        widget=forms.NumberInput(attrs=_WIDGET),
+    )
+
+
+class FirstCommunionGroupForm(forms.Form):
+    year = forms.IntegerField(widget=forms.HiddenInput())
+    group_name = forms.CharField(
+        label='Naziv skupine',
+        max_length=160,
+        required=False,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    ceremony_date = forms.DateField(
+        label='Datum prve pričesti',
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}),
+    )
+    celebrant = forms.CharField(
+        label='Svećenik',
+        max_length=160,
+        required=False,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    group_fee = forms.DecimalField(
+        label='Grupna naknada (€)',
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        min_value=0,
+        widget=forms.NumberInput(attrs=_WIDGET),
+    )
+    group_fee_paid = forms.BooleanField(
+        label='Grupna naknada je plaćena',
+        required=False,
+    )
+
+
 class FamilyForm(forms.Form):
-    surname = forms.CharField(label='Prezime obitelji', max_length=120, widget=forms.TextInput(attrs=_WIDGET))
-    street_id = forms.ChoiceField(label='Ulica', choices=(), required=False, widget=forms.Select(attrs=_WIDGET))
-    address = forms.CharField(label='Adresa i kućni broj', max_length=200, widget=forms.TextInput(attrs=_WIDGET))
-    phone = forms.CharField(label='Telefon', max_length=50, required=False, widget=forms.TextInput(attrs=_WIDGET))
-    email = forms.EmailField(label='E-mail', required=False, widget=forms.EmailInput(attrs=_WIDGET))
-    origin_place = forms.CharField(label='Mjesto podrijetla', max_length=120, required=False, widget=forms.TextInput(attrs=_WIDGET))
+    surname = forms.CharField(
+        label='Prezime obitelji',
+        max_length=120,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    street_id = forms.ChoiceField(
+        label='Ulica',
+        choices=(),
+        required=False,
+        widget=forms.Select(attrs=_WIDGET),
+    )
+    address = forms.CharField(
+        label='Kućni broj i dodatak adresi',
+        max_length=200,
+        widget=forms.TextInput(attrs={
+            **_WIDGET,
+            'placeholder': 'npr. 24 A',
+        }),
+    )
+    phone = forms.CharField(
+        label='Telefon',
+        max_length=50,
+        required=False,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    email = forms.EmailField(
+        label='E-mail',
+        required=False,
+        widget=forms.EmailInput(attrs=_WIDGET),
+    )
+    origin_place = forms.CharField(
+        label='Mjesto podrijetla',
+        max_length=120,
+        required=False,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    status = forms.ChoiceField(
+        label='Status kartona',
+        choices=(('aktivna', 'Aktivna obitelj'), ('neaktivna', 'Neaktivna obitelj')),
+        initial='aktivna',
+        required=False,
+        widget=forms.Select(attrs=_WIDGET),
+    )
+    pastoral_notes = forms.CharField(
+        label='Pastoralna bilješka',
+        required=False,
+        widget=forms.Textarea(attrs={'rows': 3, **_WIDGET}),
+    )
 
     def __init__(self, *args, streets=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -195,6 +342,29 @@ class FamilyForm(forms.Form):
             for street in (streets or [])
             if street.get('id')
         ]
+
+
+class FamilyMemberForm(forms.Form):
+    name = forms.CharField(
+        label='Ime i prezime',
+        max_length=140,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    relation = forms.CharField(
+        label='Odnos u obitelji',
+        max_length=80,
+        required=False,
+        widget=forms.TextInput(attrs={
+            **_WIDGET,
+            'placeholder': 'npr. suprug, supruga, dijete',
+        }),
+    )
+    birth_year = forms.IntegerField(
+        label='Godina rođenja',
+        min_value=1900,
+        required=False,
+        widget=forms.NumberInput(attrs=_WIDGET),
+    )
 
 
 class IntentionForm(forms.Form):
@@ -227,8 +397,13 @@ class ParishDebtForm(forms.Form):
 
 class BaptismForm(forms.Form):
     child_name = forms.CharField(label='Ime djeteta', max_length=120, widget=forms.TextInput(attrs=_WIDGET))
+    birth_date = forms.DateField(label='Datum rođenja', required=False, widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}))
     baptism_date = forms.DateField(label='Datum krštenja', required=False, widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}))
     parents = forms.CharField(label='Roditelji', max_length=200, widget=forms.TextInput(attrs=_WIDGET))
+    godparents = forms.CharField(label='Kumovi', max_length=200, required=False, widget=forms.TextInput(attrs=_WIDGET))
+    godparent_certificate_received = forms.BooleanField(label='Potvrda kuma je zaprimljena', required=False)
+    celebrant = forms.CharField(label='Svećenik', max_length=100, required=False, widget=forms.TextInput(attrs=_WIDGET))
+    registry_number = forms.CharField(label='Matični broj', max_length=60, required=False, widget=forms.TextInput(attrs=_WIDGET))
     status = forms.CharField(label='Status', max_length=50, required=False, initial='planirano', widget=forms.TextInput(attrs=_WIDGET))
     stipend = forms.DecimalField(label='Stipendij', max_digits=8, decimal_places=2, initial=0, required=False, widget=forms.NumberInput(attrs=_WIDGET))
 
@@ -236,6 +411,12 @@ class BaptismForm(forms.Form):
 class WeddingForm(forms.Form):
     couple = forms.CharField(label='Par', max_length=200, widget=forms.TextInput(attrs=_WIDGET))
     wedding_date = forms.DateField(label='Datum vjenčanja', required=False, widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}))
+    church = forms.CharField(label='Crkva', max_length=160, required=False, widget=forms.TextInput(attrs=_WIDGET))
+    contact = forms.CharField(label='Kontakt para', max_length=100, required=False, widget=forms.TextInput(attrs=_WIDGET))
+    celebrant = forms.CharField(label='Svećenik', max_length=100, required=False, widget=forms.TextInput(attrs=_WIDGET))
+    preparatory_sessions = forms.IntegerField(label='Broj susreta priprave', min_value=0, required=False, initial=0, widget=forms.NumberInput(attrs=_WIDGET))
+    documents_ok = forms.BooleanField(label='Dokumenti su potpuni', required=False)
+    witnesses = forms.CharField(label='Svjedoci', max_length=240, required=False, widget=forms.TextInput(attrs=_WIDGET))
     status = forms.CharField(label='Status', max_length=50, required=False, initial='planirano', widget=forms.TextInput(attrs=_WIDGET))
     stipend = forms.DecimalField(label='Stipendij', max_digits=8, decimal_places=2, initial=0, required=False, widget=forms.NumberInput(attrs=_WIDGET))
 
@@ -244,6 +425,11 @@ class FuneralForm(forms.Form):
     deceased = forms.CharField(label='Pokojnik', max_length=120, widget=forms.TextInput(attrs=_WIDGET))
     funeral_date = forms.DateField(label='Datum pogreba', required=False, widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}))
     cemetery = forms.CharField(label='Groblje', max_length=120, required=False, widget=forms.TextInput(attrs=_WIDGET))
+    family_contact = forms.CharField(label='Kontakt obitelji', max_length=160, required=False, widget=forms.TextInput(attrs=_WIDGET))
+    celebrant = forms.CharField(label='Svećenik', max_length=100, required=False, widget=forms.TextInput(attrs=_WIDGET))
+    mass_planned = forms.BooleanField(label='Planirana misa zadušnica', required=False)
+    mass_date = forms.DateField(label='Datum mise zadušnice', required=False, widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}))
+    mass_time = forms.TimeField(label='Vrijeme mise', required=False, widget=forms.TimeInput(attrs={'type': 'time', **_WIDGET}))
     status = forms.CharField(label='Status', max_length=50, required=False, initial='planirano', widget=forms.TextInput(attrs=_WIDGET))
     stipend = forms.DecimalField(label='Stipendij', max_digits=8, decimal_places=2, initial=0, required=False, widget=forms.NumberInput(attrs=_WIDGET))
 
@@ -255,7 +441,6 @@ class AnointingForm(forms.Form):
     address = forms.CharField(label='Adresa', max_length=200, required=False, widget=forms.TextInput(attrs=_WIDGET))
     contact = forms.CharField(label='Kontakt', max_length=50, required=False, widget=forms.TextInput(attrs=_WIDGET))
     status = forms.CharField(label='Status', max_length=50, required=False, initial='planirano', widget=forms.TextInput(attrs=_WIDGET))
-    stipend = forms.DecimalField(label='Stipendij', max_digits=8, decimal_places=2, initial=0, required=False, widget=forms.NumberInput(attrs=_WIDGET))
 
 
 class StreetForm(forms.Form):
@@ -324,136 +509,30 @@ class VisitForm(forms.Form):
     address = forms.CharField(label='Adresa', max_length=200, required=False, widget=forms.TextInput(attrs=_WIDGET))
     priest = forms.CharField(label='Svećenik', max_length=100, required=False, widget=forms.TextInput(attrs=_WIDGET))
     purpose = forms.CharField(label='Svrha / napomena', max_length=200, required=False, widget=forms.TextInput(attrs=_WIDGET))
-    family_id = forms.CharField(label='Obitelj (ID)', max_length=40, required=False, widget=forms.TextInput(attrs=_WIDGET))
+    family_id = forms.CharField(
+        label='Povezana obitelj',
+        max_length=40,
+        required=False,
+        widget=forms.Select(attrs=_WIDGET),
+    )
     report = forms.CharField(label='Izvještaj', required=False, widget=forms.Textarea(attrs={'rows': 3, **_WIDGET}))
 
-
-class InterparishRequestForm(forms.Form):
-    target_parish = forms.ChoiceField(label='Župa primatelj', choices=(), widget=forms.Select(attrs=_WIDGET))
-    request_type = forms.ChoiceField(
-        label='Vrsta zahtjeva',
-        choices=[
-            ('marriage_certificate', 'Potvrda za ženidbeni postupak'),
-            ('baptism_certificate', 'Krsni list / potvrda krštenja'),
-            ('marriage_delegation', 'Delegacija za ženidbu'),
-            ('priest_substitution', 'Zamjena svećenika'),
-            ('mass_intention_transfer', 'Prijenos misnih nakana'),
-            ('sacrament_record_check', 'Provjera sakramentalnog zapisa'),
-            ('pastoral_handover', 'Pastoralna primopredaja'),
-        ],
-        widget=forms.Select(attrs=_WIDGET),
-    )
-    subject = forms.CharField(label='Predmet', max_length=180, widget=forms.TextInput(attrs=_WIDGET))
-    person_name = forms.CharField(
-        label='Osoba / osobe na koje se zahtjev odnosi',
-        max_length=160,
-        required=False,
-        widget=forms.TextInput(attrs={**_WIDGET, 'autocomplete': 'off'}),
-    )
-    case_reference = forms.CharField(
-        label='Veza s predmetom u župi',
-        max_length=60,
-        required=False,
-        widget=forms.TextInput(attrs={**_WIDGET, 'placeholder': 'npr. ŽEN-2026-018'}),
-    )
-    due_date = forms.DateField(label='Rok odgovora', widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}))
-    priority = forms.ChoiceField(
-        label='Prioritet',
-        choices=[('normal', 'Redovno'), ('high', 'Visoko'), ('urgent', 'Hitno')],
-        widget=forms.Select(attrs=_WIDGET),
-    )
-    confidentiality = forms.ChoiceField(
-        label='Razina povjerljivosti',
-        choices=[('interno', 'Interno'), ('povjerljivo', 'Povjerljivo')],
-        widget=forms.Select(attrs=_WIDGET),
-    )
-    description = forms.CharField(
-        label='Opis i napomena primatelju',
-        widget=forms.Textarea(attrs={'rows': 4, **_WIDGET}),
-    )
-
-    def __init__(self, *args, parishes=None, active_parish_id='', **kwargs):
+    def __init__(self, *args, families=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['target_parish'].choices = [
-            (parish.get('id'), f"{parish.get('name')} · {parish.get('city', '')}")
-            for parish in (parishes or [])
-            if parish.get('id') and parish.get('id') != active_parish_id
+        self.fields['family_id'].widget.choices = [
+            ('', '— Posjet nije vezan uz obitelj —'),
+            *[
+                (
+                    family.get('id'),
+                    ' · '.join(filter(None, (
+                        family.get('surname', ''),
+                        family.get('address', ''),
+                    ))),
+                )
+                for family in (families or [])
+                if family.get('id')
+            ],
         ]
-
-
-class OfficeEntryForm(forms.Form):
-    direction = forms.ChoiceField(
-        label='Smjer',
-        choices=[('incoming', 'Ulazno'), ('outgoing', 'Izlazno')],
-        widget=forms.Select(attrs=_WIDGET),
-    )
-    channel = forms.ChoiceField(
-        label='Kanal',
-        choices=[
-            ('in_person', 'Osobno u uredu'), ('phone', 'Telefon'), ('email', 'E-mail'),
-            ('post', 'Pošta'), ('diocese', 'Biskupija'), ('web', 'Javni obrazac'),
-        ],
-        widget=forms.Select(attrs=_WIDGET),
-    )
-    subject = forms.CharField(label='Predmet', max_length=180, widget=forms.TextInput(attrs=_WIDGET))
-    contact = forms.CharField(label='Osoba / ustanova', max_length=140, required=False, widget=forms.TextInput(attrs=_WIDGET))
-    linked_case = forms.CharField(
-        label='Veza s postojećim predmetom', max_length=60, required=False,
-        widget=forms.TextInput(attrs={**_WIDGET, 'placeholder': 'npr. KRŠ-2026-024'}),
-    )
-    due_date = forms.DateField(label='Rok', required=False, widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}))
-    owner = forms.CharField(label='Odgovorna osoba', max_length=100, required=False, widget=forms.TextInput(attrs=_WIDGET))
-    priority = forms.ChoiceField(
-        label='Prioritet',
-        choices=[('normal', 'Redovno'), ('high', 'Visoko'), ('urgent', 'Hitno')],
-        widget=forms.Select(attrs=_WIDGET),
-    )
-    confidentiality = forms.ChoiceField(
-        label='Povjerljivost',
-        choices=[('službeno', 'Službeno'), ('interno', 'Interno'), ('povjerljivo', 'Povjerljivo'), ('strogo povjerljivo', 'Strogo povjerljivo')],
-        widget=forms.Select(attrs=_WIDGET),
-    )
-    note = forms.CharField(label='Bilješka i sljedeći korak', required=False, widget=forms.Textarea(attrs={'rows': 4, **_WIDGET}))
-
-
-class FacilityIssueForm(forms.Form):
-    facility = forms.CharField(label='Objekt / prostor', max_length=120, widget=forms.TextInput(attrs=_WIDGET))
-    title = forms.CharField(label='Problem ili zahvat', max_length=180, widget=forms.TextInput(attrs=_WIDGET))
-    risk = forms.ChoiceField(
-        label='Razina rizika',
-        choices=[('low', 'Nisko'), ('medium', 'Srednje'), ('high', 'Visoko')],
-        widget=forms.Select(attrs=_WIDGET),
-    )
-    due_date = forms.DateField(label='Rok', required=False, widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}))
-    owner = forms.CharField(label='Odgovorna osoba', max_length=100, required=False, widget=forms.TextInput(attrs=_WIDGET))
-    supplier = forms.CharField(label='Izvođač / dobavljač', max_length=120, required=False, widget=forms.TextInput(attrs=_WIDGET))
-    estimated_cost = forms.DecimalField(
-        label='Procijenjeni trošak (€)', max_digits=12, decimal_places=2, required=False,
-        widget=forms.NumberInput(attrs={**_WIDGET, 'min': '0', 'step': '0.01'}),
-    )
-    description = forms.CharField(label='Opis i sljedeći korak', required=False, widget=forms.Textarea(attrs={'rows': 4, **_WIDGET}))
-
-
-class CommunicationPlanForm(forms.Form):
-    title = forms.CharField(label='Naziv komunikacije', max_length=180, widget=forms.TextInput(attrs=_WIDGET))
-    audience = forms.CharField(
-        label='Ciljana skupina', max_length=180,
-        widget=forms.TextInput(attrs={**_WIDGET, 'placeholder': 'npr. roditelji krizmanika s privolom za e-mail'}),
-    )
-    channel = forms.ChoiceField(
-        label='Kanal',
-        choices=[
-            ('email', 'E-mail'), ('sms', 'SMS'), ('email_sms', 'E-mail i SMS'),
-            ('app', 'Obavijest u aplikaciji'), ('web', 'Web objava'), ('print', 'Poštanska / tiskana pošiljka'),
-        ],
-        widget=forms.Select(attrs=_WIDGET),
-    )
-    scheduled_at = forms.DateTimeField(
-        label='Planirano slanje', required=False,
-        widget=forms.DateTimeInput(attrs={'type': 'datetime-local', **_WIDGET}),
-    )
-    requires_approval = forms.BooleanField(label='Prije slanja traži odobrenje župnika', required=False)
-    message = forms.CharField(label='Poruka / sadržaj', widget=forms.Textarea(attrs={'rows': 5, **_WIDGET}))
 
 
 class RegistryBookForm(forms.Form):
@@ -475,6 +554,148 @@ class RegistryBookForm(forms.Form):
     custodian = forms.CharField(label='Skrbnik', max_length=100, required=False, widget=forms.TextInput(attrs=_WIDGET))
     status = forms.CharField(label='Status', max_length=60, required=False, initial='u župi', widget=forms.TextInput(attrs=_WIDGET))
     notes = forms.CharField(label='Napomena', required=False, widget=forms.Textarea(attrs={'rows': 2, **_WIDGET}))
+
+
+REGISTRY_RECORD_FIELD_CONFIGURATION = {
+    'krštenja': {
+        'labels': {
+            'subject_name': 'Krštenik',
+            'record_date': 'Datum krštenja',
+            'related_people': 'Roditelji',
+            'sponsors': 'Kumovi',
+        },
+        'hidden_fields': {'baptism_date', 'place'},
+    },
+    'vjenčanja': {
+        'labels': {
+            'subject_name': 'Mladenci',
+            'record_date': 'Datum vjenčanja',
+            'related_people': 'Svjedoci',
+            'place': 'Crkva',
+        },
+        'hidden_fields': {'birth_date', 'baptism_date', 'sponsors'},
+    },
+    'umrli': {
+        'labels': {
+            'subject_name': 'Pokojnik',
+            'record_date': 'Datum sprovoda',
+            'birth_date': 'Datum smrti',
+            'place': 'Groblje',
+        },
+        'hidden_fields': {'baptism_date', 'related_people', 'sponsors'},
+    },
+    'krizma': {
+        'labels': {
+            'subject_name': 'Krizmanik',
+            'record_date': 'Datum krizme',
+            'sponsors': 'Kum/ka',
+            'celebrant': 'Biskup / slavitelj',
+        },
+        'hidden_fields': {'related_people', 'place'},
+    },
+    'ostalo': {
+        'labels': {
+            'subject_name': 'Naziv zapisa / osoba',
+            'record_date': 'Datum zapisa',
+            'place': 'Mjesto / napomena',
+        },
+        'hidden_fields': {
+            'birth_date',
+            'baptism_date',
+            'related_people',
+            'sponsors',
+        },
+    },
+}
+
+
+class RegistryRecordForm(forms.Form):
+    registry_number = forms.CharField(
+        label='Redni broj (dodjeljuje se automatski)',
+        max_length=60,
+        required=False,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    subject_name = forms.CharField(
+        label='Osoba / zapis',
+        max_length=200,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    record_date = forms.DateField(
+        label='Datum zapisa',
+        widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}),
+    )
+    birth_date = forms.DateField(
+        label='Datum rođenja',
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}),
+    )
+    baptism_date = forms.DateField(
+        label='Datum krštenja',
+        required=False,
+        widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}),
+    )
+    related_people = forms.CharField(
+        label='Povezane osobe',
+        max_length=240,
+        required=False,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    sponsors = forms.CharField(
+        label='Kumovi / svjedoci',
+        max_length=240,
+        required=False,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    place = forms.CharField(
+        label='Mjesto',
+        max_length=200,
+        required=False,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    celebrant = forms.CharField(
+        label='Slavitelj',
+        max_length=160,
+        required=False,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+    status = forms.CharField(
+        label='Status',
+        max_length=60,
+        required=False,
+        initial='upisano',
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+
+    def __init__(
+        self,
+        *args,
+        registry_type: str,
+        selected_year: int,
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        field_configuration = REGISTRY_RECORD_FIELD_CONFIGURATION.get(
+            registry_type,
+            {'labels': {}, 'hidden_fields': set()},
+        )
+        for field_name in field_configuration['hidden_fields']:
+            self.fields.pop(field_name, None)
+        for field_name, field_label in field_configuration['labels'].items():
+            if field_name in self.fields:
+                self.fields[field_name].label = field_label
+
+        self.fields['registry_number'].widget.attrs.update({
+            'readonly': True,
+            'placeholder': 'Dodjeljuje se nakon spremanja',
+        })
+
+        first_date_of_year = f'{selected_year:04d}-01-01'
+        last_date_of_year = f'{selected_year:04d}-12-31'
+        self.fields['record_date'].widget.attrs.update({
+            'min': first_date_of_year,
+            'max': last_date_of_year,
+        })
 
 
 STREET_NOT_LISTED = '__other__'

@@ -13,18 +13,24 @@
       <p class="command-eyebrow">Dnevni pregled · {{ today|hr_date }}</p>
       <h2 id="command-hero-title">Danas u župi</h2>
       <p>
-        {% if high_priority_count %}
-        <strong>{{ high_priority_count }} {% if high_priority_count == 1 %}stavka traži{% else %}stavke traže{% endif %} brzu odluku.</strong>
-        Ispod su samo obveze i termini koje treba provjeriti.
+        {% if next_mass %}
+        Sljedeća misa je u <strong>{{ next_mass.time }}</strong>, {{ next_mass.location|default:"Župna crkva" }}.
+        {% elif today_masses %}
+        Današnje mise iz redovnog rasporeda su završile.
         {% else %}
-        Nema stavki visokog prioriteta. Provjerite današnji raspored i redovne obveze.
+        Danas nema mise u redovnom rasporedu.
+        {% endif %}
+        {% if open_tasks_count %}
+        Otvoreno je još <strong>{{ open_tasks_count }} {% if open_tasks_count == 1 %}zadatak{% else %}zadataka{% endif %}</strong> za župni ured.
+        {% else %}
+        Nema otvorenih zadataka za župni ured.
         {% endif %}
       </p>
     </div>
     <div class="command-summary" aria-label="Sažetak dana">
-      <span><strong>{{ high_priority_count }}</strong><small>visoki prioritet</small></span>
-      <span><strong>{{ stats.due_today_tasks }}</strong><small>zadataka danas</small></span>
-      <span><strong>{{ stats.nova_prijave }}</strong><small>novih prijava</small></span>
+      <span><strong>{% if next_mass %}{{ next_mass.time }}{% else %}—{% endif %}</strong><small>sljedeća misa</small></span>
+      <span><strong>{{ intentions_today|length }}</strong><small>nakana danas</small></span>
+      <span><strong>{{ open_tasks_count }}</strong><small>otvorenih zadataka</small></span>
     </div>
   </section>
 
@@ -34,7 +40,6 @@
     <a href="{% page_url 'kalendar' %}" class="command-action"><span aria-hidden="true">□</span><strong>Kalendar</strong><small>Događaji i zadaci</small></a>
     <a href="{% page_url 'potvrde' %}" class="command-action"><span aria-hidden="true">▤</span><strong>Izdaj potvrdu</strong><small>Predlošci isprava</small></a>
     <a href="{% page_url 'javne-prijave' %}" class="command-action"><span aria-hidden="true">↧</span><strong>Prijave</strong><small>Pregled i uparivanje</small></a>
-    <a href="{% page_url 'dekanat' %}" class="command-action"><span aria-hidden="true">⇄</span><strong>Dekanat</strong><small>Međužupni predmeti</small></a>
   </nav>
 
   <div class="dashboard-day-grid">
@@ -91,7 +96,7 @@
       <a href="{% page_url 'obitelji' %}" class="population-stat"><span>Osobe u sustavu</span><strong>{{ population_stats.persons }}</strong><small>upisani članovi kućanstava</small></a>
       <a href="{% page_url 'obitelji' %}" class="population-stat"><span>Župljani</span><strong>{{ population_stats.parishioners }}</strong><small>u aktivnim kućanstvima</small></a>
       <a href="{% page_url 'obitelji' %}" class="population-stat"><span>Kontakti</span><strong>{{ population_stats.households_with_contact }}</strong><small>kućanstva s telefonom ili e-mailom</small></a>
-      <a href="{% page_url 'dekanat' %}" class="population-stat"><span>Župe u dekanatu</span><strong>{{ population_stats.deanery_parishes }}</strong><small>u povezanom imeniku</small></a>
+      <div class="population-stat"><span>Župe u dekanatu</span><strong>{{ population_stats.deanery_parishes }}</strong><small>u dekanatskom imeniku</small></div>
     </div>
   </section>
 

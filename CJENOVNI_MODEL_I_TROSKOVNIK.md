@@ -31,7 +31,7 @@ Platforma ne pruža samo hosting. U cijenu ulaze:
 - audit zapisi;
 - održavanje pastoralnih i financijskih procesa;
 - podrška korisnicima;
-- javna web-stranica i njezino objavljivanje;
+- javna web-stranica nije dio e-Župe i ugovara se kao zaseban proizvod;
 - odgovornost za dugoročno funkcioniranje sustava.
 
 Mogući problem nije objektivna vrijednost nego početna percepcija: nova platforma još nema reference, a manje župe mogu imati malen slobodan budžet. Taj se problem rješava ulaznom cijenom, demonstracijom uštede vremena i preporukama, a ne trajnim podcjenjivanjem proizvoda.
@@ -44,7 +44,7 @@ Mogući problem nije objektivna vrijednost nego početna percepcija: nova platfo
 |---|---:|
 | Godišnja licenca za jednu župu | 500 EUR |
 | Početno postavljanje i edukacija | 200–300 EUR jednokratno |
-| Standardna javna web-stranica | uključena |
+| Standardna javna web-stranica | nije uključena; zaseban proizvod |
 | Standardna poddomena | uključena |
 | Vlastita domena | po stvarnom trošku |
 | Uredna standardna migracija | uključena do ugovorenog opsega |
@@ -226,4 +226,3 @@ Cijenu ili uvjete treba mijenjati ako se dogodi jedno od sljedećeg:
 - Hetzner službena objava promjena cijena: https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/
 - Cloudflare R2 cijene: https://www.cloudflare.com/products/r2/
 - Backblaze B2 cijene: https://www.backblaze.com/cloud-storage/pricing
-

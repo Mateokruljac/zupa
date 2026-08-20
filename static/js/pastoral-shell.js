@@ -12,13 +12,7 @@
   }
 
   function shellPageUrl(file) {
-    const B = global.PastoralBase;
-    if (B?.adminPage) return B.adminPage(file);
-    const f = String(file).replace(/^\/?pages\//, "");
-    const inPages = location.pathname.includes("/pages/");
-    if (f === "app" || f === "app.html") return inPages ? "../app.html" : "app.html";
-    if (f === "login.html" || f === "login") return inPages ? "../login.html" : "login.html";
-    return inPages ? f : `pages/${f}`;
+    return global.PastoralBase.adminPage(file);
   }
 
   function ensureSidebarLayout() {
@@ -129,13 +123,11 @@
     const PT = global.PastoralPriestTools;
     if (!PT) return;
     PT.init({
-      getData: () => global.PastoralData?.load?.() || {},
+      loadData: () => global.PastoralApi.load(),
       getSettings: () => global.PastoralParish?.loadSettings?.() || {},
-      pageUrl: shellPageUrl,
       showToast: (msg) => {
         if (typeof global.showToast === "function") global.showToast(msg);
       },
-      escapeHtml: esc,
     });
   }
 
@@ -161,7 +153,6 @@
     if (needsData) global.PastoralApi?.ensureLoaded?.().catch(() => {});
 
     initPriestToolsLite();
-    global.PastoralPriestTools?.enhanceShell?.();
 
     if (global.PastoralTheme) global.PastoralTheme.initThemePicker();
 
@@ -230,25 +221,25 @@
     });
   }
 
-  function injectNavFooterControls() {
-    const foot = document.querySelector(".sidebar-footer");
-    if (!foot || document.getElementById("nav-expand-all")) return;
-    const wrap = document.createElement("div");
-    wrap.className = "nav-footer-toggles";
-    wrap.innerHTML = `
-      <button type="button" class="btn btn-ghost btn-sm" id="nav-expand-all" style="flex:1">Razvij sve</button>
-      <button type="button" class="btn btn-ghost btn-sm" id="nav-collapse-all" style="flex:1">Skupi sve</button>`;
-    foot.insertBefore(wrap, foot.firstChild);
-    wrap.querySelector("#nav-expand-all")?.addEventListener("click", () => {
-      const s = {};
-      Object.keys(NAV_DEFAULT_OPEN).forEach((k) => { s[k] = true; });
-      navSaveState(s);
+  function bindNavigationVisibilityControls() {
+    const expandAllButton = document.getElementById("nav-expand-all");
+    const collapseAllButton = document.getElementById("nav-collapse-all");
+    if (!expandAllButton || !collapseAllButton) return;
+
+    expandAllButton.addEventListener("click", () => {
+      const expandedNavigationState = {};
+      Object.keys(NAV_DEFAULT_OPEN).forEach((sectionIdentifier) => {
+        expandedNavigationState[sectionIdentifier] = true;
+      });
+      navSaveState(expandedNavigationState);
       location.reload();
     });
-    wrap.querySelector("#nav-collapse-all")?.addEventListener("click", () => {
-      const s = {};
-      Object.keys(NAV_DEFAULT_OPEN).forEach((k) => { s[k] = false; });
-      navSaveState(s);
+    collapseAllButton.addEventListener("click", () => {
+      const collapsedNavigationState = {};
+      Object.keys(NAV_DEFAULT_OPEN).forEach((sectionIdentifier) => {
+        collapsedNavigationState[sectionIdentifier] = false;
+      });
+      navSaveState(collapsedNavigationState);
       location.reload();
     });
   }
@@ -256,7 +247,7 @@
   function initNav() {
     const nav = document.getElementById("sidebar-nav");
     bindCollapsibleNav(nav);
-    injectNavFooterControls();
+    bindNavigationVisibilityControls();
   }
 
   global.PastoralNav = { init: initNav, loadState: navLoadState, saveState: navSaveState };

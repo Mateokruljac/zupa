@@ -47,10 +47,32 @@ class TechnicalAdminTests(TestCase):
 
         response = self.client.get(reverse('admin:index'))
 
-        self.assertRedirects(
-            response,
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
             f"{reverse('admin:login')}?next={reverse('admin:index')}",
         )
+
+    def test_admin_login_redirects_to_shared_pastoral_login(self):
+        response = self.client.get(
+            reverse('unified_admin_login'),
+            {'next': reverse('admin:index')},
+        )
+
+        self.assertRedirects(
+            response,
+            f"{reverse('pastoral:login')}?next=%2Fadmin%2F",
+        )
+
+    def test_authenticated_staff_returns_to_requested_admin_page(self):
+        self.client.force_login(self.superuser)
+
+        response = self.client.get(
+            reverse('pastoral:login'),
+            {'next': reverse('admin:index')},
+        )
+
+        self.assertRedirects(response, reverse('admin:index'))
 
     def test_only_staff_user_sees_technical_admin_link_in_pastoral(self):
         self.client.force_login(self.pastoral_user)

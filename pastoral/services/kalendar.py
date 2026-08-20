@@ -134,20 +134,64 @@ def calendar_page_context(parish_data: dict, request) -> dict:
     events_by_date = _events_grouped_by_date(parish_events)
     tasks_by_date = _open_tasks_grouped_by_date(parish_tasks)
     sorted_tasks = _sorted_tasks(parish_tasks)
+    task_status_filter = request.GET.get('tasks', 'open')
+    if task_status_filter == 'done':
+        visible_tasks = [
+            parish_task
+            for parish_task in sorted_tasks
+            if parish_task.get('done')
+        ]
+    elif task_status_filter == 'all':
+        visible_tasks = sorted_tasks
+    else:
+        task_status_filter = 'open'
+        visible_tasks = [
+            parish_task
+            for parish_task in sorted_tasks
+            if not parish_task.get('done')
+        ]
+
+    selected_event_id = request.GET.get('event', '')
+    selected_task_id = request.GET.get('task', '')
+    selected_event = next(
+        (
+            parish_event
+            for parish_event in parish_events
+            if parish_event.get('id') == selected_event_id
+        ),
+        None,
+    )
+    selected_task = next(
+        (
+            parish_task
+            for parish_task in parish_tasks
+            if parish_task.get('id') == selected_task_id
+        ),
+        None,
+    )
+    selected_day_events = events_by_date.get(selected_date, [])
+    selected_day_tasks = tasks_by_date.get(selected_date, [])
 
     return {
-        'rows': sorted_tasks,
+        'rows': visible_tasks,
         'parish_events': parish_events,
         'cal_year': calendar_year,
         'cal_month': calendar_month,
         'cal_prev': previous_period,
         'cal_next': next_period,
+        'cal_prev_date': (
+            f"{previous_period['year']}-{previous_period['month']:02d}-01"
+        ),
+        'cal_next_date': (
+            f"{next_period['year']}-{next_period['month']:02d}-01"
+        ),
         'cal_cells': _calendar_cells(calendar_year, calendar_month),
         'filter_date': selected_date,
         'lit_month_days': liturgical_month_days,
         'lit_day': liturgical_service.get_day(selected_date),
-        'day_events': events_by_date.get(selected_date, []),
-        'day_tasks': tasks_by_date.get(selected_date, []),
+        'day_events': selected_day_events,
+        'day_tasks': selected_day_tasks,
+        'day_item_count': len(selected_day_events) + len(selected_day_tasks),
         'calendar_counts': {
             calendar_date: {
                 'events': len(events_by_date.get(calendar_date, [])),
@@ -157,4 +201,26 @@ def calendar_page_context(parish_data: dict, request) -> dict:
         },
         'calendar_conflicts': _calendar_conflicts(parish_events),
         'tasks': sorted_tasks,
+        'task_status_filter': task_status_filter,
+        'selected_event': selected_event,
+        'selected_task': selected_task,
+        'calendar_stats': {
+            'open_tasks': sum(
+                1 for parish_task in parish_tasks
+                if not parish_task.get('done')
+            ),
+            'overdue_tasks': sum(
+                1
+                for parish_task in parish_tasks
+                if not parish_task.get('done')
+                and (parish_task.get('due') or '') < today.isoformat()
+            ),
+            'month_events': sum(
+                1
+                for parish_event in parish_events
+                if (parish_event.get('date') or '').startswith(
+                    f'{calendar_year}-{calendar_month:02d}'
+                )
+            ),
+        },
     }

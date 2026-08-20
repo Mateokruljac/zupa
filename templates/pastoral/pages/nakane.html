@@ -3,8 +3,7 @@
 
 {% block topbar_actions %}
 <a href="{% page_url 'mise' %}" class="btn btn-ghost btn-sm">Raspored misa</a>
-<a href="{% page_url 'zupni-listic' %}" class="btn btn-ghost btn-sm">Župni list (nakane)</a>
-<button type="button" class="btn btn-ghost btn-sm" id="nakana-gregorian-btn">Gregorijanska (30)</button>
+<button type="button" class="btn btn-ghost btn-sm" id="nakana-gregorian-btn">Gregorijanske mise</button>
 {% endblock %}
 
 {% block content %}
@@ -19,7 +18,6 @@
   </div>
 
   <div class="nakane-evidence-wrap" id="nakane-evidence">
-    <section class="card nakane-stats-section" id="nakane-stats"></section>
     <section class="card" id="nakane-table-section">
       <div id="nakane-table"></div>
     </section>

@@ -1,7 +1,7 @@
 """API mutacije misnih nakana."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from pastoral.services.api_action_handlers.shared import (
     generate_payment_reference,
@@ -50,6 +50,39 @@ def create_intention(parish_data: dict, action_payload: dict) -> dict:
     }
     parish_data.setdefault('intentions', []).append(intention_record)
     return {'ok': True, 'item': intention_record}
+
+
+def create_gregorian_intentions(
+    parish_data: dict,
+    action_payload: dict,
+) -> dict:
+    """Create the complete Gregorian series in one persisted API action."""
+    start_date_value = normalize_date_value(action_payload.get('start_date'))
+    intention_for = (action_payload.get('intention_for') or '').strip()
+    if not start_date_value or not intention_for:
+        return {'ok': False, 'error': 'date_and_intention_required'}
+
+    try:
+        start_date = date.fromisoformat(start_date_value)
+    except ValueError:
+        return {'ok': False, 'error': 'invalid_date'}
+
+    created_intentions = []
+    for sequence_number in range(1, 31):
+        intention_date = start_date + timedelta(days=sequence_number - 1)
+        creation_result = create_intention(parish_data, {
+            'date': intention_date.isoformat(),
+            'mass_time': action_payload.get('mass_time') or '',
+            'intention_for': (
+                f'{intention_for} (Gregorijanska {sequence_number}/30)'
+            ),
+            'requested_by': action_payload.get('requested_by') or '',
+            'stipend': action_payload.get('stipend') or 0,
+            'notes': 'Gregorijanska serija',
+        })
+        created_intentions.append(creation_result['item'])
+
+    return {'ok': True, 'items': created_intentions, 'count': 30}
 
 
 def update_intention(parish_data: dict, action_payload: dict) -> dict:

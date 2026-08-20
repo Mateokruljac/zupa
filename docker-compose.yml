@@ -52,6 +52,7 @@ services:
       CELERY_BROKER_URL: redis://:password@cache:6379/0
       CELERY_RESULT_BACKEND: redis://:password@cache:6379/0
       CELERY_TASK_ALWAYS_EAGER: "False"
+      CACHE_URL: redis://:${REDIS_PASSWORD:-password}@cache:6379/1
     networks:
       - zupa
     restart: unless-stopped
@@ -88,6 +89,7 @@ services:
       CELERY_BROKER_URL: redis://:password@cache:6379/0
       CELERY_RESULT_BACKEND: redis://:password@cache:6379/0
       CELERY_TASK_ALWAYS_EAGER: "False"
+      CACHE_URL: redis://:${REDIS_PASSWORD:-password}@cache:6379/1
     depends_on:
       db:
         condition: service_healthy

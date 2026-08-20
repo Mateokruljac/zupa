@@ -1,42 +1,97 @@
 """Ulice župe — kontekst stranice (bivši renderUlicePage u app.js)."""
 from __future__ import annotations
 
+from urllib.parse import quote_plus
 
-def streets_page_context(data: dict, request) -> dict:
+
+def streets_page_context(
+    data: dict,
+    request,
+    parish_settings: dict | None = None,
+) -> dict:
     streets = sorted(
         data.get('streets', []),
-        key=lambda s: (s.get('sortOrder', 0), (s.get('name') or '').lower()),
+        key=lambda street: (
+            street.get('sortOrder', 0),
+            (street.get('name') or '').lower(),
+        ),
     )
     families_by_street: dict[str, list] = {}
-    unassigned: list = []
-    for fam in data.get('families', []):
-        sid = fam.get('streetId') or ''
-        if sid:
-            families_by_street.setdefault(sid, []).append(fam)
+    unassigned_families: list = []
+    for family in data.get('families', []):
+        street_id = family.get('streetId') or ''
+        if street_id:
+            families_by_street.setdefault(street_id, []).append(family)
         else:
-            unassigned.append(fam)
+            unassigned_families.append(family)
 
-    selected_id = (request.GET.get('street') or '').strip()
-    selected = next((s for s in streets if s.get('id') == selected_id), None)
-    street_families = sorted(
-        families_by_street.get(selected_id, []),
-        key=lambda f: (f.get('surname') or '').lower(),
+    selected_street_id = (request.GET.get('street') or '').strip()
+    selected_street = next(
+        (
+            street
+            for street in streets
+            if street.get('id') == selected_street_id
+        ),
+        None,
     )
+    street_families = sorted(
+        families_by_street.get(selected_street_id, []),
+        key=lambda family: (family.get('surname') or '').lower(),
+    )
+    street_map_query = ''
+    street_map_embed_url = ''
+    street_map_external_url = ''
+    if selected_street:
+        parish_city = (parish_settings or {}).get('city') or ''
+        street_map_query = ', '.join(
+            address_part
+            for address_part in (
+                selected_street.get('name') or '',
+                parish_city,
+                'Hrvatska',
+            )
+            if address_part
+        )
+        encoded_map_query = quote_plus(street_map_query)
+        street_map_embed_url = (
+            f'https://www.google.com/maps?q={encoded_map_query}&output=embed'
+        )
+        street_map_external_url = (
+            f'https://www.google.com/maps/search/?api=1&query={encoded_map_query}'
+        )
 
-    assigned_count = sum(len(fams) for fams in families_by_street.values())
-    show_form = request.GET.get('new') == '1' or (bool(selected) and request.GET.get('edit') == '1')
+    assigned_families_count = sum(
+        len(street_families)
+        for street_families in families_by_street.values()
+    )
+    show_street_form = (
+        request.GET.get('new') == '1'
+        or (
+            bool(selected_street)
+            and request.GET.get('edit') == '1'
+        )
+    )
 
     return {
         'streets': streets,
-        'selected_street': selected,
-        'selected_street_id': selected_id,
+        'selected_street': selected_street,
+        'selected_street_id': selected_street_id,
         'street_families': street_families,
-        'family_counts': {sid: len(fams) for sid, fams in families_by_street.items()},
-        'unassigned_families': sorted(unassigned, key=lambda f: (f.get('surname') or '').lower()),
-        'assigned_families_count': assigned_count,
-        'show_street_form': show_form,
+        'street_map_query': street_map_query,
+        'street_map_embed_url': street_map_embed_url,
+        'street_map_external_url': street_map_external_url,
+        'family_counts': {
+            street_id: len(street_families)
+            for street_id, street_families in families_by_street.items()
+        },
+        'unassigned_families': sorted(
+            unassigned_families,
+            key=lambda family: (family.get('surname') or '').lower(),
+        ),
+        'assigned_families_count': assigned_families_count,
+        'show_street_form': show_street_form,
         'street_form_mode': (
-            'edit' if selected and request.GET.get('edit') == '1'
+            'edit' if selected_street and request.GET.get('edit') == '1'
             else 'new' if request.GET.get('new') == '1'
             else None
         ),

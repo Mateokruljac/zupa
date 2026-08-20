@@ -265,9 +265,11 @@
         return yearIndexCache[year];
       } catch (djangoError) {
         console.warn(
-          "[PastoralLiturgical] Django kalendar nije dostupan, koristim postojeću rezervu:",
+          "[PastoralLiturgical] Django kalendar nije dostupan:",
           djangoError.message
         );
+        yearIndexCache[year] = {};
+        return yearIndexCache[year];
       }
     }
 
@@ -317,6 +319,15 @@
       lectionary: null,
       hilpUrl: hilpUrlForDate(iso),
     };
+  }
+
+  async function fetchExternalLitcalYearForImport(year) {
+    const events = await fetchRemoteLitcalYear(year);
+    return buildIndexFromLitcal(events);
+  }
+
+  async function fetchExternalCalendarDayForImport(iso) {
+    return fetchCalapiDay(iso);
   }
 
   function formatCalapiFerial(day) {
@@ -395,6 +406,14 @@
       } catch (e) {
         console.warn("[PastoralLiturgical] Django dan:", e.message);
       }
+      return {
+        source: "offline",
+        date,
+        title: "Liturgijski podaci nisu uvezeni",
+        subtitle: "Pokrenite uvoz kalendara ili otvorite HILP.",
+        readings: null,
+        hilpUrl: hilpUrlForDate(date),
+      };
     }
 
     try {
@@ -938,6 +957,8 @@
     loadLitcalYear,
     loadLitcalYearsForMonth,
     loadLitcalYearsForDate,
+    fetchExternalLitcalYearForImport,
+    fetchExternalCalendarDayForImport,
     prefetchMonthHr,
     resolveEventsForDate,
     renderDayCard,

@@ -39,6 +39,20 @@ def _council_data(parish_data: dict, council_type: str) -> dict | None:
     return parish_data.setdefault(council_configuration['data_key'], {})
 
 
+def _council_member(
+    council: dict | None,
+    council_member_identifier: str,
+) -> dict | None:
+    return next(
+        (
+            council_member
+            for council_member in (council or {}).get('members', [])
+            if council_member.get('id') == council_member_identifier
+        ),
+        None,
+    )
+
+
 def handle_council_action(
     request,
     page_slug: str,
@@ -101,17 +115,83 @@ def handle_council_action(
             messages.error(request, 'Provjerite datum i odabrano vijeće.')
         return True
 
+    if action_name == 'update_council_member':
+        council_member_form = CouncilMemberForm(request.POST)
+        if not council_member_form.is_valid():
+            messages.error(request, 'Provjerite podatke člana vijeća.')
+            return True
+
+        cleaned_data = council_member_form.cleaned_data
+        source_council_type = request.POST.get(
+            'original_council_type',
+            cleaned_data['council_type'],
+        )
+        source_council = _council_data(
+            parish_data,
+            source_council_type,
+        )
+        council_member = _council_member(
+            source_council,
+            request.POST.get('member_id', ''),
+        )
+        if not council_member:
+            messages.error(request, 'Član vijeća nije pronađen.')
+            return True
+
+        council_member.update({
+            'name': cleaned_data['name'],
+            'role': cleaned_data['role'],
+            'confirmed': cleaned_data['confirmed'],
+        })
+        if source_council_type != cleaned_data['council_type']:
+            source_council['members'] = [
+                existing_council_member
+                for existing_council_member
+                in source_council.get('members', [])
+                if existing_council_member.get('id')
+                != council_member.get('id')
+            ]
+            target_council = _council_data(
+                parish_data,
+                cleaned_data['council_type'],
+            )
+            target_council.setdefault('members', []).append(council_member)
+        parish_data_service.save(parish_data)
+        messages.success(request, 'Podaci člana vijeća su spremljeni.')
+        return True
+
+    if action_name == 'delete_council_member':
+        council_type = request.POST.get(
+            'original_council_type',
+            request.POST.get('council_type', ''),
+        )
+        council_member_identifier = request.POST.get('member_id', '')
+        council = _council_data(parish_data, council_type)
+        council_member = _council_member(
+            council,
+            council_member_identifier,
+        )
+        if not council_member:
+            messages.error(request, 'Član vijeća nije pronađen.')
+            return True
+
+        council['members'] = [
+            existing_council_member
+            for existing_council_member in council.get('members', [])
+            if existing_council_member.get('id')
+            != council_member_identifier
+        ]
+        parish_data_service.save(parish_data)
+        messages.success(request, 'Član je uklonjen iz vijeća.')
+        return True
+
     if action_name == 'toggle_council_member_confirmation':
         council_type = request.POST.get('council_type', '')
         council_member_id = request.POST.get('member_id', '')
         council = _council_data(parish_data, council_type)
-        council_member = next(
-            (
-                member
-                for member in (council or {}).get('members', [])
-                if member.get('id') == council_member_id
-            ),
-            None,
+        council_member = _council_member(
+            council,
+            council_member_id,
         )
         if council_member:
             council_member['confirmed'] = not council_member.get('confirmed')

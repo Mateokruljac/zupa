@@ -1,80 +1,68 @@
 {% extends "pastoral/base.html" %}
 {% load pastoral_tags %}
+{% load static %}
 
 {% block topbar_actions %}
 <a href="{% page_url 'obitelji' %}" class="btn btn-ghost btn-sm">Obitelji</a>
-<button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('visit-form-card').hidden=false">+ Posjet</button>
+<button type="button" class="btn btn-primary btn-sm" data-record-dialog="visit-record-dialog">+ Novi posjet</button>
 {% endblock %}
 
 {% block content %}
-<div class="kpi-row" style="margin-bottom:16px">
-  <article class="card kpi-card"><p class="card-label">Ukupno</p><p class="card-value">{{ visit_stats.total }}</p></article>
-  <article class="card kpi-card"><p class="card-label">Otvoreno</p><p class="card-value">{{ visit_stats.open }}</p></article>
-  <article class="card kpi-card"><p class="card-label">Prekoračeno</p><p class="card-value">{{ visit_stats.due }}</p></article>
-  <article class="card kpi-card"><p class="card-label">Kućna pričest</p><p class="card-value">{{ visit_stats.communion }}</p></article>
-  <article class="card kpi-card"><p class="card-label">Bez ishoda</p><p class="card-value">{{ visit_stats.reports_missing }}</p></article>
-</div>
-
-<div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
-  <a href="?status=open" class="btn btn-sm {% if filter_status == 'open' %}btn-primary{% else %}btn-ghost{% endif %}">Otvoreni</a>
-  <a href="?status=done" class="btn btn-sm {% if filter_status == 'done' %}btn-primary{% else %}btn-ghost{% endif %}">Obavljeni</a>
-  <a href="?status=all" class="btn btn-sm {% if filter_status == 'all' %}btn-primary{% else %}btn-ghost{% endif %}">Svi</a>
-</div>
-
-<section id="visit-form-card" class="card" style="margin-bottom:16px" {% if not selected_visit and not prefilled_family %}hidden{% endif %}>
-  <h2 class="section-title">{% if selected_visit %}Uredi posjet{% else %}Novi posjet{% endif %}</h2>
-  {% if prefilled_family %}<p class="card-sub">Termin je povezan s kartonom obitelji {{ prefilled_family.surname }}; adresa i obitelj već su popunjene.</p>{% endif %}
-  {% if selected_visit and not selected_visit.done %}<p class="operational-hint">Za završetak posjeta upišite kratak ishod i sljedeći korak u polje <strong>Izvještaj</strong>.</p>{% endif %}
-  <form method="post" style="display:grid;gap:12px;max-width:640px">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="upsert_visit">
-    {% if selected_visit %}<input type="hidden" name="visit_id" value="{{ selected_visit.id }}">{% endif %}
-    {{ visit_form.as_p }}
-    <div style="display:flex;gap:8px">
-      <button type="submit" class="btn btn-primary btn-sm">Spremi</button>
-      <a href="{% page_url 'posjete' %}" class="btn btn-ghost btn-sm">Odustani</a>
-    </div>
-  </form>
+<section class="kpi-row visit-summary" aria-label="Sažetak posjeta">
+  <article class="card kpi-card"><p class="card-label">Otvoreni posjeti</p><p class="card-value">{{ visit_stats.open }}</p><p class="card-sub">čekaju obavljanje</p></article>
+  <article class="card kpi-card"><p class="card-label">Prošao termin</p><p class="card-value">{{ visit_stats.due }}</p><p class="card-sub">treba provjeriti</p></article>
+  <article class="card kpi-card"><p class="card-label">Bez izvještaja</p><p class="card-value">{{ visit_stats.reports_missing }}</p><p class="card-sub">obavljeni bez ishoda</p></article>
 </section>
 
-<section class="card">
-  <h2 class="section-title">Popis posjeta</h2>
+<section class="card visit-list-card">
+  <header class="visit-list-header">
+    <div><p class="card-label">Pastoralna skrb</p><h2 class="section-title">Posjeti</h2></div>
+    <nav class="visit-status-filters" aria-label="Filtriranje posjeta">
+      <a href="?status=open" class="btn btn-sm {% if filter_status == 'open' %}btn-primary{% else %}btn-ghost{% endif %}">Otvoreni</a>
+      <a href="?status=done" class="btn btn-sm {% if filter_status == 'done' %}btn-primary{% else %}btn-ghost{% endif %}">Obavljeni</a>
+      <a href="?status=all" class="btn btn-sm {% if filter_status == 'all' %}btn-primary{% else %}btn-ghost{% endif %}">Svi</a>
+    </nav>
+  </header>
   <div class="table-wrap">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Datum</th>
-          <th>Osoba</th>
-          <th>Vrsta</th>
-          <th>Adresa</th>
-          <th>Svrha</th>
-          <th>Ishod / status</th>
-          <th></th>
-        </tr>
-      </thead>
+    <table class="data-table visit-list-table">
+      <thead><tr><th>Datum</th><th>Osoba ili obitelj</th><th>Vrsta</th><th>Adresa i svrha</th><th>Status</th><th></th></tr></thead>
       <tbody>
-        {% for v in visits %}
+        {% for visit in visits %}
         <tr>
-          <td>{{ v.scheduled|hr_date }}{% if v.isOverdue %}<br><small class="text-danger">{{ v.daysOverdue }} dana iza roka</small>{% endif %}</td>
-          <td><strong>{{ v.person }}</strong>{% if v.familySurname %}<br><small>{{ v.familySurname }}</small>{% endif %}</td>
-          <td><span class="badge">{{ v.type }}</span></td>
-          <td>{{ v.address|default:"—" }}</td>
-          <td>{{ v.purpose|default:"—" }}</td>
-          <td>{% if v.done %}<span class="badge badge-done">obavljeno</span>{% if v.needsReport %}<br><span class="badge badge-urgent">nedostaje izvještaj</span>{% elif v.report %}<br><small>{{ v.report }}</small>{% endif %}{% elif v.isOverdue %}<span class="badge badge-urgent">prekoračeno</span>{% else %}<span class="badge">planirano</span>{% endif %}</td>
-          <td style="white-space:nowrap">
-            <a href="?visit={{ v.id }}&status={{ filter_status }}" class="btn btn-ghost btn-sm">Uredi</a>
-            <form method="post" style="display:inline">{% csrf_token %}
-              <input type="hidden" name="action" value="toggle_visit">
-              <input type="hidden" name="visit_id" value="{{ v.id }}">
-              <button type="submit" class="btn btn-ghost btn-sm">{% if v.done %}Otvori{% else %}Obavljeno{% endif %}</button>
-            </form>
+          <td>{{ visit.scheduled|hr_date }}{% if visit.isOverdue %}<small class="text-danger">{{ visit.daysOverdue }} dana nakon termina</small>{% endif %}</td>
+          <td><strong>{{ visit.person }}</strong>{% if visit.familySurname %}<small>{{ visit.familySurname }}</small>{% endif %}</td>
+          <td><span class="badge">{{ visit.type }}</span></td>
+          <td>{{ visit.address|default:"—" }}{% if visit.purpose %}<small>{{ visit.purpose }}</small>{% endif %}</td>
+          <td>
+            {% if visit.done %}<span class="badge badge-done">obavljeno</span>{% if visit.needsReport %}<small class="text-danger">nedostaje izvještaj</small>{% elif visit.report %}<small>{{ visit.report|truncatechars:70 }}</small>{% endif %}
+            {% elif visit.isOverdue %}<span class="badge badge-urgent">prošao termin</span>
+            {% else %}<span class="badge">planirano</span>{% endif %}
+          </td>
+          <td class="visit-row-actions">
+            <a href="?visit={{ visit.id }}&status={{ filter_status }}" class="btn btn-ghost btn-sm">Detalji</a>
+            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle_visit"><input type="hidden" name="visit_id" value="{{ visit.id }}"><button type="submit" class="btn btn-ghost btn-sm">{% if visit.done %}Ponovno otvori{% else %}Označi obavljeno{% endif %}</button></form>
           </td>
         </tr>
-        {% empty %}
-        <tr><td colspan="7" class="empty-state">Nema posjeta za odabrani filter.</td></tr>
-        {% endfor %}
+        {% empty %}<tr><td colspan="6" class="empty-state">Nema posjeta u ovom prikazu.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
 </section>
+
+<dialog id="visit-record-dialog" class="family-record-dialog visit-record-dialog" data-record-dialog-root {% if selected_visit or prefilled_family %}data-record-dialog-open{% endif %}>
+  <form method="post" class="family-record-dialog__form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upsert_visit">
+    {% if selected_visit %}<input type="hidden" name="visit_id" value="{{ selected_visit.id }}">{% endif %}
+    <header>
+      <div><p class="card-label">{% if selected_visit %}Detalji i uređivanje{% else %}Novi termin{% endif %}</p><h2>{% if selected_visit %}{{ selected_visit.person }}{% else %}Planiraj posjet{% endif %}</h2></div>
+      <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
+    </header>
+    {% if prefilled_family %}<p class="family-record-dialog__intro">Posjet je povezan s obitelji {{ prefilled_family.surname }}. Kontaktni podaci već su popunjeni.</p>{% elif selected_visit and not selected_visit.done %}<p class="family-record-dialog__intro">Prije označavanja posjeta obavljenim upišite kratak ishod u polje Izvještaj.</p>{% endif %}
+    <div class="family-record-form-grid visit-record-form-grid">{{ visit_form.as_p }}</div>
+    <footer><a href="{% page_url 'posjete' %}?status={{ filter_status }}" class="btn btn-ghost">Odustani</a><button type="submit" class="btn btn-primary">Spremi posjet</button></footer>
+  </form>
+</dialog>
 {% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/record-dialog.js' %}"></script>{% endblock %}

@@ -8,6 +8,7 @@ from pastoral.services.invoices_page import invoices_page_context
 from pastoral.services.kalendar import calendar_page_context
 from pastoral.services.nakane import nakane_page_context
 from pastoral.services.public_submissions_page import public_submissions_context
+from pastoral.services.registry_books import registry_books_page_context
 from pastoral.services.streets import streets_page_context
 from pastoral.services.visits_page import visits_page_context
 from pastoral.services.zupni_listic import (
@@ -15,8 +16,6 @@ from pastoral.services.zupni_listic import (
     migrate_listic_data,
     zupni_listic_page_context,
 )
-from pastoral.services.deanery import deanery_page_context
-from pastoral.services.operations import operations_page_context
 from pastoral.services.sacraments import (
     anointing_context,
     baptisms_context,
@@ -46,25 +45,14 @@ PAGE_META = {
     'dugovanja': ('Dugovanja', 'Prema župi i dugovanja župe'),
     'racuni': ('Ulazni računi', 'Evidencija računa dobavljača'),
     'blagajna': ('Blagajna', 'Plavi i crveni dnevnik'),
-    'financijska-izvjestaja': ('Financijska izvješća', 'Kvartalni i godišnji obračun'),
-    'formulari': ('Formulari', 'Katalog ispisnica'),
-    'potvrde': ('Potvrde', 'Ispis isprava iz evidencije'),
-    'dokumenti': ('Dokumenti', 'Predlošci i serijski ispis'),
+    'financijska-izvjestaja': ('Financijski pregled', 'Prihodi, rashodi i otvorene obveze'),
+    'potvrde': ('Dokumenti i potvrde', 'Pronađite zapis, odaberite dokument i ispišite ga'),
     'maticne-knjige': ('Matične knjige', 'Pregled knjiga u župi'),
     'vijeca': ('Vijeća ŽPV/ŽEV', 'Članovi i sastanci'),
     'kalendar': ('Događaji i zadaci', 'Župni kalendar, liturgija i obaveze ureda'),
     'javne-prijave': ('Javne prijave', 'Prijave s weba'),
     'postavke': ('Postavke', 'Naziv župe, logo, boje'),
-    'web-stranica': (
-        'Javna web-stranica',
-        'Aktivacija, izrada i objava stranice župe',
-    ),
     'posjete': ('Posjete', 'Pastoralni posjeti obiteljima i bolesnicima'),
-    'dekanat': ('Dekanat i suradnja', 'Sigurni zahtjevi, potvrde i koordinacija između župa'),
-    'operativno-srediste': (
-        'Operativno središte',
-        'Jedinstveni radni red: uredska pošta, ljudi, prostori, imovina, kontrole i komunikacija',
-    ),
 }
 
 
@@ -76,110 +64,6 @@ def dashboard_context(request, parish_data_service: ParishDataService) -> dict:
     return build_dashboard_context(parish_data_service)
 
 
-def generic_table_context(
-    request,
-    parish_data_service: ParishDataService,
-    page_slug: str,
-) -> dict:
-    parish_data = parish_data_service.load()
-    page_context = {'data': parish_data}
-    if page_slug == 'kalendar':
-        page_context['parish_events'] = parish_data.get('events', [])
-        page_context['rows'] = parish_data.get('tasks', [])
-    elif page_slug == 'pomazanje':
-        page_context['rows'] = parish_data.get('anointing', [])
-        page_context['columns'] = [
-            ('person', 'Osoba'),
-            ('address', 'Adresa'),
-            ('scheduled', 'Datum'),
-            ('priest', 'Svećenik'),
-            ('done', 'Obavljeno'),
-        ]
-    elif page_slug == 'krsenja':
-        page_context['rows'] = parish_data.get('baptisms', [])
-        page_context['columns'] = [
-            ('childName', 'Dijete'),
-            ('baptismDate', 'Datum'),
-            ('parents', 'Roditelji'),
-            ('status', 'Status'),
-            ('stipendPaid', 'Stipendij'),
-        ]
-    elif page_slug == 'vjencanja':
-        page_context['rows'] = parish_data.get('weddings', [])
-        page_context['columns'] = [
-            ('couple', 'Par'),
-            ('weddingDate', 'Datum'),
-            ('status', 'Status'),
-            ('stipendPaid', 'Stipendij'),
-        ]
-    elif page_slug == 'pogrebi':
-        page_context['rows'] = parish_data.get('funerals', [])
-        page_context['columns'] = [
-            ('deceased', 'Pokojnik'),
-            ('funeralDate', 'Datum'),
-            ('cemetery', 'Groblje'),
-            ('status', 'Status'),
-        ]
-    elif page_slug == 'ulice':
-        page_context['rows'] = parish_data.get('streets', [])
-        page_context['columns'] = [
-            ('name', 'Ulica'),
-            ('zone', 'Zona'),
-            ('sortOrder', 'Red'),
-        ]
-    elif page_slug == 'dugovanja':
-        page_context['rows'] = parish_data.get('parishDebts', [])
-        page_context['columns'] = [
-            ('label', 'Opis'),
-            ('category', 'Kategorija'),
-            ('amount', 'Iznos'),
-            ('paid', 'Plaćeno'),
-            ('dueDate', 'Rok'),
-        ]
-    elif page_slug == 'racuni':
-        page_context['rows'] = [
-            invoice
-            for invoice in parish_data.get('invoices', [])
-            if invoice.get('direction') != 'outgoing'
-        ]
-        page_context['columns'] = [
-            ('number', 'Broj'),
-            ('supplierName', 'Dobavljač'),
-            ('total', 'Iznos'),
-            ('status', 'Status'),
-            ('dueDate', 'Rok'),
-        ]
-    elif page_slug == 'blagajna':
-        page_context['rows'] = parish_data.get('cashbook', [])
-        page_context['columns'] = [
-            ('date', 'Datum'),
-            ('type', 'Smjer'),
-            ('description', 'Opis'),
-            ('amount', 'Iznos'),
-            ('ledger', 'Dnevnik'),
-        ]
-    elif page_slug == 'maticne-knjige':
-        page_context['rows'] = parish_data.get('registryBooks', [])
-        page_context['columns'] = [
-            ('title', 'Knjiga'),
-            ('type', 'Vrsta'),
-            ('lastNo', 'Zadnji broj'),
-            ('status', 'Status'),
-        ]
-    elif page_slug == 'javne-prijave':
-        page_context['rows'] = parish_data.get('publicSubmissions', [])
-        page_context['columns'] = [
-            ('formType', 'Obrazac'),
-            ('submittedAt', 'Datum'),
-            ('name', 'Ime'),
-            ('status', 'Status'),
-        ]
-    else:
-        page_context['rows'] = []
-        page_context['columns'] = []
-    return page_context
-
-
 def build_page_context(request, page_slug: str) -> dict:
     parish_data_service = ParishDataService()
     page_title, page_subtitle = page_title_subtitle(page_slug)
@@ -189,23 +73,30 @@ def build_page_context(request, page_slug: str) -> dict:
         'page_subtitle': page_subtitle,
     }
     parish_data = parish_data_service.load()
+    page_context['baptism_data_source'] = 'relational'
     if page_slug == 'nakane':
         page_context.update(nakane_page_context(parish_data, request))
+        page_context['nakane_bootstrap']['defaultStipend'] = float(
+            parish_data_service.load_settings().get(
+                'defaultMassIntentionStipend', 0
+            ) or 0
+        )
     elif page_slug == 'mise':
         from pastoral.services.mass_schedule import migrate_mass_schedule
         migrate_mass_schedule(parish_data)
         page_context['mise_bootstrap'] = {
             'massSchedule': parish_data.get('massSchedule', []),
             'massExceptions': parish_data.get('massExceptions', []),
-            'massScheduleLog': parish_data.get('massScheduleLog', []),
             'intentions': parish_data.get('intentions', []),
+            'defaultStipend': float(
+                parish_data_service.load_settings().get(
+                    'defaultMassIntentionStipend', 0
+                ) or 0
+            ),
         }
     elif page_slug == 'zupni-listic':
         parish_settings = parish_data_service.load_settings()
-        had_saved_layout = bool(parish_data.get('zupniListicLayout', {}).get('blocks'))
         migrate_listic_data(parish_data)
-        if not had_saved_layout and parish_data.get('zupniListicLayout', {}).get('blocks'):
-            parish_data_service.save(parish_data)
         page_context.update(
             zupni_listic_page_context(parish_data, parish_settings, request)
         )
@@ -235,17 +126,100 @@ def build_page_context(request, page_slug: str) -> dict:
     elif page_slug == 'dugovanja':
         page_context.update(debts_page_context(parish_data, request))
     elif page_slug == 'vijeca':
-        page_context['pastoral_council'] = parish_data.get('pastoralCouncil', {})
-        page_context['economic_council'] = parish_data.get('economicCouncil', {})
+        pastoral_council = parish_data.get('pastoralCouncil', {})
+        economic_council = parish_data.get('economicCouncil', {})
+        selected_council_type = request.GET.get('council', 'pastoral')
+        if selected_council_type not in {'pastoral', 'economic'}:
+            selected_council_type = 'pastoral'
+        selected_council = (
+            economic_council
+            if selected_council_type == 'economic'
+            else pastoral_council
+        )
+        selected_member_identifier = request.GET.get('member', '')
+        selected_council_member = next(
+            (
+                council_member
+                for council_member in selected_council.get('members', [])
+                if council_member.get('id') == selected_member_identifier
+            ),
+            None,
+        )
+        page_context.update({
+            'pastoral_council': pastoral_council,
+            'economic_council': economic_council,
+            'selected_council_type': selected_council_type,
+            'selected_council_member': selected_council_member,
+            'council_member_form_mode': (
+                'add'
+                if selected_member_identifier == 'new'
+                else 'edit'
+                if selected_council_member
+                else ''
+            ),
+            'council_meeting_dialog_open': (
+                request.GET.get('meeting') == '1'
+            ),
+            'pastoral_confirmed_member_count': sum(
+                bool(council_member.get('confirmed'))
+                for council_member in pastoral_council.get('members', [])
+            ),
+            'economic_confirmed_member_count': sum(
+                bool(council_member.get('confirmed'))
+                for council_member in economic_council.get('members', [])
+            ),
+        })
     elif page_slug == 'podsjetnici':
-        page_context['reminders'] = parish_data_service.collect_reminders()
+        all_reminders = parish_data_service.collect_reminders()
+        selected_priority = request.GET.get('priority', 'all')
+        selected_category = request.GET.get('category', 'all')
+        search_term = request.GET.get('search', '').strip().casefold()
+
+        visible_reminders = [
+            reminder
+            for reminder in all_reminders
+            if (
+                selected_priority == 'all'
+                or reminder.get('priority') == selected_priority
+            )
+            and (
+                selected_category == 'all'
+                or reminder.get('category') == selected_category
+            )
+            and (
+                not search_term
+                or search_term in ' '.join((
+                    str(reminder.get('title') or ''),
+                    str(reminder.get('sub') or ''),
+                    str(reminder.get('category') or ''),
+                )).casefold()
+            )
+        ]
+        page_context.update({
+            'reminders': visible_reminders,
+            'reminder_count': len(all_reminders),
+            'high_priority_reminder_count': sum(
+                reminder.get('priority') == 'visoka'
+                for reminder in all_reminders
+            ),
+            'reminder_categories': sorted({
+                reminder.get('category')
+                for reminder in all_reminders
+                if reminder.get('category')
+            }),
+            'selected_reminder_priority': selected_priority,
+            'selected_reminder_category': selected_category,
+            'reminder_search_term': request.GET.get('search', '').strip(),
+        })
     elif page_slug == 'postavke':
         page_context['settings'] = parish_data_service.load_settings()
         page_context['parish_decree'] = parish_data.get('parishDecree', {})
-    elif page_slug == 'web-stranica':
-        page_context['settings'] = parish_data_service.load_settings()
     elif page_slug == 'ulice':
-        page_context.update(streets_page_context(parish_data, request))
+        page_context.update(streets_page_context(
+            parish_data,
+            request,
+            parish_data_service.load_settings(),
+        ))
     elif page_slug == 'blagajna':
         page_context.update(cashbook_page_context(parish_data, request))
     elif page_slug == 'racuni':
@@ -256,20 +230,23 @@ def build_page_context(request, page_slug: str) -> dict:
         page_context.update(finance_reports_context(parish_data, request))
     elif page_slug == 'kalendar':
         page_context.update(calendar_page_context(parish_data, request))
-    elif page_slug in {'formulari', 'potvrde', 'dokumenti'}:
+    elif page_slug == 'potvrde':
         page_context.update(
             documents_page_context(
                 parish_data,
                 parish_data_service.load_settings(),
                 request,
-                page_slug,
             )
         )
     elif page_slug == 'maticne-knjige':
-        page_context['registry_books'] = parish_data.get('registryBooks', [])
+        page_context.update(registry_books_page_context(parish_data, request))
     elif page_slug == 'posjete':
         page_context.update(visits_page_context(parish_data, request))
     elif page_slug == 'dekanat':
+        from phase_two.interparish_collaboration.services import (
+            deanery_page_context,
+        )
+
         page_context.update(
             deanery_page_context(
                 parish_data,
@@ -278,9 +255,9 @@ def build_page_context(request, page_slug: str) -> dict:
             )
         )
     elif page_slug == 'operativno-srediste':
-        page_context.update(operations_page_context(parish_data, request))
-    else:
-        page_context.update(
-            generic_table_context(request, parish_data_service, page_slug)
+        from phase_two.operations_center.services import (
+            operations_page_context,
         )
+
+        page_context.update(operations_page_context(parish_data, request))
     return page_context

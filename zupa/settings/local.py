@@ -7,7 +7,7 @@ DATABASES = {
     }
 }
 
-DEBUG = os.environ.get('DEBUG', True)
+DEBUG = environment.bool('DEBUG', default=True)
 ALLOWED_HOSTS = ['*']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
@@ -15,17 +15,17 @@ INTERNAL_IPS = ['127.0.0.1', 'localhost']
 
 # Izvan Dockera: SMTP ide na 127.0.0.1:1025 (Mailhog mapiran s kontejnera)
 # Web sučelje za pregled mailova: http://localhost:8025 — NE koristiti za slanje!
-IN_DOCKER = os.path.exists('/.dockerenv')
+IN_DOCKER = Path('/.dockerenv').exists()
 if not IN_DOCKER and EMAIL_HOST in ('mailhog', 'localhost'):
     EMAIL_HOST = '127.0.0.1'
     MAILHOG_SMTP_HOST = '127.0.0.1'
 
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://:password@127.0.0.1:6379/0')
-CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
-CELERY_TASK_ALWAYS_EAGER = os.environ.get('CELERY_TASK_ALWAYS_EAGER', 'True') == 'True'
+CELERY_BROKER_URL = environment.str(
+    'CELERY_BROKER_URL',
+    default='redis://:password@127.0.0.1:6379/0',
+)
+CELERY_RESULT_BACKEND = environment.str('CELERY_RESULT_BACKEND', default=CELERY_BROKER_URL)
+CELERY_TASK_ALWAYS_EAGER = environment.bool('CELERY_TASK_ALWAYS_EAGER', default=True)
 
 # Privremena kompatibilnost za postojeći JSON demo. Produkcija je fail-closed.
 TENANCY_LEGACY_FALLBACK_ENABLED = True
-
-# Demo: zahtjev župe odmah aktivira dodatnu uslugu i pokreće početni build.
-PUBLIC_WEBSITE_DEMO_AUTO_ACTIVATE = True

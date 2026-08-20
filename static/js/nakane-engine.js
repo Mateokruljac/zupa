@@ -1,5 +1,5 @@
 /**
- * Misne nakane — klijentski prikaz (Danas / Kalendar / Evidencija).
+ * Misne nakane — klijentski prikaz (Danas / Kalendar / Sve nakane).
  *
  * Podaci dolaze iz Django bootstrap JSON-a (#nakane-bootstrap-data),
  * a CRUD ide preko PastoralApi.action() (server vraća osvježene podatke).
@@ -8,7 +8,6 @@
 (function (global) {
   "use strict";
 
-  const CHART_URL = "https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js";
   const VIEW_MODES = ["today", "calendar", "evidence"];
   const MODE_KEY = "nakane-view-mode";
 
@@ -17,7 +16,7 @@
     massSchedule: [],
     selectedDate: isoToday(),
     calendarMonth: new Date(),
-    charts: [],
+    defaultStipend: 0,
     tableSort: { key: "date", dir: "asc" },
     tableFilter: { search: "", status: "all" },
   };
@@ -73,24 +72,6 @@
     el.textContent = msg;
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 2800);
-  }
-
-  function loadChartJs() {
-    if (global.Chart) return Promise.resolve(global.Chart);
-    if (global.PastoralChartLoader) return global.PastoralChartLoader.loadChartJs();
-    if (global.__pastoralChartLoad) return global.__pastoralChartLoad;
-    global.__pastoralChartLoad = new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = CHART_URL;
-      s.async = true;
-      s.onload = () => resolve(global.Chart);
-      s.onerror = () => {
-        global.__pastoralChartLoad = null;
-        reject(new Error("Chart.js nije učitan"));
-      };
-      document.head.appendChild(s);
-    });
-    return global.__pastoralChartLoad;
   }
 
   /* ---------- podaci / CRUD ---------- */
@@ -205,24 +186,24 @@
     if (mode === "today") state.selectedDate = today;
     const activeIso = mode === "today" ? today : state.selectedDate || today;
     const list = dayIntentions(activeIso);
-    const unpaid = list.filter((n) => !n.paid).length;
+    const unrecordedContributions = list.filter((n) => !n.paid).length;
     const hint = mode === "evidence" ? "" : nextMassHint(activeIso, list);
 
     let meta;
     if (mode === "evidence") {
       const s = computeStats();
-      meta = `<strong class="nakane-command-date">Evidencija</strong>
-        <span class="card-sub">${s.total} nakana · ${s.unpaid} neplaćeno · ${s.stipendTotal} €</span>`;
+      meta = `<strong class="nakane-command-date">Sve nakane</strong>
+        <span class="card-sub">${s.total} ukupno · ${s.unpaid} bez evidentiranog priloga</span>`;
     } else {
       meta = `<strong class="nakane-command-date">${esc(fmtDate(activeIso))}</strong>
-        <span class="card-sub">${list.length} nakana${unpaid ? ` · ${unpaid} neplaćeno` : ""}</span>
+        <span class="card-sub">${list.length} nakana${unrecordedContributions ? ` · ${unrecordedContributions} bez evidentiranog priloga` : ""}</span>
         ${hint ? `<span class="nakane-next-mass">${esc(hint)}</span>` : ""}`;
     }
 
     const tabs = [
       ["today", "Danas"],
       ["calendar", "Kalendar"],
-      ["evidence", "Evidencija"],
+      ["evidence", "Sve nakane"],
     ]
       .map(
         ([id, label]) =>
@@ -281,10 +262,10 @@
               ${n.paid && n.paymentId ? `<br><small class="card-sub">Ref: ${esc(n.paymentId)}</small>` : ""}
             </div>
             <div class="nakana-item-actions">
-              ${n.paid ? '<span class="badge badge-done">plaćeno</span>' : '<span class="badge badge-urgent">neplaćeno</span>'}
-              <button type="button" class="btn btn-ghost btn-sm" data-edit-intent="${n.id}" title="Uredi">✎</button>
-              ${!n.paid ? `<button type="button" class="btn btn-primary btn-sm" data-pay-intent="${n.id}">Plati</button>` : ""}
-              <button type="button" class="btn btn-ghost btn-sm" data-del-intent="${n.id}">×</button>
+              ${n.paid ? '<span class="badge badge-done">prilog evidentiran</span>' : '<span class="badge badge-urgent">prilog nije evidentiran</span>'}
+              <button type="button" class="btn btn-ghost btn-sm" data-edit-intent="${n.id}">Uredi</button>
+              ${!n.paid ? `<button type="button" class="btn btn-primary btn-sm" data-pay-intent="${n.id}">Evidentiraj prilog</button>` : ""}
+              <button type="button" class="btn btn-ghost btn-sm" data-del-intent="${n.id}">Obriši</button>
             </div>
           </div>`
             )
@@ -452,126 +433,8 @@
   function computeStats() {
     const intentions = state.intentions || [];
     const total = intentions.length;
-    const paid = intentions.filter((n) => n.paid).length;
-    const unpaid = total - paid;
-    const paidPct = total ? Math.round((paid / total) * 100) : 0;
-    const stipendTotal = intentions.reduce((s, n) => s + num(n.stipend), 0);
-    const stipendUnpaid = intentions.filter((n) => !n.paid).reduce((s, n) => s + num(n.stipend), 0);
-    const now = new Date();
-    const last6 = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      last6.push({
-        label: d.toLocaleDateString("hr-HR", { month: "short" }),
-        count: intentions.filter((n) => n.date?.startsWith(mk)).length,
-      });
-    }
-    return { total, paid, unpaid, paidPct, stipendTotal, stipendUnpaid, last6 };
-  }
-
-  function destroyCharts() {
-    state.charts.forEach((c) => c.destroy());
-    state.charts = [];
-  }
-
-  function paintCharts(stats) {
-    if (!global.Chart) return;
-    destroyCharts();
-    const paidCanvas = document.getElementById("chart-nakane-paid");
-    const monthsCanvas = document.getElementById("chart-nakane-months");
-    if (paidCanvas && stats.total) {
-      state.charts.push(
-        new global.Chart(paidCanvas, {
-          type: "doughnut",
-          data: {
-            labels: ["Plaćeno", "Neplaćeno"],
-            datasets: [{ data: [stats.paid, stats.unpaid], backgroundColor: ["#2d6a4f", "#9b3d3d"], borderWidth: 0 }],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: "62%",
-            plugins: { legend: { position: "bottom", labels: { boxWidth: 10, font: { size: 11 } } } },
-          },
-        })
-      );
-    }
-    if (monthsCanvas) {
-      state.charts.push(
-        new global.Chart(monthsCanvas, {
-          type: "bar",
-          data: {
-            labels: stats.last6.map((x) => x.label),
-            datasets: [
-              {
-                label: "Nakane",
-                data: stats.last6.map((x) => x.count),
-                backgroundColor: "rgba(61,90,128,0.75)",
-                borderRadius: 4,
-                maxBarThickness: 28,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-              y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: "rgba(0,0,0,0.06)" } },
-            },
-          },
-        })
-      );
-    }
-  }
-
-  function renderStats() {
-    const el = document.getElementById("nakane-stats");
-    if (!el) return;
-    const stats = computeStats();
-    el.innerHTML = `
-      <div class="nakane-stats-head">
-        <div>
-          <h2 class="section-title">Pregled i statistika</h2>
-          <p class="card-sub">Ukupna evidencija nakana — tablicu ispod sortirajte i filtrirajte.</p>
-        </div>
-      </div>
-      <div class="nakane-kpi-grid">
-        <article class="nakane-kpi-tile nakane-kpi-tile--total">
-          <p class="nakane-kpi-label">Ukupno</p>
-          <p class="nakane-kpi-value">${stats.total}</p>
-          <p class="nakane-kpi-sub">svih nakana u evidenciji</p>
-        </article>
-        <article class="nakane-kpi-tile nakane-kpi-tile--paid">
-          <p class="nakane-kpi-label">Plaćeno</p>
-          <p class="nakane-kpi-value">${stats.paid}</p>
-          <p class="nakane-kpi-sub">${stats.paidPct}% od ukupnog broja</p>
-        </article>
-        <article class="nakane-kpi-tile nakane-kpi-tile--unpaid">
-          <p class="nakane-kpi-label">Neplaćeno</p>
-          <p class="nakane-kpi-value">${stats.unpaid}</p>
-          <p class="nakane-kpi-sub">${stats.stipendUnpaid} € stipendija</p>
-        </article>
-        <article class="nakane-kpi-tile nakane-kpi-tile--stipend">
-          <p class="nakane-kpi-label">Stipendiji</p>
-          <p class="nakane-kpi-value">${stats.stipendTotal} €</p>
-          <p class="nakane-kpi-sub">ukupno u evidenciji</p>
-        </article>
-      </div>
-      <div class="nakane-charts-grid">
-        <article class="analytics-stat card-section--finance">
-          <p class="card-label">Evidencija plaćenih i neplaćenih misnih nakana</p>
-          <div class="chart-wrap chart-wrap--md"><canvas id="chart-nakane-paid"></canvas></div>
-          ${stats.total ? "" : '<p class="empty-state">Nema nakana za prikaz.</p>'}
-        </article>
-        <article class="analytics-stat card-section--liturgy">
-          <p class="card-label">Nakane — zadnjih 6 mjeseci</p>
-          <div class="chart-wrap chart-wrap--md"><canvas id="chart-nakane-months"></canvas></div>
-        </article>
-      </div>`;
-    loadChartJs().then(() => paintCharts(stats)).catch(() => {});
+    const unpaid = intentions.filter((intention) => !intention.paid).length;
+    return { total, unpaid };
   }
 
   function sortRows(rows, sort) {
@@ -623,8 +486,8 @@
       { key: "date", label: "Datum" },
       { key: "massTime", label: "Misa" },
       { key: "intentionFor", label: "Nakana" },
-      { key: "requestedBy", label: "Naručitelj" },
-      { key: "stipend", label: "Stipendij" },
+      { key: "requestedBy", label: "Tko je dao" },
+      { key: "stipend", label: "Prilog" },
       { key: "paid", label: "Status" },
       { key: "_actions", label: "" },
     ];
@@ -636,8 +499,8 @@
         <input type="search" class="nakane-table-search" placeholder="Pretraži nakane…" value="${esc(state.tableFilter.search)}" />
         <select class="nakane-table-filter" data-nakane-status>
           <option value="all" ${state.tableFilter.status === "all" ? "selected" : ""}>Sve</option>
-          <option value="paid" ${state.tableFilter.status === "paid" ? "selected" : ""}>Plaćeno</option>
-          <option value="unpaid" ${state.tableFilter.status === "unpaid" ? "selected" : ""}>Neplaćeno</option>
+          <option value="paid" ${state.tableFilter.status === "paid" ? "selected" : ""}>Prilog evidentiran</option>
+          <option value="unpaid" ${state.tableFilter.status === "unpaid" ? "selected" : ""}>Prilog nije evidentiran</option>
         </select>
         <span class="table-kit-meta">${filtered.length} / ${allRows.length} nakana</span>
       </div>
@@ -662,11 +525,11 @@
                       <td><strong>${esc(n.intentionFor || "—")}</strong></td>
                       <td>${esc(n.requestedBy || "—")}</td>
                       <td>${num(n.stipend)} €</td>
-                      <td>${n.paid ? '<span class="badge badge-done">plaćeno</span>' : '<span class="badge badge-urgent">neplaćeno</span>'}</td>
+                      <td>${n.paid ? '<span class="badge badge-done">evidentiran</span>' : '<span class="badge badge-urgent">nije evidentiran</span>'}</td>
                       <td class="nakane-table-actions">
-                        <button type="button" class="btn btn-ghost btn-sm" data-edit-intent="${n.id}" title="Uredi">✎</button>
-                        ${!n.paid ? `<button type="button" class="btn btn-primary btn-sm" data-pay-intent="${n.id}">Plati</button>` : ""}
-                        <button type="button" class="btn btn-ghost btn-sm" data-del-intent="${n.id}">×</button>
+                        <button type="button" class="btn btn-ghost btn-sm" data-edit-intent="${n.id}">Uredi</button>
+                        ${!n.paid ? `<button type="button" class="btn btn-primary btn-sm" data-pay-intent="${n.id}">Evidentiraj prilog</button>` : ""}
+                        <button type="button" class="btn btn-ghost btn-sm" data-del-intent="${n.id}">Obriši</button>
                       </td>
                     </tr>`;
                   })
@@ -789,10 +652,10 @@
       ${editableDate ? `<div class="form-group"><label>Datum *</label><input name="date" type="date" value="${record?.date || iso || ""}" required /></div>` : ""}
       <div class="form-group"><label>Misa (sat)</label>${massSelect(iso, record?.massTime)}</div>
       <div class="form-group form-wide"><label>Za koga / namjera *</label><input name="intentionFor" required placeholder="Pokoj duše…" value="${esc(record?.intentionFor || "")}" /></div>
-      <div class="form-group"><label>Naručitelj</label><input name="requestedBy" placeholder="Ime i prezime" value="${esc(record?.requestedBy || "")}" /></div>
-      <div class="form-group"><label>Stipendij (€)</label><input name="stipend" type="number" min="0" value="${record?.stipend ?? 30}" /></div>
+      <div class="form-group"><label>Tko je dao nakanu</label><input name="requestedBy" placeholder="Ime i prezime" value="${esc(record?.requestedBy || "")}" /></div>
+      <div class="form-group"><label>Prilog (€)</label><input name="stipend" type="number" min="0" step="0.01" value="${record?.stipend ?? state.defaultStipend}" /></div>
       <div class="form-group form-wide"><label>Bilješka (samo za svećenika)</label><input name="notes" placeholder="Interna bilješka…" value="${esc(record?.notes || "")}" /></div>
-      ${record ? "" : `<label class="form-group form-wide" style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="paid" /> Stipendij je već primljen (plaćeno)</label>`}`;
+      ${record ? "" : `<label class="form-group form-wide" style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="paid" /> Prilog je evidentiran</label>`}`;
   }
 
   function readForm(form, iso, { editableDate = false } = {}) {
@@ -834,7 +697,7 @@
           try {
             await runAction("create_intention", fields);
             M.close();
-            showToast(fields.paid ? "Nakana dodana i plaćena" : "Nakana spremljena");
+            showToast(fields.paid ? "Nakana i prilog su evidentirani" : "Nakana spremljena");
             refresh();
           } catch {
             showToast("Greška pri spremanju");
@@ -857,7 +720,7 @@
       title: `Uredi nakanu — ${fmtDate(record.date)}`,
       size: "lg",
       body: `${nakanaFormBody(record, record.date, { editableDate: true })}
-        ${record.paid ? `<p class="card-sub form-wide">Plaćeno${record.paymentId ? ` · ref. ${esc(record.paymentId)}` : ""}.</p>` : ""}`,
+        ${record.paid ? `<p class="card-sub form-wide">Prilog evidentiran${record.paymentId ? ` · ref. ${esc(record.paymentId)}` : ""}.</p>` : ""}`,
       submitLabel: "Spremi",
       onSubmit: (form) => {
         const fields = readForm(form, record.date, { editableDate: true });
@@ -889,8 +752,8 @@
         <div class="form-group"><label>Početni datum *</label><input name="startDate" type="date" value="${iso}" required /></div>
         <div class="form-group"><label>Misa (sat)</label>${massSelect(iso)}</div>
         <div class="form-group form-wide"><label>Namjera *</label><input name="intentionFor" required placeholder="Pokoj duše…" /></div>
-        <div class="form-group"><label>Naručitelj</label><input name="requestedBy" /></div>
-        <div class="form-group"><label>Stipendij po misi (€)</label><input name="stipend" type="number" min="0" value="30" /></div>`,
+        <div class="form-group"><label>Tko je dao nakanu</label><input name="requestedBy" /></div>
+        <div class="form-group"><label>Prilog po misi (€)</label><input name="stipend" type="number" min="0" step="0.01" value="${state.defaultStipend}" /></div>`,
       submitLabel: "Kreiraj 30 nakana",
       onSubmit: (form) => {
         const fd = new FormData(form);
@@ -905,18 +768,13 @@
         const stipend = Number(fd.get("stipend")) || 0;
         (async () => {
           try {
-            for (let i = 0; i < 30; i++) {
-              const d = new Date(startDate + "T12:00:00");
-              d.setDate(d.getDate() + i);
-              await runAction("create_intention", {
-                date: d.toISOString().slice(0, 10),
-                mass_time: massTime,
-                intention_for: `${intentionFor} (Greg. ${i + 1}/30)`,
-                requested_by: requestedBy,
-                stipend,
-                notes: "Gregorijanska serija",
-              });
-            }
+            await runAction("create_gregorian_intentions", {
+              start_date: startDate,
+              mass_time: massTime,
+              intention_for: intentionFor,
+              requested_by: requestedBy,
+              stipend,
+            });
             M.close();
             showToast("30 nakana dodano (Gregorijanska serija)");
             refresh();
@@ -1039,8 +897,8 @@
 
   function nakanePrintRow(n) {
     const paid = n.paid
-      ? '<span class="badge badge--paid" title="Plaćeno">✓</span>'
-      : '<span class="badge badge--unpaid" title="Neplaćeno">·</span>';
+      ? '<span class="badge badge--paid" title="Prilog evidentiran">✓</span>'
+      : '<span class="badge badge--unpaid" title="Prilog nije evidentiran">·</span>';
     const notes = n.notes
       ? esc(n.notes)
       : '<span class="muted">—</span>';
@@ -1161,7 +1019,6 @@
       renderCalendar();
       renderDayPanel();
     } else {
-      renderStats();
       renderTable();
     }
   }
@@ -1173,6 +1030,7 @@
     const boot = readBootstrap();
     state.intentions = boot.intentions || [];
     state.massSchedule = boot.massSchedule || [];
+    state.defaultStipend = Number(boot.defaultStipend) || 0;
 
     const params = new URLSearchParams(location.search);
     const dateParam = params.get("date");

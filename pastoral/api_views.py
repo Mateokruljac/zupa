@@ -3,15 +3,16 @@ import re
 
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django_ratelimit.decorators import ratelimit
 
 from pastoral.forms import LoginForm
 from users.models import User
 from pastoral.services.otp import (
-    create_otp_challenge,
-    dispatch_otp_email,
-    store_otp_session,
+    OtpCooldownError,
+    request_otp_delivery,
 )
 
 from pastoral.services.api_actions import dispatch_action
@@ -26,7 +27,15 @@ ISO_DATE_PATTERN = re.compile(r'^\d{4}-\d{2}-\d{2}$')
 
 
 @require_http_methods(['POST'])
+@ratelimit(key='ip', rate='3/m', method='POST', block=False)
 def send_otp_api(request):
+    if getattr(request, 'limited', False):
+        return JsonResponse({
+            'ok': False,
+            'error': 'rate_limited',
+            'detail': 'Previše pokušaja. Pričekajte minutu pa pokušajte ponovno.',
+        }, status=429)
+
     try:
         request_payload = json.loads(request.body.decode('utf-8'))
     except (json.JSONDecodeError, UnicodeDecodeError):
@@ -56,13 +65,19 @@ def send_otp_api(request):
         .first()
         or User._meta.get_field('role').default
     )
-    verification_code = create_otp_challenge(email_address, user_role)
+    try:
+        email_was_sent, email_result = request_otp_delivery(
+            request,
+            email=email_address,
+            role=user_role,
+        )
+    except OtpCooldownError as exception:
+        return JsonResponse({
+            'ok': False,
+            'error': 'otp_resend_cooldown',
+            'retry_after_seconds': exception.retry_after_seconds,
+        }, status=429)
 
-    email_was_sent, email_result = dispatch_otp_email(
-        verification_code,
-        email_address,
-        user_role,
-    )
     if not email_was_sent:
         return JsonResponse({
             'ok': False,
@@ -73,12 +88,6 @@ def send_otp_api(request):
                 getattr(settings, 'OTP_RECIPIENT', ''),
             ),
         }, status=502)
-
-    store_otp_session(
-        request,
-        email=email_address,
-        role=user_role,
-    )
 
     recipient = email_result.get(
         'recipient',
@@ -194,7 +203,15 @@ def parish_action_api(request):
     action_payload = request_body.get('payload') or {}
     parish_data_service = ParishDataService()
     if action_name == 'reset_demo':
-        parish_data_service.reset_demo()
+        from pastoral.services.baptism_records import reconcile_baptism_records
+
+        with transaction.atomic():
+            baptism_records = parish_data_service.reset_demo()
+            reconcile_baptism_records(
+                parish_data_service.parish,
+                baptism_records,
+                actor=request.user,
+            )
         return JsonResponse({
             'ok': True,
             'data': parish_data_service.load(),
@@ -203,21 +220,10 @@ def parish_action_api(request):
         action_name,
         action_payload,
         parish_data_service,
+        actor=request.user,
     )
     response_status = 200 if action_result.get('ok') else 400
     return JsonResponse(action_result, status=response_status)
-
-
-@login_required
-@require_http_methods(['GET'])
-def search_api(request):
-    from pastoral.services.global_search import global_search
-    search_query = request.GET.get('q', '')
-    search_results = global_search(
-        ParishDataService().load(),
-        search_query,
-    )
-    return JsonResponse({'ok': True, 'results': search_results})
 
 
 @login_required

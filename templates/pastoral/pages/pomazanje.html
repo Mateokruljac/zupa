@@ -1,54 +1,119 @@
 {% extends "pastoral/base.html" %}
-{% load pastoral_tags %}
+{% load static pastoral_tags %}
 
 {% block topbar_actions %}
 <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('add-anointing-form').hidden=false">+ Pomazanje</button>
 {% endblock %}
 
 {% block content %}
-<div class="kpi-row" style="margin-bottom:16px">
+<div class="kpi-row anointing-summary">
   <article class="card kpi-card"><p class="card-label">Pomazanja</p><p class="card-value">{{ stats.total }}</p></article>
   <article class="card kpi-card"><p class="card-label">Nadolazeća</p><p class="card-value">{{ stats.upcoming }}</p></article>
   <article class="card kpi-card"><p class="card-label">Obavljeno</p><p class="card-value">{{ stats.done }}</p></article>
 </div>
 
-<form method="get" class="card" style="margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:end">
-  <div class="form-group"><label>Pretraži</label><input type="search" name="q" value="{{ filters.q }}" class="form-control"></div>
-  <button type="submit" class="btn btn-primary btn-sm">Filtriraj</button>
+<form method="get" class="card sacrament-filter-toolbar">
+  <div class="sacrament-filter-toolbar__field">
+    <label for="anointing-search">Pretraži osobu, adresu ili svećenika</label>
+    <input type="search" id="anointing-search" name="q" value="{{ filters.q }}" class="form-control" placeholder="Upišite pojam…">
+  </div>
+  <div class="sacrament-filter-toolbar__field sacrament-filter-toolbar__field--period">
+    <label for="anointing-period">Vrijeme</label>
+    <select id="anointing-period" name="period" class="form-control">
+      <option value="upcoming" {% if filters.period == 'upcoming' %}selected{% endif %}>Nadolazeći termini</option>
+      <option value="today" {% if filters.period == 'today' %}selected{% endif %}>Danas</option>
+      <option value="past" {% if filters.period == 'past' %}selected{% endif %}>Prošli termini</option>
+      <option value="all" {% if filters.period == 'all' %}selected{% endif %}>Svi termini</option>
+    </select>
+  </div>
+  <button type="submit" class="btn btn-primary">Filtriraj</button>
+  {% if filters.q or filters.period != 'all' %}<a href="{% page_url 'pomazanje' %}" class="btn btn-ghost">Poništi</a>{% endif %}
 </form>
 
-<section id="add-anointing-form" class="card" style="margin-bottom:16px" hidden>
-  <h2 class="section-title">Novo pomazanje</h2>
-  <form method="post" style="display:grid;gap:12px;max-width:640px">
+<section id="add-anointing-form" class="card sacrament-entry-card" hidden>
+  <header class="sacrament-entry-card__header">
+    <span class="sacrament-entry-card__icon" aria-hidden="true">🕯</span>
+    <div>
+      <p class="card-label">Pastoralna skrb</p>
+      <h2 class="section-title">Novo pomazanje</h2>
+      <p class="card-sub">Upišite osobu, termin i podatke potrebne za dolazak svećenika.</p>
+    </div>
+  </header>
+  <form method="post" class="sacrament-entry-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="add_anointing">
-    {{ anointing_form.as_p }}
-    <button type="submit" class="btn btn-primary btn-sm">Spremi</button>
+    {{ anointing_form.non_field_errors }}
+    <div class="sacrament-entry-form__grid">
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide">{{ anointing_form.person.label_tag }}{{ anointing_form.person }}{{ anointing_form.person.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ anointing_form.scheduled.label_tag }}{{ anointing_form.scheduled }}{{ anointing_form.scheduled.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ anointing_form.priest.label_tag }}{{ anointing_form.priest }}{{ anointing_form.priest.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ anointing_form.address.label_tag }}{{ anointing_form.address }}{{ anointing_form.address.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ anointing_form.contact.label_tag }}{{ anointing_form.contact }}{{ anointing_form.contact.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ anointing_form.status.label_tag }}{{ anointing_form.status }}{{ anointing_form.status.errors }}</div>
+    </div>
+    <footer class="sacrament-entry-form__actions">
+      <button type="button" class="btn btn-ghost" onclick="document.getElementById('add-anointing-form').hidden=true">Odustani</button>
+      <button type="submit" class="btn btn-primary">Spremi pomazanje</button>
+    </footer>
   </form>
 </section>
 
-<section class="card">
+<section class="card anointing-records-card">
   <div class="table-wrap">
     <table class="data-table">
-      <thead><tr><th>Predmet / osoba</th><th>Datum</th><th>Svećenik</th><th>Adresa</th><th>Spremnost</th><th>Naknada</th><th></th></tr></thead>
+      <thead><tr><th>Osoba</th><th>Datum</th><th>Svećenik</th><th>Adresa</th><th>Status</th></tr></thead>
       <tbody>
-        {% for r in rows %}
-        <tr>
-          <td><small>{{ r.caseRef }}</small><br><strong>{{ r.person }}</strong></td>
-          <td>{{ r.scheduled|hr_date }}</td>
-          <td>{{ r.priest|default:"—" }}</td>
-          <td>{{ r.address|default:"—" }}</td>
-          <td>{% if r.workflowReady %}<span class="badge badge-done">spremno</span>{% else %}<span class="badge badge-urgent">{{ r.workflowMissing|length }} nedostaje</span>{% endif %}<br><small>{{ r.nextStep }}</small></td>
-          <td>{% if r.stipendPaid %}<span class="badge badge-done">plaćeno</span>{% elif r.stipend %}<span class="badge badge-urgent">{{ r.stipend|money_eur }}</span>{% else %}—{% endif %}</td>
-          <td>
-            <details class="case-inline"><summary class="btn btn-ghost btn-sm">Kontrolna lista</summary><div>{% for check in r.workflowChecks %}<span class="{% if check.done %}is-done{% endif %}">{% if check.done %}✓{% else %}!{% endif %} {{ check.label }}</span>{% endfor %}</div></details>
-          </td>
+        {% for anointing_record in rows %}
+        <tr class="anointing-record-row" tabindex="0" role="button" data-sacrament-dialog="anointing-record-{{ anointing_record.id }}" aria-label="Otvori detalje za {{ anointing_record.person }}">
+          <td><strong>{{ anointing_record.person }}</strong></td>
+          <td><span class="record-date-with-badge">{{ anointing_record.scheduled|hr_date }}<span class="time-badge time-badge--{{ anointing_record.time_badge_tone }}">{{ anointing_record.time_badge_label }}</span></span></td>
+          <td>{{ anointing_record.priest|default:"—" }}</td>
+          <td>{{ anointing_record.address|default:"—" }}</td>
+          <td>{{ anointing_record.status|default:"—" }}</td>
         </tr>
         {% empty %}
-        <tr><td colspan="7" class="empty-state">Nema zapisa.</td></tr>
+        <tr><td colspan="5" class="empty-state">Nema zapisa.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </section>
+
+{% for anointing_record in rows %}
+<dialog id="anointing-record-{{ anointing_record.id }}" class="sacrament-record-dialog">
+  <form method="post" class="sacrament-record-dialog__form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="update_anointing">
+    <input type="hidden" name="record_id" value="{{ anointing_record.id }}">
+    <header>
+      <div>
+        <p class="card-label">Detalji pomazanja</p>
+        <h2>{{ anointing_record.person }}</h2>
+      </div>
+      <button type="button" class="dialog-close" data-sacrament-dialog-close aria-label="Zatvori">×</button>
+    </header>
+    <div class="sacrament-entry-form__grid sacrament-record-dialog__body">
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide"><label for="person-{{ anointing_record.id }}">Osoba</label><input class="form-control" id="person-{{ anointing_record.id }}" name="person" maxlength="120" required value="{{ anointing_record.person }}"></div>
+      <div class="sacrament-entry-form__field"><label for="scheduled-{{ anointing_record.id }}">Datum</label><input class="form-control" id="scheduled-{{ anointing_record.id }}" name="scheduled" type="date" value="{{ anointing_record.scheduled }}"></div>
+      <div class="sacrament-entry-form__field"><label for="priest-{{ anointing_record.id }}">Svećenik</label><input class="form-control" id="priest-{{ anointing_record.id }}" name="priest" maxlength="100" value="{{ anointing_record.priest|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="address-{{ anointing_record.id }}">Adresa</label><input class="form-control" id="address-{{ anointing_record.id }}" name="address" maxlength="200" value="{{ anointing_record.address|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="contact-{{ anointing_record.id }}">Kontakt</label><input class="form-control" id="contact-{{ anointing_record.id }}" name="contact" maxlength="50" value="{{ anointing_record.contact|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="status-{{ anointing_record.id }}">Status</label><input class="form-control" id="status-{{ anointing_record.id }}" name="status" maxlength="50" value="{{ anointing_record.status|default_if_none:'' }}"></div>
+    </div>
+    <footer>
+      <button type="submit" class="btn btn-danger sacrament-record-dialog__delete-button" form="delete-anointing-{{ anointing_record.id }}">Obriši</button>
+      <button type="button" class="btn btn-ghost" data-sacrament-dialog-close>Odustani</button>
+      <button type="submit" class="btn btn-primary">Spremi promjene</button>
+    </footer>
+  </form>
+</dialog>
+<form id="delete-anointing-{{ anointing_record.id }}" method="post" data-confirm-delete data-record-label="pomazanje za {{ anointing_record.person }}">
+  {% csrf_token %}<input type="hidden" name="action" value="delete_anointing"><input type="hidden" name="record_id" value="{{ anointing_record.id }}">
+</form>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/modal-kit.js' %}"></script>
+<script src="{% static 'js/sacrament-record-dialog.js' %}"></script>
 {% endblock %}

@@ -1,8 +1,8 @@
 {% load pastoral_tags %}
 <div class="docs-layout">
   <aside class="card docs-sidebar">
-    <h2 class="section-title">Predlošci</h2>
-    <p class="card-sub docs-sidebar-hint">Odaberite ispisnicu — polja se automatski popune župnim podacima.</p>
+    <h2 class="section-title">Što želite ispisati?</h2>
+    <p class="card-sub docs-sidebar-hint">Odaberite dokument s popisa. Podaci župe popunit će se automatski.</p>
     <nav class="doc-template-nav" aria-label="Predlošci">
       {% for cat in doc_categories %}
       <div class="doc-template-group">
@@ -25,15 +25,19 @@
   </aside>
 
   <div class="docs-main">
-    {% if doc_mode == 'potvrde' %}
     <form method="get" class="card doc-matica-search">
       <input type="hidden" name="tpl" value="{{ selected_template.id|default:'' }}">
+      <div class="doc-matica-search-copy">
+        <p class="card-label">Najbrži način za izdavanje potvrde</p>
+        <h2 class="section-title">Pronađite osobu u matici</h2>
+        <p class="card-sub">Upišite ime osobe, a sustav će ponuditi odgovarajući zapis i potvrdu.</p>
+      </div>
       <div class="doc-matica-search-inner">
         <div class="form-group doc-matica-search-field">
-          <label for="matica-q">Pretraga matice</label>
-          <input type="search" id="matica-q" name="q" value="{{ matica_query }}" placeholder="Ime, roditelji, par…" class="doc-field-input">
+          <label for="matica-q">Ime osobe</label>
+          <input type="search" id="matica-q" name="q" value="{{ matica_query }}" placeholder="npr. Luka Novak" class="doc-field-input">
         </div>
-        <button type="submit" class="btn btn-secondary btn-sm">Traži u matici</button>
+        <button type="submit" class="btn btn-primary">Pronađi osobu</button>
       </div>
     </form>
     {% if matica_results %}
@@ -50,7 +54,6 @@
         {% endfor %}
       </div>
     </section>
-    {% endif %}
     {% endif %}
 
     {% if selected_template %}
@@ -88,10 +91,10 @@
 
         <div class="doc-form-actions">
           <button type="submit" name="action" value="preview_document" class="btn btn-secondary">
-            Pregled na ekranu
+            Pregledaj prije ispisa
           </button>
           <button type="submit" name="action" value="print_document" class="btn btn-primary" formtarget="_blank">
-            Ispis / PDF
+            Ispis / spremi kao PDF
           </button>
         </div>
       </form>
@@ -104,16 +107,12 @@
     </section>
     {% endif %}
 
-    {% if doc_mode == 'dokumenti' %}
-    {% include "pastoral/pages/_documents_bulk.html" %}
-    {% endif %}
-
     {% else %}
     <section class="card doc-empty-state">
       <div class="doc-empty-state-inner">
         <p class="doc-empty-icon" aria-hidden="true">🖨</p>
         <h2 class="section-title">Odaberite predložak</h2>
-        <p class="card-sub">S lijeve strane odaberite ispisnicu — lukno, potvrde, zapisnike ŽPV i druge župne formulare.</p>
+        <p class="card-sub">Odaberite dokument s lijeve strane ili pronađite osobu u matici za brzo izdavanje potvrde.</p>
       </div>
     </section>
     {% endif %}

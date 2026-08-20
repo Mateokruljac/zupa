@@ -10,7 +10,6 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('theme/save/', views.save_theme_view, name='save_theme'),
     path('api/parish-data/', api_views.parish_data_api, name='parish_data'),
-    path('api/search/', api_views.search_api, name='search_api'),
     path('api/action/', api_views.parish_action_api, name='parish_action'),
     path('api/otp/send/', api_views.send_otp_api, name='send_otp_api'),
     path('api/liturgical/year/<int:year>/', api_views.liturgical_year_api, name='liturgical_year'),
