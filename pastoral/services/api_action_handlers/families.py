@@ -38,6 +38,7 @@ def create_family(parish_data: dict, action_payload: dict) -> dict:
             or action_payload.get('originPlace')
             or ''
         ).strip(),
+        'createdAt': today_iso(),
         'tags': action_payload.get('tags') or [],
         'relatives': [],
         'husband': None,
@@ -248,6 +249,10 @@ def upsert_contribution(parish_data: dict, action_payload: dict) -> dict:
     annual_contribution['notes'] = (
         action_payload.get('notes') or ''
     ).strip()
+    family['contributions'].sort(
+        key=lambda contribution: contribution.get('year', 0),
+        reverse=True,
+    )
     return {'ok': True, 'item': annual_contribution}
 
 

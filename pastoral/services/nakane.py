@@ -13,6 +13,7 @@ def nakane_page_context(data: dict, request) -> dict:
         'nakane_bootstrap': {
             'intentions': data.get('intentions', []),
             'massSchedule': data.get('massSchedule', []),
+            'massExceptions': data.get('massExceptions', []),
             'filterDate': selected_date,
         },
     }

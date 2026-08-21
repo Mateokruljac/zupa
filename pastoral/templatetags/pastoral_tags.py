@@ -110,34 +110,15 @@ _FIELD_LABELS = {
     'datum_rodjenja': 'Datum rođenja',
     'datum_krstenja': 'Datum krštenja',
     'datum_potvrde': 'Datum potvrde',
-    'datum_vjencanja': 'Datum vjenčanja',
-    'datum_pogreba': 'Datum pogreba',
-    'datum_smrti': 'Datum smrti',
-    'datum_sastanka': 'Datum sastanka',
-    'datum_pricesti': 'Datum prve pričesti',
     'datum_uplate': 'Datum uplate',
-    'datum_mise': 'Datum mise',
     'tjedan_od': 'Tjedan od (ponedjeljak)',
     'maticni_broj': 'Matični broj',
     'roditelji': 'Roditelji',
     'kumovi': 'Kum(ovi)',
     'kum': 'Kum/ka',
-    'mladenci': 'Mladenci',
-    'svjedoci': 'Svjedoci',
-    'pokojnik': 'Pokojnik',
-    'groblje': 'Groblje',
     'obitelj': 'Obitelj',
     'adresa': 'Adresa',
     'iznos': 'Iznos (€)',
-    'platitelj': 'Platitelj',
-    'svrha': 'Svrha uplate',
-    'broj_racuna': 'Broj računa',
-    'namjera': 'Namjera',
-    'vrijeme_mise': 'Vrijeme mise',
-    'narucitelj': 'Naručitelj',
-    'stipendij': 'Stipendij (€)',
-    'skupina': 'Skupina / godina',
-    'program_sadrzaj': 'Program i aktivnosti',
     'prisutni': 'Prisutni',
     'dnevni_red': 'Dnevni red',
     'zakljucci': 'Zaključci',
@@ -150,10 +131,10 @@ _FIELD_LABELS = {
 }
 
 _FIELD_TEXTAREA = frozenset({
-    'dnevni_red', 'zakljucci', 'stanje_zupe', 'preporuke', 'program_sadrzaj', 'prisutni', 'svrha', 'namjera',
+    'dnevni_red', 'zakljucci', 'stanje_zupe', 'preporuke', 'prisutni',
 })
 
-_FIELD_NUMBER = frozenset({'iznos', 'stipendij'})
+_FIELD_NUMBER = frozenset({'iznos'})
 
 _FIELD_DATE_PREFIX = 'datum_'
 
@@ -162,13 +143,7 @@ _DOC_CATEGORY_LABELS = {
     'krsenje': 'Krštenje',
     'nakane': 'Misne nakane',
     'ured': 'Župni ured',
-    'pastoral': 'Pastoral',
-    'vjenčanje': 'Vjenčanje',
-    'vjencanje': 'Vjenčanje',
-    'prva-pricest': 'Prva pričest',
-    'pogreb': 'Pogrebi',
     'lukno': 'Lukno',
-    'financije': 'Financije',
     'ostalo': 'Ostalo',
 }
 

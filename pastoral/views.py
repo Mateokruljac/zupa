@@ -1,4 +1,6 @@
 import json
+from datetime import date
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -30,6 +32,7 @@ from .forms import (
     ConfirmationYearForm,
     FamilyForm,
     FamilyMemberForm,
+    FamilyContributionForm,
     FirstCommunionCandidateForm,
     FirstCommunionGroupForm,
     FirstCommunionYearForm,
@@ -321,6 +324,17 @@ def _add_standard_forms_to_page_context(
             initial=family_initial_values,
         )
         page_context['family_member_form'] = FamilyMemberForm()
+        from pastoral.services.api_action_handlers.shared import (
+            DEFAULT_ANNUAL_CONTRIBUTION_AMOUNT,
+        )
+
+        page_context['family_contribution_form'] = FamilyContributionForm(
+            initial={
+                'year': date.today().year,
+                'lukno_amount': DEFAULT_ANNUAL_CONTRIBUTION_AMOUNT,
+                'church_donation': 0,
+            },
+        )
     elif page == 'nakane':
         page_context['intention_form'] = IntentionForm(initial={
             'date': parish_data_service.today_iso(),

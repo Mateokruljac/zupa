@@ -40,20 +40,6 @@
     "body": "<div class=\"print-doc\">\n        <h2 style=\"text-align:center\">RASPORED MOLITVENIH NAKANA</h2>\n        <p>Župa {{zupa}} · tjedan od {{tjedan_od}}</p>\n        <table border=\"1\" cellpadding=\"8\" style=\"width:100%;border-collapse:collapse;margin-top:1em\">\n          <thead><tr><th>Datum</th><th>Misa</th><th>Namjera</th><th>Naručitelj</th><th>Stipendij</th></tr></thead>\n          <tbody>{{tablica_nakana}}</tbody>\n        </table>\n      </div>"
   },
   {
-    "id": "zapisnik_zpv",
-    "name": "Zapisnik sastanka ŽPV",
-    "category": "ured",
-    "fields": [
-      "datum_sastanka",
-      "prisutni",
-      "dnevni_red",
-      "zakljucci",
-      "zupnik",
-      "zupa"
-    ],
-    "body": "<div class=\"print-doc\">\n        <h2>ZAPISNIK ŽUPNOG PASTORALNOG VIJEĆA</h2>\n        <p>Župa: {{zupa}} · Datum: {{datum_sastanka}}</p>\n        <p><strong>Prisutni:</strong> {{prisutni}}</p>\n        <p><strong>Dnevni red:</strong> {{dnevni_red}}</p>\n        <p><strong>Zaključci:</strong> {{zakljucci}}</p>\n        <p style=\"margin-top:2em\">Potpis župnika: {{zupnik}}</p>\n      </div>"
-  },
-  {
     "id": "izvjestaj_dekanska_vizitacija",
     "name": "Izvješće o dekanskoj vizitaciji",
     "category": "ured",
@@ -82,71 +68,6 @@
     "body": "<div class=\"print-doc\">\n        <h2 style=\"text-align:center\">ZAPISNIK KANONSKE VIZITACIJE</h2>\n        <p>Župa: {{zupa}} · Datum: {{datum}}</p>\n        <p><strong>Prisutni:</strong> {{prisutni}}</p>\n        <p><strong>Tijek vizitacije:</strong></p><p>{{dnevni_red}}</p>\n        <p><strong>Zaključci i nalozi:</strong></p><p>{{zakljucci}}</p>\n        <p style=\"margin-top:2em\">Potpis župnika: {{zupnik}}</p>\n      </div>"
   },
   {
-    "id": "pregled_zupnog_ureda",
-    "name": "Pregled župnog ureda",
-    "category": "ured",
-    "fields": [
-      "godina",
-      "zupnik",
-      "zupa",
-      "danas"
-    ],
-    "body": "<div class=\"print-doc\">\n        <h2 style=\"text-align:center\">PREGLED ŽUPNOG UREDA</h2>\n        <p>Župa: {{zupa}} · {{godina}}</p>\n        <ul style=\"line-height:1.8\">\n          <li>Matične knjige — evidencija i arhiv</li>\n          <li>Obiteljski kartoni i pastoralne bilješke</li>\n          <li>Blagajna (plavi/crveni dnevnik) i ŽEV izvješća</li>\n          <li>ŽPV / ŽEV — zapisnici i plan</li>\n          <li>Javni portal i zaštita podataka (GDPR)</li>\n        </ul>\n        <p style=\"margin-top:2em\">Potvrđuje: {{zupnik}}, {{danas}}</p>\n      </div>"
-  },
-  {
-    "id": "pastoralni_plan_godisnji",
-    "name": "Godišnji pastoralni plan",
-    "category": "pastoral",
-    "fields": [
-      "godina",
-      "program_sadrzaj",
-      "zupnik",
-      "zupa"
-    ],
-    "body": "<div class=\"print-doc\">\n        <h2 style=\"text-align:center\">GODIŠNJI PASTORALNI PLAN ŽUPE</h2>\n        <p>Župa: {{zupa}} · {{godina}}</p>\n        <p>{{program_sadrzaj}}</p>\n        <p style=\"margin-top:2em\">Usvojio ŽPV · Potpis župnika: {{zupnik}}</p>\n      </div>"
-  },
-  {
-    "id": "potvrda_vjencanja",
-    "name": "Potvrda o vjenčanju",
-    "category": "vjenčanje",
-    "fields": [
-      "mladenci",
-      "datum_vjencanja",
-      "svjedoci",
-      "zupnik",
-      "zupa"
-    ],
-    "body": "<div class=\"print-doc\">\n        <h2 style=\"text-align:center\">POTVRDA O VJENČANJU</h2>\n        <p>U župi {{zupa}} vjenčani su: <strong>{{mladenci}}</strong></p>\n        <p>Datum obreda: {{datum_vjencanja}}</p>\n        <p>Svjedoci: {{svjedoci}}</p>\n        <p>Obred služio: {{zupnik}}</p>\n        <p>Izdano: {{danas}}</p>\n      </div>"
-  },
-  {
-    "id": "potvrda_pricest",
-    "name": "Potvrda o prvoj sv. Pričesti",
-    "category": "prva-pricest",
-    "fields": [
-      "ime_prezime",
-      "datum_pricesti",
-      "skupina",
-      "roditelji",
-      "zupnik",
-      "zupa"
-    ],
-    "body": "<div class=\"print-doc\">\n        <h2 style=\"text-align:center\">POTVRDA O PRVOJ SVETOJ PRIČESTI</h2>\n        <p>Župa: <strong>{{zupa}}</strong></p>\n        <p>Prvopričesnik/ica: <strong>{{ime_prezime}}</strong></p>\n        <p>Skupina / godina: {{skupina}}</p>\n        <p>Roditelji: {{roditelji}}</p>\n        <p>Datum prve pričesti: <strong>{{datum_pricesti}}</strong></p>\n        <p style=\"margin-top:2em\">Izdano u {{zupa}}, {{danas}}.</p>\n        <p>Župnik: {{zupnik}}</p>\n      </div>"
-  },
-  {
-    "id": "potvrda_pogreba",
-    "name": "Potvrda o pogrebu / ukopu",
-    "category": "pogreb",
-    "fields": [
-      "pokojnik",
-      "datum_smrti",
-      "datum_pogreba",
-      "groblje",
-      "zupnik",
-      "zupa"
-    ],
-    "body": "<div class=\"print-doc\">\n        <h2 style=\"text-align:center\">POTVRDA O KRŠTENJU I POGREBU</h2>\n        <p>Župa: <strong>{{zupa}}</strong></p>\n        <p>Pokojnik/ica: <strong>{{pokojnik}}</strong></p>\n        <p>Datum smrti: {{datum_smrti}}</p>\n        <p>Datum pogreba: <strong>{{datum_pogreba}}</strong></p>\n        <p>Groblje: {{groblje}}</p>\n        <p style=\"margin-top:2em\">Izdano u {{zupa}}, {{danas}}.</p>\n        <p>Župnik: {{zupnik}}</p>\n      </div>"
-  },
-  {
     "id": "potvrda_lukno",
     "name": "Potvrda o uplati župnog lukna",
     "category": "lukno",
@@ -160,35 +81,5 @@
       "zupa"
     ],
     "body": "<div class=\"print-doc\">\n        <h2 style=\"text-align:center\">POTVRDA O UPLATI ŽUPNOG LUKNA</h2>\n        <p>Župa: <strong>{{zupa}}</strong></p>\n        <p>Obitelj: <strong>{{obitelj}}</strong></p>\n        <p>Adresa: {{adresa}}</p>\n        <p>Godina: <strong>{{godina}}</strong></p>\n        <p>Iznos: <strong>{{iznos}} €</strong></p>\n        <p>Datum uplate: {{datum_uplate}}</p>\n        <p style=\"margin-top:2em\">Potvrđujemo primitak navedenog iznosa za župno lukno.</p>\n        <p style=\"margin-top:2em\">{{zupa}}, {{danas}}</p>\n        <p>Župnik: {{zupnik}}</p>\n      </div>"
-  },
-  {
-    "id": "potvrda_uplate",
-    "name": "Potvrda o primitku uplate (opća)",
-    "category": "financije",
-    "fields": [
-      "platitelj",
-      "svrha",
-      "iznos",
-      "datum_uplate",
-      "broj_racuna",
-      "zupnik",
-      "zupa"
-    ],
-    "body": "<div class=\"print-doc\">\n        <h2 style=\"text-align:center\">POTVRDA O PRIMITKU UPLATE</h2>\n        <p>Župa: <strong>{{zupa}}</strong></p>\n        <p>Primili smo od: <strong>{{platitelj}}</strong></p>\n        <p>Svrha uplate: {{svrha}}</p>\n        <p>Iznos: <strong>{{iznos}} €</strong></p>\n        <p>Datum: {{datum_uplate}}</p>\n        <p>Veza na račun: {{broj_racuna}}</p>\n        <p style=\"margin-top:2em\">{{zupa}}, {{danas}}</p>\n        <p>Župnik / blagajnik: {{zupnik}}</p>\n      </div>"
-  },
-  {
-    "id": "potvrda_nakane",
-    "name": "Potvrda o misnoj nakani",
-    "category": "nakane",
-    "fields": [
-      "namjera",
-      "datum_mise",
-      "vrijeme_mise",
-      "narucitelj",
-      "stipendij",
-      "zupnik",
-      "zupa"
-    ],
-    "body": "<div class=\"print-doc\">\n        <h2 style=\"text-align:center\">POTVRDA O MOLITVENOM NAKANU</h2>\n        <p>Župa: <strong>{{zupa}}</strong></p>\n        <p>Namjera: <strong>{{namjera}}</strong></p>\n        <p>Misa: {{datum_mise}} u {{vrijeme_mise}}</p>\n        <p>Naručitelj: {{narucitelj}}</p>\n        <p>Stipendij: {{stipendij}} €</p>\n        <p style=\"margin-top:2em\">Izdano: {{danas}}</p>\n        <p>{{zupnik}}</p>\n      </div>"
   }
 ]

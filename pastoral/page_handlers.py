@@ -32,7 +32,7 @@ PAGE_META = {
     'obitelji': ('Obitelji', 'Karton domaćinstva — članovi, sakramenti, lukno i pastoralne bilješke'),
     'ulice': ('Ulice i kvartovi', 'Popis ulica župe — obitelji po adresi za obilazak'),
     'nakane': ('Kalendar misnih nakana', 'Upis nakan po danu i misi'),
-    'mise': ('Raspored misa', 'Stalni termini, iznimke i veza na misne nakane'),
+    'mise': ('Raspored misa', 'Stalni termini i veza na misne nakane'),
     'zupni-listic': (
         'Župni listić', ''
     ),

@@ -1,0 +1,10 @@
+Backgreound proces koji će kreirtati svima na poečtku godine da nisu platitli lukno za tu godinu 
+i onda kako budu plaćali svećenik ili netko će to popunjavati 
+
+Import kalendara, prepravka, latinsko hrcatski itd itd, postaviti ako neki ima prioritet nad drugim
+
+
+Dodati role  - 3 role: ŽUPNIK, Župni vikar, suradnik - župnik određuej tko što može vidjeti, jedino se 
+rola župnik nbe može obrisati 
+
+Osmisliti kreiranje početnog naloga za župnika

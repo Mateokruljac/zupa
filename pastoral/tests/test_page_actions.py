@@ -284,3 +284,42 @@ class FamilyActionTests(SimpleTestCase):
         self.assertEqual(family['surname'], 'Kovač')
         self.assertEqual(family['streetId'], 'street-1')
         self.assertEqual(family['members'], [])
+
+    def test_saves_lukno_and_church_donation_for_family(self):
+        request = build_post_request({
+            'action': 'save_family_contribution',
+            'family_id': 'family-1',
+            'year': '2026',
+            'lukno_amount': '160.00',
+            'lukno_paid': 'on',
+            'lukno_paid_at': '2026-03-01',
+            'church_donation': '50.00',
+            'donation_date': '2026-03-15',
+            'notes': 'Uskrsni dar',
+        })
+        parish_data = {
+            'families': [{
+                'id': 'family-1',
+                'surname': 'Horvat',
+                'contributions': [],
+            }],
+        }
+        parish_data_service = RecordingParishDataService(parish_data)
+
+        handle_family_action(
+            request,
+            'obitelji',
+            'save_family_contribution',
+            parish_data,
+            parish_data_service,
+        )
+
+        contribution = parish_data['families'][0]['contributions'][0]
+        self.assertEqual(contribution['year'], 2026)
+        self.assertEqual(contribution['luknoAmount'], 160.0)
+        self.assertTrue(contribution['luknoPaid'])
+        self.assertEqual(contribution['luknoPaidAt'], '2026-03-01')
+        self.assertEqual(contribution['churchDonation'], 50.0)
+        self.assertEqual(contribution['donationDate'], '2026-03-15')
+        self.assertEqual(contribution['notes'], 'Uskrsni dar')
+        self.assertIs(parish_data_service.saved_parish_data, parish_data)

@@ -11,7 +11,6 @@
 <section class="kpi-row street-summary" aria-label="Sažetak ulica">
   <article class="card kpi-card"><p class="card-label">Ulice</p><p class="card-value">{{ streets|length }}</p><p class="card-sub">u teritoriju župe</p></article>
   <article class="card kpi-card"><p class="card-label">Povezane obitelji</p><p class="card-value">{{ assigned_families_count }}</p><p class="card-sub">imaju dodijeljenu ulicu</p></article>
-  <article class="card kpi-card"><p class="card-label">Treba povezati</p><p class="card-value">{{ unassigned_families|length }}</p><p class="card-sub">obitelji bez ulice</p></article>
 </section>
 
 <div class="ulice-layout street-workspace">
@@ -79,18 +78,6 @@
     {% endif %}
   </section>
 </div>
-
-{% if unassigned_families %}
-<section class="card ulice-unassigned-card">
-  <header class="families-table-head street-list-header"><div><p class="card-label">Za dopunu</p><h2 class="section-title">Obitelji bez ulice</h2></div><span class="badge badge-urgent">{{ unassigned_families|length }}</span></header>
-  <p class="card-sub">Otvorite karton i odaberite pripadajuću ulicu.</p>
-  <ul class="street-family-list street-family-list--unassigned">
-    {% for family in unassigned_families|slice:":8" %}
-    <li><a href="{% page_url 'obitelji' %}?family={{ family.id }}" class="street-family-link"><strong>{{ family.surname }}</strong><span>{{ family.address|default:"Adresa nije upisana" }}</span></a></li>
-    {% endfor %}
-  </ul>
-</section>
-{% endif %}
 
 {% if show_street_form %}
 <dialog id="street-record-dialog" class="family-record-dialog" data-record-dialog-root data-record-dialog-open>

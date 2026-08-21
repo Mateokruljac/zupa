@@ -87,7 +87,7 @@
   </div>
 </section>
 
-<dialog id="new-family-dialog" class="family-record-dialog" data-record-dialog-root>
+<dialog id="new-family-dialog" class="family-record-dialog" data-record-dialog-root{% if family_form.errors %} data-record-dialog-open{% endif %}>
   <form method="post" class="family-record-dialog__form">
     {% csrf_token %}
     <input type="hidden" name="action" value="add_family">
@@ -96,7 +96,16 @@
       <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
     </header>
     <p class="family-record-dialog__intro">Za početak su dovoljni prezime i adresa. Ostale podatke možete dopuniti kasnije.</p>
-    <div class="family-record-form-grid">{{ family_form.as_p }}</div>
+    <div class="family-record-form-grid">
+      <p>{{ family_form.surname.label_tag }}{{ family_form.surname }}{{ family_form.surname.errors }}</p>
+      <p>{{ family_form.street_id.label_tag }}{{ family_form.street_id }}{{ family_form.street_id.errors }}</p>
+      <p>{{ family_form.address.label_tag }}{{ family_form.address }}{{ family_form.address.errors }}</p>
+      <p>{{ family_form.phone.label_tag }}{{ family_form.phone }}{{ family_form.phone.errors }}</p>
+      <p>{{ family_form.email.label_tag }}{{ family_form.email }}{{ family_form.email.errors }}</p>
+      <p>{{ family_form.origin_place.label_tag }}{{ family_form.origin_place }}{{ family_form.origin_place.errors }}</p>
+      <p>{{ family_form.status.label_tag }}{{ family_form.status }}{{ family_form.status.errors }}</p>
+      <p>{{ family_form.pastoral_notes.label_tag }}{{ family_form.pastoral_notes }}{{ family_form.pastoral_notes.errors }}</p>
+    </div>
     <footer>
       <button type="button" class="btn btn-ghost" data-record-dialog-close>Odustani</button>
       <button type="submit" class="btn btn-primary">Dodaj obitelj</button>
@@ -118,7 +127,6 @@
 
     <div class="family-detail-dialog__body">
       <div class="family-card-actions">
-        {% if selected_family.phone %}<a href="tel:{{ selected_family.phone }}" class="btn btn-ghost btn-sm">Nazovi</a>{% endif %}
         {% if selected_family.email %}<a href="mailto:{{ selected_family.email }}" class="btn btn-ghost btn-sm">Pošalji e-mail</a>{% endif %}
         <a href="{% page_url 'posjete' %}?family={{ selected_family.id }}" class="btn btn-primary btn-sm">Planiraj posjet</a>
       </div>
@@ -163,19 +171,39 @@
         </div>
       </details>
 
-      <details class="family-detail-section">
-        <summary>Lukno <span>{{ selected_family.contributions|length }}</span></summary>
+      <details class="family-detail-section" open>
+        <summary>Lukno i darovi <span>{{ selected_family.contributions|length }}</span></summary>
         <p class="card-sub">Financijska evidencija ostaje odvojena od pastoralne procjene obitelji.</p>
         <div class="table-wrap">
           <table class="data-table">
-            <thead><tr><th>Godina</th><th>Iznos</th><th>Status</th></tr></thead>
+            <thead><tr><th>Godina</th><th>Lukno</th><th>Dar za crkvu</th><th>Status</th></tr></thead>
             <tbody>
               {% for annual_contribution in selected_family.contributions %}
-              <tr><td>{{ annual_contribution.year }}</td><td>{{ annual_contribution.luknoAmount|money_eur }}</td><td>{% if annual_contribution.luknoPaid %}<span class="badge badge-done">plaćeno</span>{% else %}<span class="badge badge-urgent">nije plaćeno</span>{% endif %}</td></tr>
-              {% empty %}<tr><td colspan="3" class="empty-state">Nema financijskih zapisa.</td></tr>{% endfor %}
+              <tr>
+                <td>{{ annual_contribution.year }}</td>
+                <td>{{ annual_contribution.luknoAmount|money_eur }}{% if annual_contribution.luknoPaidAt %}<small>{{ annual_contribution.luknoPaidAt|hr_date }}</small>{% endif %}</td>
+                <td>{{ annual_contribution.churchDonation|money_eur }}{% if annual_contribution.donationDate %}<small>{{ annual_contribution.donationDate|hr_date }}</small>{% endif %}</td>
+                <td>{% if annual_contribution.luknoPaid %}<span class="badge badge-done">plaćeno</span>{% else %}<span class="badge badge-urgent">nije plaćeno</span>{% endif %}</td>
+              </tr>
+              {% empty %}<tr><td colspan="4" class="empty-state">Nema financijskih zapisa.</td></tr>{% endfor %}
             </tbody>
           </table>
         </div>
+        <form method="post" class="family-contribution-form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_family_contribution">
+          <input type="hidden" name="family_id" value="{{ selected_family.id }}">
+          <div class="family-contribution-form__grid">
+            <p>{{ family_contribution_form.year.label_tag }}{{ family_contribution_form.year }}{{ family_contribution_form.year.errors }}</p>
+            <p>{{ family_contribution_form.lukno_amount.label_tag }}{{ family_contribution_form.lukno_amount }}{{ family_contribution_form.lukno_amount.errors }}</p>
+            <p class="family-contribution-form__checkbox"><label>{{ family_contribution_form.lukno_paid }}<span>{{ family_contribution_form.lukno_paid.label }}</span></label>{{ family_contribution_form.lukno_paid.errors }}</p>
+            <p>{{ family_contribution_form.lukno_paid_at.label_tag }}{{ family_contribution_form.lukno_paid_at }}{{ family_contribution_form.lukno_paid_at.errors }}</p>
+            <p>{{ family_contribution_form.church_donation.label_tag }}{{ family_contribution_form.church_donation }}{{ family_contribution_form.church_donation.errors }}</p>
+            <p>{{ family_contribution_form.donation_date.label_tag }}{{ family_contribution_form.donation_date }}{{ family_contribution_form.donation_date.errors }}</p>
+            <p class="family-contribution-form__wide">{{ family_contribution_form.notes.label_tag }}{{ family_contribution_form.notes }}{{ family_contribution_form.notes.errors }}</p>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">Spremi lukno / dar</button>
+        </form>
       </details>
 
       <details class="family-detail-section family-detail-section--edit">

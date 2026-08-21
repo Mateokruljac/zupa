@@ -46,7 +46,7 @@
       <p class="card-sub">Kliknite zapis za automatsko popunjavanje polja.</p>
       <div class="doc-matica-results-list">
         {% for r in matica_results %}
-        <a href="?tpl={% if r.type == 'vjenčanja' %}potvrda_vjencanja{% elif r.type == 'umrli' %}potvrda_pogreba{% else %}potvrda_krsenja{% endif %}&record_type={{ r.type }}&record_id={{ r.id }}"
+        <a href="?tpl=potvrda_krsenja&record_type={{ r.type }}&record_id={{ r.id }}"
            class="list-item list-item--clickable doc-matica-hit">
           <span class="badge">{{ r.type }}</span>
           <strong>{{ r.label }}</strong>

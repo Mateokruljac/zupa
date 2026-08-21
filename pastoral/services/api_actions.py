@@ -26,7 +26,6 @@ from pastoral.services.api_action_handlers.families import (
     upsert_relative,
 )
 from pastoral.services.api_action_handlers.intentions import (
-    create_gregorian_intentions,
     create_intention,
     delete_intention,
     mark_intention_paid,
@@ -605,7 +604,6 @@ def import_krizmanici(data: dict, p: dict) -> dict:
 
 
 ACTION_HANDLERS = {
-    'create_gregorian_intentions': create_gregorian_intentions,
     'create_intention': create_intention,
     'update_intention': update_intention,
     'delete_intention': delete_intention,

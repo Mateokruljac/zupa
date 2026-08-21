@@ -14,6 +14,7 @@
   const state = {
     intentions: [],
     massSchedule: [],
+    massExceptions: [],
     selectedDate: isoToday(),
     calendarMonth: new Date(),
     defaultStipend: 0,
@@ -90,6 +91,7 @@
     if (!data) return;
     if (Array.isArray(data.intentions)) state.intentions = data.intentions;
     if (Array.isArray(data.massSchedule)) state.massSchedule = data.massSchedule;
+    if (Array.isArray(data.massExceptions)) state.massExceptions = data.massExceptions;
   }
 
   async function runAction(name, payload) {
@@ -109,16 +111,55 @@
       .sort((a, b) => String(a.massTime || "").localeCompare(String(b.massTime || "")));
   }
 
+  function scheduleEntryAppliesOnDate(entry, iso) {
+    if (entry.validFrom && iso < entry.validFrom) return false;
+    if (entry.validUntil && iso > entry.validUntil) return false;
+    return true;
+  }
+
+  function weekdaysFromScheduleEntry(entry) {
+    if (Array.isArray(entry.weekdays) && entry.weekdays.length) return entry.weekdays.map(Number);
+    return [];
+  }
+
+  function massesForDate(iso) {
+    const schedule = state.massSchedule || [];
+    const exceptions = state.massExceptions || [];
+    const exc = exceptions.find((e) => e.date === iso);
+    const dow = new Date(iso + "T12:00:00").getDay();
+
+    const noMassPeriod = schedule.some((entry) => {
+      if (!entry.noMass) return false;
+      if (!scheduleEntryAppliesOnDate(entry, iso)) return false;
+      return weekdaysFromScheduleEntry(entry).includes(dow);
+    });
+    if (noMassPeriod) return [];
+
+    const slots = [];
+    if (!exc?.cancelAll) {
+      schedule.forEach((entry) => {
+        if (entry.noMass) return;
+        if (!scheduleEntryAppliesOnDate(entry, iso)) return;
+        if (!weekdaysFromScheduleEntry(entry).includes(dow)) return;
+        if ((exc?.cancelTimes || []).includes(entry.time)) return;
+        if (entry.time) slots.push({ time: entry.time });
+      });
+    }
+    (exc?.addSlots || []).forEach((add) => {
+      if (add.time) slots.push({ time: add.time });
+    });
+    slots.sort((a, b) => String(a.time).localeCompare(String(b.time)));
+    return slots;
+  }
+
   function massTimeOptions(iso) {
-    const fallback = ["07:30", "09:00", "11:00", "18:00", "18:30"];
-    const sched = (state.massSchedule || []).map((m) => m.time).filter(Boolean);
-    const dayTimes = dayIntentions(iso).map((n) => n.massTime).filter(Boolean);
-    return [...dayTimes, ...sched, ...fallback].filter((v, i, a) => v && a.indexOf(v) === i);
+    return massesForDate(iso).map((slot) => slot.time).filter(Boolean);
   }
 
   function nextMassHint(iso, list) {
     if (iso !== isoToday()) return "";
     const times = massTimeOptions(iso);
+    if (!times.length) return "Danas nema upisanih misa.";
     const now = new Date().getHours() * 60 + new Date().getMinutes();
     const upcoming = times
       .filter((t) => toMins(t) >= now - 30)
@@ -193,7 +234,7 @@
     if (mode === "evidence") {
       const s = computeStats();
       meta = `<strong class="nakane-command-date">Sve nakane</strong>
-        <span class="card-sub">${s.total} ukupno · ${s.unpaid} bez evidentiranog priloga</span>`;
+        <span class="card-sub">${s.total} ukupno · ${s.unpaid} bez evidentiranog priloga · ${num(s.paidRevenue)} € od plaćenih</span>`;
     } else {
       meta = `<strong class="nakane-command-date">${esc(fmtDate(activeIso))}</strong>
         <span class="card-sub">${list.length} nakana${unrecordedContributions ? ` · ${unrecordedContributions} bez evidentiranog priloga` : ""}</span>
@@ -211,13 +252,15 @@
       )
       .join("");
 
+    const canAddIntention = mode === "evidence" || massTimeOptions(activeIso).length > 0;
+
     bar.innerHTML = `
       <div class="nakane-command-inner">
         <div class="nakane-mode-tabs" role="tablist" aria-label="Prikaz nakana">${tabs}</div>
         <div class="nakane-command-meta">${meta}</div>
         <div class="nakane-command-actions">
           ${mode !== "evidence" ? `<button type="button" class="btn btn-secondary btn-sm" id="nakane-cmd-print">Ispis</button>` : ""}
-          <button type="button" class="btn btn-primary btn-sm" id="nakane-cmd-add">+ Nova nakana</button>
+          ${canAddIntention ? `<button type="button" class="btn btn-primary btn-sm" id="nakane-cmd-add">+ Nova nakana</button>` : `<span class="card-sub">Nema mise — nakane se ne upisuju</span>`}
         </div>
       </div>`;
 
@@ -227,7 +270,11 @@
         setMode(next, { scrollTo: next === "evidence" ? "nakane-evidence" : "nakane-workspace" });
       });
     });
-    bar.querySelector("#nakane-cmd-print")?.addEventListener("click", () => printDay(activeIso));
+    bar.querySelector("#nakane-cmd-print")?.addEventListener("click", () => {
+      const printDate =
+        getMode() === "today" ? isoToday() : state.selectedDate || isoToday();
+      printDay(printDate);
+    });
     bar.querySelector("#nakane-cmd-add")?.addEventListener("click", () => {
       if (mode === "evidence" && !state.selectedDate) state.selectedDate = today;
       openAddModal(mode === "today" ? today : state.selectedDate || today);
@@ -401,12 +448,14 @@
     calEl.querySelector("#cal-today")?.addEventListener("click", () => {
       state.calendarMonth = new Date();
       state.selectedDate = isoToday();
+      renderCommandBar();
       renderCalendar();
       renderDayPanel();
     });
     calEl.querySelectorAll("[data-cal-day]").forEach((btn) => {
       btn.addEventListener("click", () => {
         state.selectedDate = btn.dataset.calDay;
+        renderCommandBar();
         renderCalendar();
         renderDayPanel();
         document.getElementById("nakane-day-panel")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -434,7 +483,11 @@
     const intentions = state.intentions || [];
     const total = intentions.length;
     const unpaid = intentions.filter((intention) => !intention.paid).length;
-    return { total, unpaid };
+    const paidRevenue = intentions.reduce((sum, intention) => {
+      if (!intention.paid) return sum;
+      return sum + num(intention.stipend);
+    }, 0);
+    return { total, unpaid, paidRevenue };
   }
 
   function sortRows(rows, sort) {
@@ -481,6 +534,7 @@
       );
     });
     filtered = sortRows(filtered, state.tableSort);
+    const stats = computeStats();
 
     const cols = [
       { key: "date", label: "Datum" },
@@ -502,7 +556,7 @@
           <option value="paid" ${state.tableFilter.status === "paid" ? "selected" : ""}>Prilog evidentiran</option>
           <option value="unpaid" ${state.tableFilter.status === "unpaid" ? "selected" : ""}>Prilog nije evidentiran</option>
         </select>
-        <span class="table-kit-meta">${filtered.length} / ${allRows.length} nakana</span>
+        <span class="table-kit-meta">${filtered.length} / ${allRows.length} nakana · ${num(stats.paidRevenue)} € od plaćenih</span>
       </div>
       <div class="table-wrap">
         <table class="data-table">
@@ -640,10 +694,14 @@
   /* ---------- modali ---------- */
 
   function massSelect(iso, selected) {
-    const opts = [...massTimeOptions(iso), selected]
+    const available = massTimeOptions(iso);
+    const opts = [...available, selected]
       .filter((v, i, a) => v && a.indexOf(v) === i)
       .map((t) => `<option ${selected === t ? "selected" : ""}>${esc(t)}</option>`)
       .join("");
+    if (!opts) {
+      return `<select name="massTime" disabled><option value="">Nema mise</option></select>`;
+    }
     return `<select name="massTime">${opts}</select>`;
   }
 
@@ -658,7 +716,7 @@
       ${record ? "" : `<label class="form-group form-wide" style="display:flex;align-items:center;gap:8px"><input type="checkbox" name="paid" /> Prilog je evidentiran</label>`}`;
   }
 
-  function readForm(form, iso, { editableDate = false } = {}) {
+  function readForm(form, iso, { editableDate = false, originalRecord = null } = {}) {
     const fd = new FormData(form);
     const intentionFor = (fd.get("intentionFor") || "").trim();
     if (!intentionFor) {
@@ -670,9 +728,19 @@
       showToast("Unesite datum");
       return null;
     }
+    const massTime = fd.get("massTime") || "";
+    const availableTimes = massTimeOptions(date);
+    const keepingSameSlot =
+      originalRecord &&
+      originalRecord.date === date &&
+      (originalRecord.massTime || "") === massTime;
+    if (!keepingSameSlot && !availableTimes.includes(massTime)) {
+      showToast("Za taj dan nema mise — nakana se ne može upisati");
+      return null;
+    }
     return {
       date,
-      mass_time: fd.get("massTime") || "",
+      mass_time: massTime,
       intention_for: intentionFor,
       requested_by: (fd.get("requestedBy") || "").trim(),
       stipend: Number(fd.get("stipend")) || 0,
@@ -685,6 +753,10 @@
     const M = global.PastoralModal;
     if (!M?.openForm) return;
     const day = iso || state.selectedDate || isoToday();
+    if (!massTimeOptions(day).length) {
+      showToast("Za taj dan nema mise — nakana se ne može upisati");
+      return;
+    }
     M.openForm({
       title: `Nova nakana — ${fmtDate(day)}`,
       size: "lg",
@@ -699,8 +771,13 @@
             M.close();
             showToast(fields.paid ? "Nakana i prilog su evidentirani" : "Nakana spremljena");
             refresh();
-          } catch {
-            showToast("Greška pri spremanju");
+          } catch (error) {
+            const code = error?.details?.error || error?.message;
+            if (code === "no_mass_on_date" || code === "mass_not_on_date") {
+              showToast("Za taj dan nema mise — nakana se ne može upisati");
+            } else {
+              showToast("Greška pri spremanju");
+            }
           }
         })();
         return false;
@@ -723,7 +800,10 @@
         ${record.paid ? `<p class="card-sub form-wide">Prilog evidentiran${record.paymentId ? ` · ref. ${esc(record.paymentId)}` : ""}.</p>` : ""}`,
       submitLabel: "Spremi",
       onSubmit: (form) => {
-        const fields = readForm(form, record.date, { editableDate: true });
+        const fields = readForm(form, record.date, {
+          editableDate: true,
+          originalRecord: record,
+        });
         if (!fields) return false;
         (async () => {
           try {
@@ -731,55 +811,13 @@
             M.close();
             showToast("Nakana ažurirana");
             refresh();
-          } catch {
-            showToast("Greška pri spremanju");
-          }
-        })();
-        return false;
-      },
-    });
-  }
-
-  function openGregorianModal() {
-    const M = global.PastoralModal;
-    if (!M?.openForm) return;
-    const iso = state.selectedDate || isoToday();
-    M.openForm({
-      title: "Gregorijanska serija (30 misa)",
-      size: "lg",
-      body: `
-        <p class="card-sub form-wide">Kreira 30 uzastopnih nakana — jedna namjera, isti sat misa svaki dan.</p>
-        <div class="form-group"><label>Početni datum *</label><input name="startDate" type="date" value="${iso}" required /></div>
-        <div class="form-group"><label>Misa (sat)</label>${massSelect(iso)}</div>
-        <div class="form-group form-wide"><label>Namjera *</label><input name="intentionFor" required placeholder="Pokoj duše…" /></div>
-        <div class="form-group"><label>Tko je dao nakanu</label><input name="requestedBy" /></div>
-        <div class="form-group"><label>Prilog po misi (€)</label><input name="stipend" type="number" min="0" step="0.01" value="${state.defaultStipend}" /></div>`,
-      submitLabel: "Kreiraj 30 nakana",
-      onSubmit: (form) => {
-        const fd = new FormData(form);
-        const startDate = fd.get("startDate");
-        const intentionFor = (fd.get("intentionFor") || "").trim();
-        if (!startDate || !intentionFor) {
-          showToast("Unesite datum i namjeru");
-          return false;
-        }
-        const massTime = fd.get("massTime") || "";
-        const requestedBy = (fd.get("requestedBy") || "").trim();
-        const stipend = Number(fd.get("stipend")) || 0;
-        (async () => {
-          try {
-            await runAction("create_gregorian_intentions", {
-              start_date: startDate,
-              mass_time: massTime,
-              intention_for: intentionFor,
-              requested_by: requestedBy,
-              stipend,
-            });
-            M.close();
-            showToast("30 nakana dodano (Gregorijanska serija)");
-            refresh();
-          } catch {
-            showToast("Greška pri kreiranju serije");
+          } catch (error) {
+            const code = error?.details?.error || error?.message;
+            if (code === "no_mass_on_date" || code === "mass_not_on_date") {
+              showToast("Za taj dan nema mise — nakana se ne može upisati");
+            } else {
+              showToast("Greška pri spremanju");
+            }
           }
         })();
         return false;
@@ -1049,8 +1087,6 @@
       state.calendarMonth = new Date(state.selectedDate + "T12:00:00");
     }
     if (VIEW_MODES.includes(modeParam)) safeSetMode(modeParam);
-
-    document.getElementById("nakana-gregorian-btn")?.addEventListener("click", openGregorianModal);
 
     applyMode();
 

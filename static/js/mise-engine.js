@@ -186,6 +186,7 @@
 
   function normalizeScheduleEntry(entry) {
     const weekdays = weekdaysFromEntry(entry);
+    const noMass = !!entry.noMass;
     return {
       ...entry,
       weekdays,
@@ -195,6 +196,8 @@
       notes: entry.notes || "",
       validFrom: entry.validFrom || "",
       validUntil: entry.validUntil || "",
+      noMass,
+      time: noMass ? entry.time || "" : entry.time,
     };
   }
 
@@ -204,14 +207,26 @@
     return true;
   }
 
+  function noMassPeriodAppliesOnDate(data, iso, dow) {
+    return (data.massSchedule || []).some((raw) => {
+      const entry = normalizeScheduleEntry(raw);
+      if (!entry.noMass) return false;
+      if (!scheduleEntryAppliesOnDate(entry, iso)) return false;
+      return weekdaysFromEntry(entry).includes(dow);
+    });
+  }
+
   function getMassesForDate(data, iso) {
     const exc = (data.massExceptions || []).find((e) => e.date === iso);
     const dow = new Date(iso + "T12:00:00").getDay();
+    if (noMassPeriodAppliesOnDate(data, iso, dow)) return [];
+
     let slots = [];
 
     if (!exc?.cancelAll) {
       (data.massSchedule || []).forEach((raw) => {
         const entry = normalizeScheduleEntry(raw);
+        if (entry.noMass) return;
         if (!scheduleEntryAppliesOnDate(entry, iso)) return;
         if (!weekdaysFromEntry(entry).includes(dow)) return;
         if ((exc?.cancelTimes || []).includes(entry.time)) return;
@@ -240,15 +255,6 @@
     return slots;
   }
 
-  function getAllScheduleTimes(data) {
-    const times = new Set();
-    (data.massSchedule || []).forEach((m) => {
-      if (m.time) times.add(m.time);
-    });
-    ["07:30", "09:00", "11:00", "18:00", "18:30"].forEach((t) => times.add(t));
-    return [...times].sort();
-  }
-
   function getNakaneForSlot(data, iso, massTime) {
     return (data.intentions || []).filter((n) => n.date === iso && n.massTime === massTime);
   }
@@ -273,7 +279,7 @@
   function buildWeeklyGrid(data) {
     const timeSet = new Set();
     (data.massSchedule || []).forEach((e) => {
-      if (e.time) timeSet.add(e.time);
+      if (!e.noMass && e.time) timeSet.add(e.time);
     });
     const times = [...timeSet].sort();
     const grid = {};
@@ -285,6 +291,7 @@
     });
     (data.massSchedule || []).forEach((raw) => {
       const entry = normalizeScheduleEntry(raw);
+      if (entry.noMass) return;
       weekdaysFromEntry(entry).forEach((dow) => {
         if (!grid[entry.time]) grid[entry.time] = {};
         grid[entry.time][dow] = entry;
@@ -295,6 +302,7 @@
 
   function scheduleFormBody(entry) {
     const wds = entry ? weekdaysFromEntry(entry) : [0];
+    const noMass = !!entry?.noMass;
     const uniqueChecks = [
       { dow: 1, label: "Pon" },
       { dow: 2, label: "Uto" },
@@ -305,7 +313,12 @@
       { dow: 0, label: "Ned" },
     ];
     return `
-      <div class="form-group"><label>Sat misa *</label><input name="time" type="time" value="${entry?.time || "09:00"}" required /></div>
+      <label class="form-group form-wide mise-no-mass-toggle">
+        <input type="checkbox" name="noMass" ${noMass ? "checked" : ""} />
+        Nema mise u tom periodu
+      </label>
+      <p class="card-sub form-wide">Ako označite, za odabrane dane u razdoblju nema misa — nakane se ne mogu upisati.</p>
+      <div class="form-group" data-schedule-time><label>Sat misa *</label><input name="time" type="time" value="${entry?.time || "09:00"}" ${noMass ? "" : "required"} /></div>
       <div class="form-group form-wide"><label>Dani</label>
         <div class="mise-weekday-checks">${uniqueChecks
           .map(
@@ -317,18 +330,19 @@
           (p, i) => `<button type="button" class="btn btn-ghost btn-sm" data-preset-wd="${i}">${p.label}</button>`
         ).join(" ")}</p>
       </div>
-      <div class="form-group"><label>Svećenik / služitelj</label><input name="celebrant" value="${esc(entry?.celebrant || "")}" placeholder="vlč. …" /></div>
-      <div class="form-group"><label>Mjesto</label><input name="location" value="${esc(entry?.location || "")}" placeholder="Crkva, kapela…" /></div>
+      <div class="form-group" data-schedule-celebrant><label>Svećenik / služitelj</label><input name="celebrant" value="${esc(entry?.celebrant || "")}" placeholder="vlč. …" /></div>
+      <div class="form-group" data-schedule-location><label>Mjesto</label><input name="location" value="${esc(entry?.location || "")}" placeholder="Crkva, kapela…" /></div>
       <div class="form-group"><label>Vrijedi od</label><input name="validFrom" type="date" value="${entry?.validFrom || ""}" /></div>
       <div class="form-group"><label>Vrijedi do</label><input name="validUntil" type="date" value="${entry?.validUntil || ""}" /></div>
       <p class="card-sub form-wide">Datume ostavite praznima ako raspored vrijedi trajno.</p>
-      <div class="form-group form-wide"><label>Napomena</label><input name="notes" value="${esc(entry?.notes || "")}" placeholder="npr. samo ljeti" /></div>`;
+      <div class="form-group form-wide"><label>Napomena</label><input name="notes" value="${esc(entry?.notes || "")}" placeholder="npr. samo ljeti, blagdani…" /></div>`;
   }
 
   function readScheduleForm(form) {
     const fd = new FormData(form);
+    const noMass = !!form.querySelector('[name="noMass"]')?.checked;
     const time = fd.get("time");
-    if (!time) {
+    if (!noMass && !time) {
       showToast("Unesite sat misa");
       return null;
     }
@@ -344,15 +358,30 @@
       return null;
     }
     return {
-      time: String(time).slice(0, 5),
+      time: noMass ? "" : String(time).slice(0, 5),
       weekdays,
       day: dayLabelFromWeekdays(weekdays),
-      celebrant: fd.get("celebrant")?.trim() || "",
-      location: fd.get("location")?.trim() || "",
+      celebrant: noMass ? "" : fd.get("celebrant")?.trim() || "",
+      location: noMass ? "" : fd.get("location")?.trim() || "",
       notes: fd.get("notes")?.trim() || "",
       validFrom,
       validUntil,
+      noMass,
     };
+  }
+
+  function bindScheduleFormBehavior(form) {
+    bindPresetButtons(form);
+    const updateNoMassFields = () => {
+      const noMass = !!form.querySelector('[name="noMass"]')?.checked;
+      form.querySelector("[data-schedule-time]")?.classList.toggle("hidden", noMass);
+      form.querySelector("[data-schedule-celebrant]")?.classList.toggle("hidden", noMass);
+      form.querySelector("[data-schedule-location]")?.classList.toggle("hidden", noMass);
+      const timeInput = form.querySelector('[name="time"]');
+      if (timeInput) timeInput.required = !noMass;
+    };
+    form.querySelector('[name="noMass"]')?.addEventListener("change", updateNoMassFields);
+    updateNoMassFields();
   }
 
   function bindPresetButtons(form) {
@@ -376,7 +405,7 @@
       size: "lg",
       body: scheduleFormBody(entry),
       submitLabel: "Spremi",
-      onOpen: (_overlay, form) => bindPresetButtons(form),
+      onOpen: (_overlay, form) => bindScheduleFormBehavior(form),
       onSubmit: (form) => {
         const fields = readScheduleForm(form);
         if (!fields) return false;
@@ -386,111 +415,6 @@
             await runAction("upsert_mass_schedule", payload);
             M.close();
             showToast("Raspored spremljen");
-            onDone?.();
-          } catch {
-            showToast("Greška pri spremanju");
-          }
-        })();
-        return false;
-      },
-    });
-  }
-
-  function exceptionFormBody(entry) {
-    const times = getAllScheduleTimes(dataView());
-    return `
-      <div class="form-group"><label>Datum *</label><input name="date" type="date" value="${entry?.date || ""}" required /></div>
-      <div class="form-group form-wide"><label>Vrsta iznimke</label>
-        <select name="excType">
-          <option value="add" ${entry?.addSlots?.length && !entry?.cancelAll ? "selected" : ""}>Dodatna / zamjenska misa</option>
-          <option value="cancel_times" ${entry?.cancelTimes?.length ? "selected" : ""}>Otkaz određenih termina</option>
-          <option value="cancel_all" ${entry?.cancelAll ? "selected" : ""}>Nema redovitih misa toga dana</option>
-        </select>
-      </div>
-      <div class="form-group form-wide" data-exc-cancel-times>
-        <label>Otkazani termini (redoviti raspored)</label>
-        <div class="mise-weekday-checks">${times
-          .map(
-            (t) =>
-              `<label class="mise-weekday-check"><input type="checkbox" name="cancelTime" value="${esc(t)}" ${entry?.cancelTimes?.includes(t) ? "checked" : ""} /> ${esc(t)}</label>`
-          )
-          .join("")}</div>
-      </div>
-      <div class="form-group" data-exc-add-time><label>Sat dodatne mise</label><input name="addTime" type="time" value="${entry?.addSlots?.[0]?.time || "10:00"}" /></div>
-      <div class="form-group" data-exc-add-celebrant><label>Svećenik (iznimka)</label><input name="addCelebrant" value="${esc(entry?.addSlots?.[0]?.celebrant || "")}" /></div>
-      <div class="form-group form-wide"><label>Napomena</label><input name="note" value="${esc(entry?.note || "")}" placeholder="Božić, blagdan…" /></div>`;
-  }
-
-  function readExceptionForm(form) {
-    const fd = new FormData(form);
-    const dateVal = fd.get("date");
-    if (!dateVal) {
-      showToast("Unesite datum");
-      return null;
-    }
-    const type = fd.get("excType");
-    const note = fd.get("note")?.trim() || "";
-    if (type === "cancel_all") {
-      return { date: dateVal, cancelAll: true, cancelTimes: [], addSlots: [], note };
-    }
-    if (type === "cancel_times") {
-      const cancelTimes = [...form.querySelectorAll('[name="cancelTime"]:checked')].map((el) => el.value);
-      if (!cancelTimes.length) {
-        showToast("Odaberite termin(e) za otkaz");
-        return null;
-      }
-      return { date: dateVal, cancelAll: false, cancelTimes, addSlots: [], note };
-    }
-    const addTime = String(fd.get("addTime") || "").slice(0, 5);
-    if (!addTime) {
-      showToast("Unesite sat dodatne mise");
-      return null;
-    }
-    return {
-      date: dateVal,
-      cancelAll: false,
-      cancelTimes: [],
-      addSlots: [{ time: addTime, celebrant: fd.get("addCelebrant")?.trim() || "", note }],
-      note,
-    };
-  }
-
-  function openExceptionForm(entry, onDone) {
-    const M = global.PastoralModal;
-    if (!M?.openForm) return;
-    M.openForm({
-      title: entry ? "Uredi iznimku" : "Nova iznimka rasporeda",
-      size: "lg",
-      body: exceptionFormBody(entry),
-      submitLabel: "Spremi",
-      onOpen: (_overlay, form) => {
-        const updateVisibleFields = () => {
-          const exceptionType = form.querySelector('[name="excType"]')?.value;
-          form.querySelector("[data-exc-cancel-times]")?.classList.toggle(
-            "hidden",
-            exceptionType !== "cancel_times"
-          );
-          form.querySelector("[data-exc-add-time]")?.classList.toggle(
-            "hidden",
-            exceptionType !== "add"
-          );
-          form.querySelector("[data-exc-add-celebrant]")?.classList.toggle(
-            "hidden",
-            exceptionType !== "add"
-          );
-        };
-        form.querySelector('[name="excType"]')?.addEventListener("change", updateVisibleFields);
-        updateVisibleFields();
-      },
-      onSubmit: (form) => {
-        const fields = readExceptionForm(form);
-        if (!fields) return false;
-        (async () => {
-          try {
-            const payload = entry ? { id: entry.id, fields } : { fields };
-            await runAction("upsert_mass_exception", payload);
-            M.close();
-            showToast("Iznimka spremljena");
             onDone?.();
           } catch {
             showToast("Greška pri spremanju");
@@ -511,18 +435,6 @@
     try {
       await runAction("delete_mass_schedule", { id });
       showToast("Termin obrisan");
-      onDone?.();
-    } catch {
-      showToast("Greška pri brisanju");
-    }
-  }
-
-  async function deleteException(id, onDone) {
-    const ok = await confirmDialog("Obrisati ovu iznimku?", { danger: true, title: "Brisanje", confirmLabel: "Obriši" });
-    if (!ok) return;
-    try {
-      await runAction("delete_mass_exception", { id });
-      showToast("Iznimka obrisana");
       onDone?.();
     } catch {
       showToast("Greška pri brisanju");
@@ -564,8 +476,13 @@
             M.close();
             showToast("Nakana spremljena");
             onDone?.();
-          } catch {
-            showToast("Greška pri spremanju");
+          } catch (error) {
+            const code = error?.details?.error || error?.message;
+            if (code === "no_mass_on_date" || code === "mass_not_on_date") {
+              showToast("Za taj dan nema mise — nakana se ne može upisati");
+            } else {
+              showToast("Greška pri spremanju");
+            }
           }
         })();
         return false;
@@ -662,7 +579,7 @@
       ${litSlot}
       ${slots.length
         ? `<div class="mise-slots-grid">${slots.map((s) => renderTodaySlot(data, iso, s)).join("")}</div>`
-        : '<p class="empty-state">Danas nema misa prema rasporedu. Provjerite iznimke ili dodajte termin.</p>'}
+        : '<p class="empty-state">Danas nema misa prema rasporedu. Dodajte termin u „Uredi raspored”.</p>'}
     </section>`;
   }
 
@@ -671,7 +588,7 @@
     const todayDow = new Date().getDay();
     if (!times.length) return '<p class="empty-state">Nema unesenog rasporeda.</p>';
     return `<section class="card mise-week-card">
-      <p class="card-sub">Stalni tjedni raspored — posebne datume uredite u prikazu „Uredi raspored”.</p>
+      <p class="card-sub">Stalni tjedni raspored — razdoblja bez mise upišite u „Uredi raspored”.</p>
       <div class="table-wrap">
         <table class="data-table mise-week-table">
           <thead><tr><th>Misa</th>${WEEK_HEADERS.map((h) => `<th class="${h.dow === todayDow ? "mise-week-today-col" : ""}">${h.label}</th>`).join("")}</tr></thead>
@@ -697,67 +614,39 @@
   function renderManagePanel(data) {
     const scheduleRows = (data.massSchedule || [])
       .slice()
-      .sort((a, b) => String(a.time).localeCompare(String(b.time)) || String(a.day).localeCompare(String(b.day)));
-    const exceptions = (data.massExceptions || [])
-      .slice()
-      .sort((a, b) => String(a.date).localeCompare(String(b.date)));
-    return `<div class="mise-manage-grid">
-      <section class="card">
-        <div class="mise-manage-head">
-          <h2 class="section-title">Stalni raspored</h2>
-          <button type="button" class="btn btn-primary btn-sm" id="mise-add-schedule">+ Termin</button>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead><tr><th>Dan</th><th>Misa</th><th>Svećenik</th><th>Vrijedi</th><th>Napomena</th><th></th></tr></thead>
-            <tbody>${scheduleRows.length
-              ? scheduleRows
-                  .map((e) => {
-                    const n = normalizeScheduleEntry(e);
-                    return `<tr>
-                      <td>${esc(n.day)}</td><td><strong>${esc(n.time)}</strong></td>
-                      <td>${esc(n.celebrant || "—")}</td>
-                      <td>${n.validFrom || n.validUntil ? `${esc(n.validFrom ? fmtDate(n.validFrom) : "oduvijek")} – ${esc(n.validUntil ? fmtDate(n.validUntil) : "trajno")}` : "Trajno"}</td>
-                      <td>${esc(n.notes || n.location || "—")}</td>
-                      <td class="mise-table-actions">
-                        <button type="button" class="btn btn-ghost btn-sm" data-edit-schedule="${esc(n.id)}">Uredi</button>
-                        <button type="button" class="btn btn-ghost btn-sm" data-del-schedule="${esc(n.id)}">Obriši</button>
-                      </td>
-                    </tr>`;
-                  })
-                  .join("")
-              : `<tr><td colspan="6" class="empty-state">Nema termina — dodajte prvi.</td></tr>`}</tbody>
-          </table>
-        </div>
-      </section>
-      <section class="card">
-        <div class="mise-manage-head">
-          <h2 class="section-title">Iznimke po datumu</h2>
-          <button type="button" class="btn btn-secondary btn-sm" id="mise-add-exception">+ Iznimka</button>
-        </div>
-        ${exceptions.length
-          ? `<div class="mise-exception-list">${exceptions
-              .map((e) => {
-                let desc = "";
-                if (e.cancelAll) desc = "Nema redovitih misa";
-                else {
-                  const p = [];
-                  if (e.cancelTimes?.length) p.push(`Otkaz: ${e.cancelTimes.join(", ")}`);
-                  if (e.addSlots?.length) p.push(`Dodatno: ${e.addSlots.map((a) => a.time).join(", ")}`);
-                  desc = p.join(" · ") || "Iznimka";
-                }
-                return `<div class="list-item">
-                  <div><strong>${esc(fmtDate(e.date))}</strong><br><small>${esc(desc)}</small>${e.note ? `<br><small class="card-sub">${esc(e.note)}</small>` : ""}</div>
-                  <div class="mise-table-actions">
-                    <button type="button" class="btn btn-ghost btn-sm" data-edit-exception="${esc(e.id)}">Uredi</button>
-                    <button type="button" class="btn btn-ghost btn-sm" data-del-exception="${esc(e.id)}">Obriši</button>
-                  </div>
-                </div>`;
-              })
-              .join("")}</div>`
-          : '<p class="empty-state">Nema iznimki — blagdani, jednokratne promjene.</p>'}
-      </section>
-    </div>`;
+      .sort((a, b) => {
+        if (!!a.noMass !== !!b.noMass) return a.noMass ? 1 : -1;
+        return String(a.time || "").localeCompare(String(b.time || "")) || String(a.day || "").localeCompare(String(b.day || ""));
+      });
+    return `<section class="card">
+      <div class="mise-manage-head">
+        <h2 class="section-title">Stalni raspored</h2>
+        <button type="button" class="btn btn-primary btn-sm" id="mise-add-schedule">+ Termin</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Dan</th><th>Misa</th><th>Svećenik</th><th>Vrijedi</th><th>Napomena</th><th></th></tr></thead>
+          <tbody>${scheduleRows.length
+            ? scheduleRows
+                .map((e) => {
+                  const n = normalizeScheduleEntry(e);
+                  return `<tr>
+                    <td>${esc(n.day)}</td>
+                    <td>${n.noMass ? '<span class="badge badge-urgent">nema mise</span>' : `<strong>${esc(n.time)}</strong>`}</td>
+                    <td>${esc(n.celebrant || "—")}</td>
+                    <td>${n.validFrom || n.validUntil ? `${esc(n.validFrom ? fmtDate(n.validFrom) : "oduvijek")} – ${esc(n.validUntil ? fmtDate(n.validUntil) : "trajno")}` : "Trajno"}</td>
+                    <td>${esc(n.notes || n.location || "—")}</td>
+                    <td class="mise-table-actions">
+                      <button type="button" class="btn btn-ghost btn-sm" data-edit-schedule="${esc(n.id)}">Uredi</button>
+                      <button type="button" class="btn btn-ghost btn-sm" data-del-schedule="${esc(n.id)}">Obriši</button>
+                    </td>
+                  </tr>`;
+                })
+                .join("")
+            : `<tr><td colspan="6" class="empty-state">Nema termina — dodajte prvi.</td></tr>`}</tbody>
+        </table>
+      </div>
+    </section>`;
   }
 
   function renderCommandBar(data) {
@@ -771,8 +660,8 @@
            <span class="card-sub">${slots.length} misa danas</span>
            ${hint ? `<span class="mise-next-mass">${esc(hint)}</span>` : ""}`
         : mode === "week"
-          ? `<strong>Tjedni raspored</strong><span class="card-sub">${(data.massSchedule || []).length} termina</span>`
-          : `<strong>Uredi raspored</strong><span class="card-sub">${(data.massExceptions || []).length} iznimki</span>`;
+          ? `<strong>Tjedni raspored</strong><span class="card-sub">${(data.massSchedule || []).filter((e) => !e.noMass).length} termina</span>`
+          : `<strong>Uredi raspored</strong><span class="card-sub">${(data.massSchedule || []).length} unosa</span>`;
 
     return `<section class="card mise-command-bar">
       <div class="mise-command-inner">
@@ -836,7 +725,6 @@
     });
 
     root.querySelector("#mise-add-schedule")?.addEventListener("click", () => openScheduleForm(null, render));
-    root.querySelector("#mise-add-exception")?.addEventListener("click", () => openExceptionForm(null, render));
     root.querySelectorAll("[data-edit-schedule]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const row = state.massSchedule.find((x) => x.id === btn.dataset.editSchedule);
@@ -845,15 +733,6 @@
     });
     root.querySelectorAll("[data-del-schedule]").forEach((btn) => {
       btn.addEventListener("click", () => deleteScheduleEntry(btn.dataset.delSchedule, render));
-    });
-    root.querySelectorAll("[data-edit-exception]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const row = state.massExceptions.find((x) => x.id === btn.dataset.editException);
-        if (row) openExceptionForm(row, render);
-      });
-    });
-    root.querySelectorAll("[data-del-exception]").forEach((btn) => {
-      btn.addEventListener("click", () => deleteException(btn.dataset.delException, render));
     });
   }
 

@@ -32,37 +32,18 @@ def prefill_from_matica(data: dict, record_type: str, record_id: str) -> dict:
     key_map = {
         'krštenja': 'baptisms',
         'krsenja': 'baptisms',
-        'vjenčanja': 'weddings',
-        'vjencanja': 'weddings',
-        'umrli': 'funerals',
-        'pogrebi': 'funerals',
     }
     arr_key = key_map.get(record_type, record_type)
     row = next((x for x in data.get(arr_key, []) if x.get('id') == record_id), None)
-    if not row:
+    if not row or arr_key != 'baptisms':
         return {}
-    if arr_key == 'baptisms':
-        return {
-            'ime_djeteta': row.get('childName', ''),
-            'datum_krstenja': row.get('baptismDate', ''),
-            'roditelji': row.get('parents', ''),
-            'kumovi': row.get('godparents', ''),
-            'maticni_broj': row.get('registryNo', ''),
-        }
-    if arr_key == 'weddings':
-        return {
-            'mladenci': row.get('couple', ''),
-            'datum_vjencanja': row.get('weddingDate', ''),
-            'svjedoci': row.get('witnesses', ''),
-        }
-    if arr_key == 'funerals':
-        deceased = (row.get('deceased') or '').lstrip('+').strip()
-        return {
-            'pokojnik': deceased,
-            'datum_pogreba': row.get('funeralDate', ''),
-            'datum_smrti': row.get('deathDate', ''),
-        }
-    return {}
+    return {
+        'ime_djeteta': row.get('childName', ''),
+        'datum_krstenja': row.get('baptismDate', ''),
+        'roditelji': row.get('parents', ''),
+        'kumovi': row.get('godparents', ''),
+        'maticni_broj': row.get('registryNo', ''),
+    }
 
 
 def build_field_values(request, template: dict, defaults: dict) -> dict:
@@ -85,7 +66,7 @@ def documents_page_context(data: dict, settings: dict, request) -> dict:
     if request.GET.get('record_type') and request.GET.get('record_id'):
         prefill = prefill_from_matica(data, request.GET.get('record_type'), request.GET.get('record_id'))
     matica_q = (request.GET.get('q') or '').strip()
-    matica_results = search_all(data, matica_q, 12) if matica_q else []
+    matica_results = search_all(data, matica_q, 12, types=['krštenja']) if matica_q else []
 
     preview_html = ''
     if request.method == 'GET' and request.GET.get('preview') == '1' and selected:

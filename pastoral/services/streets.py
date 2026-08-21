@@ -17,13 +17,10 @@ def streets_page_context(
         ),
     )
     families_by_street: dict[str, list] = {}
-    unassigned_families: list = []
     for family in data.get('families', []):
         street_id = family.get('streetId') or ''
         if street_id:
             families_by_street.setdefault(street_id, []).append(family)
-        else:
-            unassigned_families.append(family)
 
     selected_street_id = (request.GET.get('street') or '').strip()
     selected_street = next(
@@ -84,10 +81,6 @@ def streets_page_context(
             street_id: len(street_families)
             for street_id, street_families in families_by_street.items()
         },
-        'unassigned_families': sorted(
-            unassigned_families,
-            key=lambda family: (family.get('surname') or '').lower(),
-        ),
         'assigned_families_count': assigned_families_count,
         'show_street_form': show_street_form,
         'street_form_mode': (

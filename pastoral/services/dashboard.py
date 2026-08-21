@@ -22,19 +22,48 @@ INACTIVE_HOUSEHOLD_STATUSES = frozenset({
     'arhivirana',
 })
 
-
-def _extract_birth_year(household_member: dict) -> int | None:
-    birth_year_value = household_member.get('birthYear')
-    try:
-        birth_year = int(birth_year_value)
-    except (TypeError, ValueError):
-        return None
-    return birth_year if 1800 <= birth_year <= date.today().year else None
+CHILD_MEMBER_RELATIONS = frozenset({
+    'sin',
+    'kći',
+    'kci',
+    'dijete',
+    'djete',
+    'child',
+    'son',
+    'daughter',
+})
 
 
 def _is_active_household(household: dict) -> bool:
     household_status = str(household.get('status') or '').strip().casefold()
     return household_status not in INACTIVE_HOUSEHOLD_STATUSES
+
+
+def _household_created_in_year(household: dict, year: int) -> bool:
+    created_at = str(household.get('createdAt') or '').strip()
+    return created_at.startswith(f'{year}-')
+
+
+def _has_unpaid_lukno_for_year(household: dict, year: int) -> bool:
+    for annual_contribution in household.get('contributions') or []:
+        if annual_contribution.get('year') == year and not annual_contribution.get(
+            'luknoPaid'
+        ):
+            return True
+    return False
+
+
+def _normalize_member_relation(household_member: dict) -> str:
+    return str(household_member.get('relation') or '').strip().casefold()
+
+
+def _count_household_children(household_members: list[dict]) -> int:
+    """Broji djecu prema upisanom odnosu, ne prema dobi."""
+    return sum(
+        1
+        for household_member in household_members
+        if _normalize_member_relation(household_member) in CHILD_MEMBER_RELATIONS
+    )
 
 
 def calculate_parish_population_statistics(
@@ -46,24 +75,31 @@ def calculate_parish_population_statistics(
 
     Dok osobe još nisu zaseban relacijski model, ``persons`` znači broj zapisa
     članova kućanstava, a ``parishioners`` članove aktivnih kućanstava.
-    Maloljetnost se računa isključivo iz poznate godine rođenja.
+    Djeca u sastavu kućanstva broje se prema odnosu (sin, kći, dijete).
+    Novododana kućanstva broje se samo kada postoji ``createdAt``.
     """
     statistics_date = reference_date or date.today()
+    current_year = statistics_date.year
+    previous_year = current_year - 1
     households = list(parish_data.get('families') or [])
     streets = list(parish_data.get('streets') or [])
     parish_directory = list(parish_data.get('parishDirectory') or [])
 
     persons = 0
     parishioners = 0
-    minors = 0
     active_households = 0
     single_person_households = 0
-    households_with_minors = 0
-    households_without_minors = 0
+    households_without_children = 0
+    households_with_one_child = 0
+    households_with_two_children = 0
+    households_with_three_children = 0
+    households_with_more_children = 0
     households_with_contact = 0
     households_missing_contact = 0
     households_without_street = 0
     empty_households = 0
+    previous_year_lukno_unpaid = 0
+    households_added_this_year = 0
 
     for household in households:
         household_members = list(household.get('members') or [])
@@ -73,22 +109,28 @@ def calculate_parish_population_statistics(
         if _is_active_household(household):
             active_households += 1
             parishioners += member_count
+            if _has_unpaid_lukno_for_year(household, previous_year):
+                previous_year_lukno_unpaid += 1
+
+        if _household_created_in_year(household, current_year):
+            households_added_this_year += 1
 
         if member_count == 1:
             single_person_households += 1
+        elif member_count > 1:
+            children_count = _count_household_children(household_members)
+            if children_count == 0:
+                households_without_children += 1
+            elif children_count == 1:
+                households_with_one_child += 1
+            elif children_count == 2:
+                households_with_two_children += 1
+            elif children_count == 3:
+                households_with_three_children += 1
+            else:
+                households_with_more_children += 1
         if not member_count:
             empty_households += 1
-
-        household_minor_count = 0
-        for household_member in household_members:
-            birth_year = _extract_birth_year(household_member)
-            if birth_year is not None and 0 <= statistics_date.year - birth_year < 18:
-                household_minor_count += 1
-        minors += household_minor_count
-        if household_minor_count:
-            households_with_minors += 1
-        elif member_count:
-            households_without_minors += 1
 
         if household.get('phone') or household.get('email'):
             households_with_contact += 1
@@ -113,11 +155,17 @@ def calculate_parish_population_statistics(
         'households_missing_contact': households_missing_contact,
         'contact_coverage_percent': contact_coverage_percent,
         'single_person_households': single_person_households,
-        'households_with_minors': households_with_minors,
-        'households_without_minors': households_without_minors,
-        'minors': minors,
+        'households_without_children': households_without_children,
+        'households_with_one_child': households_with_one_child,
+        'households_with_two_children': households_with_two_children,
+        'households_with_three_children': households_with_three_children,
+        'households_with_more_children': households_with_more_children,
         'households_without_street': households_without_street,
         'empty_households': empty_households,
+        'current_year': current_year,
+        'previous_year': previous_year,
+        'previous_year_lukno_unpaid': previous_year_lukno_unpaid,
+        'households_added_this_year': households_added_this_year,
     }
 
 
@@ -282,37 +330,55 @@ def _calculate_sacrament_pipeline(parish_data: dict, current_year: int) -> list[
     return sacrament_pipeline
 
 
+def _normalize_mass_time(mass_time: object) -> str:
+    return str(mass_time or '').strip()
+
+
+def _attach_todays_intentions_to_masses(
+    todays_masses: list[dict],
+    todays_intentions: list[dict],
+) -> None:
+    """Dodaje svakoj misi popis nakana za isto vrijeme."""
+    intentions_by_mass_time: dict[str, list[dict]] = {}
+    for intention in todays_intentions:
+        mass_time = _normalize_mass_time(intention.get('massTime'))
+        intentions_by_mass_time.setdefault(mass_time, []).append(intention)
+
+    for mass in todays_masses:
+        mass_time = _normalize_mass_time(mass.get('time'))
+        mass['intentions'] = list(intentions_by_mass_time.get(mass_time, []))
+
+
 def build_dashboard_context(parish_data_service: ParishDataService) -> dict:
     """Sastavlja kontekst početne bez skrivanja poslovnih pravila u handleru."""
     parish_data = parish_data_service.load()
     today = parish_data_service.today_iso()
     current_date = date.today()
-    current_month_prefix = today[:7]
 
-    todays_intentions = [
-        intention
-        for intention in parish_data.get('intentions', [])
-        if intention.get('date') == today
+    todays_intentions = sorted(
+        [
+            intention
+            for intention in parish_data.get('intentions', [])
+            if intention.get('date') == today
+        ],
+        key=lambda intention: (
+            intention.get('massTime') or '',
+            intention.get('intentionFor') or '',
+        ),
+    )
+    all_open_tasks = [
+        task for task in parish_data.get('tasks', []) if not task.get('done')
     ]
-    intentions_this_month = sum(
-        1
-        for intention in parish_data.get('intentions', [])
-        if (intention.get('date') or '').startswith(current_month_prefix)
-    )
-    all_open_tasks = sorted(
-        [task for task in parish_data.get('tasks', []) if not task.get('done')],
-        key=lambda task: task.get('due') or '9999',
-    )
-    open_tasks = all_open_tasks[:6]
 
     weekday = current_date.isoweekday() % 7
     todays_masses = [
-        mass
+        dict(mass)
         for mass in parish_data.get('massSchedule', [])
         if weekday in (mass.get('weekdays') or [])
         and schedule_entry_applies_on_date(mass, current_date.isoformat())
     ]
     todays_masses.sort(key=lambda mass: mass.get('time') or '')
+    _attach_todays_intentions_to_masses(todays_masses, todays_intentions)
     current_time = timezone.localtime().strftime('%H:%M')
     next_mass = next(
         (
@@ -324,16 +390,10 @@ def build_dashboard_context(parish_data_service: ParishDataService) -> dict:
     )
 
     reminders = parish_data_service.collect_reminders(parish_data)
-    high_priority_count = sum(
-        1 for reminder in reminders if reminder.get('priority') == 'visoka'
-    )
 
     return {
-        'stats': parish_data_service.office_statistics(parish_data),
         'population_stats': calculate_parish_population_statistics(parish_data),
         'intentions_today': todays_intentions,
-        'intentions_this_month': intentions_this_month,
-        'open_tasks': open_tasks,
         'open_tasks_count': len(all_open_tasks),
         'sacraments_upcoming': _collect_upcoming_sacraments(parish_data, today)[:6],
         'sacrament_pipeline': _calculate_sacrament_pipeline(
@@ -341,7 +401,6 @@ def build_dashboard_context(parish_data_service: ParishDataService) -> dict:
             current_date.year,
         ),
         'work_queue': reminders[:6],
-        'high_priority_count': high_priority_count,
         'today_masses': todays_masses,
         'next_mass': next_mass,
         'unassigned_masses': sum(

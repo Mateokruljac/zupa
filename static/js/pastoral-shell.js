@@ -119,18 +119,6 @@
     foot.innerHTML = renderAppFooter(settings);
   }
 
-  function initPriestToolsLite() {
-    const PT = global.PastoralPriestTools;
-    if (!PT) return;
-    PT.init({
-      loadData: () => global.PastoralApi.load(),
-      getSettings: () => global.PastoralParish?.loadSettings?.() || {},
-      showToast: (msg) => {
-        if (typeof global.showToast === "function") global.showToast(msg);
-      },
-    });
-  }
-
   function initDjangoShell() {
     if (!document.querySelector(".app-shell")) return;
     if (document.body.dataset.djangoShell !== "1") return;
@@ -151,8 +139,6 @@
 
     const needsData = document.body.dataset.needsParishData === "1";
     if (needsData) global.PastoralApi?.ensureLoaded?.().catch(() => {});
-
-    initPriestToolsLite();
 
     if (global.PastoralTheme) global.PastoralTheme.initThemePicker();
 

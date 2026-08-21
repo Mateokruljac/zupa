@@ -2,7 +2,6 @@
 {% load pastoral_tags %}
 
 {% block topbar_actions %}
-<button type="button" class="btn btn-ghost btn-sm topbar-print-action" title="Ispiši dnevni pregled" onclick="window.PastoralPriestTools?.printTodaySheet?.()"><span aria-hidden="true">▤</span><span class="topbar-action-label">Ispiši dnevni pregled</span></button>
 <a href="{% page_url 'nakane' %}" class="btn btn-primary btn-sm topbar-primary-action"><span aria-hidden="true">+</span><span class="topbar-action-label">Misna nakana</span><span class="topbar-action-label--compact">Nakana</span></a>
 {% endblock %}
 
@@ -51,11 +50,22 @@
       </div>
       <div class="day-mass-list">
         {% for mass in today_masses %}
-        <a href="{% page_url 'nakane' %}?date={{ today }}" class="day-mass-row">
-          <time>{{ mass.time }}</time>
-          <span><strong>{{ mass.location|default:"Župna crkva" }}</strong><small>{{ mass.celebrant|default:"Celebrant nije dodijeljen" }}</small></span>
-          {% if mass.celebrant %}<span class="status-dot status-dot--ok" title="Celebrant dodijeljen"></span>{% else %}<span class="status-dot status-dot--warn" title="Celebrant nije dodijeljen"></span>{% endif %}
-        </a>
+        <article class="day-mass-entry">
+          <a href="{% page_url 'nakane' %}?date={{ today }}" class="day-mass-row">
+            <time>{{ mass.time }}</time>
+            <span><strong>{{ mass.location|default:"Župna crkva" }}</strong><small>{{ mass.celebrant|default:"Celebrant nije dodijeljen" }}</small></span>
+            {% if mass.celebrant %}<span class="status-dot status-dot--ok" title="Celebrant dodijeljen"></span>{% else %}<span class="status-dot status-dot--warn" title="Celebrant nije dodijeljen"></span>{% endif %}
+          </a>
+          <ul class="day-mass-intentions">
+            {% for intention in mass.intentions %}
+            <li>
+              <a href="{% page_url 'nakane' %}?date={{ today }}">{{ intention.intentionFor }}{% if intention.requestedBy %}<small> · {{ intention.requestedBy }}</small>{% endif %}</a>
+            </li>
+            {% empty %}
+            <li class="day-mass-intentions-empty">Nema upisanih nakana</li>
+            {% endfor %}
+          </ul>
+        </article>
         {% empty %}
         <p class="empty-state">Nema mise u redovnom rasporedu za današnji dan.</p>
         {% endfor %}
@@ -67,36 +77,19 @@
     </section>
   </div>
 
-  <section class="signal-grid" aria-label="Operativni pokazatelji">
-    <a href="{% page_url 'podsjetnici' %}" class="signal-card signal-card--alert">
-      <span class="signal-icon">!</span><div><small>Traži postupanje</small><strong>{{ stats.reminders_count }}</strong><em>{{ high_priority_count }} visokog prioriteta</em></div><span class="signal-arrow">→</span>
-    </a>
-    <a href="{% page_url 'nakane' %}" class="signal-card signal-card--liturgy">
-      <span class="signal-icon">✦</span><div><small>Nakane ovaj mjesec</small><strong>{{ intentions_this_month }}</strong><em>{{ intentions_today|length }} danas</em></div><span class="signal-arrow">→</span>
-    </a>
-    <a href="{% page_url 'posjete' %}" class="signal-card signal-card--pastoral">
-      <span class="signal-icon">⌂</span><div><small>Otvoreni posjeti</small><strong>{{ stats.visits_due }}</strong><em>obitelji i bolesnici</em></div><span class="signal-arrow">→</span>
-    </a>
-    <a href="{% page_url 'javne-prijave' %}" class="signal-card signal-card--forms">
-      <span class="signal-icon">↧</span><div><small>Nove prijave</small><strong>{{ stats.nova_prijave }}</strong><em>čekaju pregled i uparivanje</em></div><span class="signal-arrow">→</span>
-    </a>
-  </section>
-
   <section class="card parish-overview-card" aria-labelledby="parish-overview-title">
     <div class="pro-section-head">
       <div>
         <p class="card-label">Župa u brojkama</p>
         <h2 class="section-title" id="parish-overview-title">Osnovni pregled zajednice</h2>
       </div>
-      <span class="dashboard-definition">Župljani = članovi aktivnih kućanstava</span>
     </div>
     <div class="population-stat-grid">
       <a href="{% page_url 'ulice' %}" class="population-stat"><span>Ulice</span><strong>{{ population_stats.streets }}</strong><small>u teritorijalnoj evidenciji</small></a>
       <a href="{% page_url 'obitelji' %}" class="population-stat"><span>Kućanstva</span><strong>{{ population_stats.households }}</strong><small>{{ population_stats.active_households }} aktivnih</small></a>
-      <a href="{% page_url 'obitelji' %}" class="population-stat"><span>Osobe u sustavu</span><strong>{{ population_stats.persons }}</strong><small>upisani članovi kućanstava</small></a>
       <a href="{% page_url 'obitelji' %}" class="population-stat"><span>Župljani</span><strong>{{ population_stats.parishioners }}</strong><small>u aktivnim kućanstvima</small></a>
-      <a href="{% page_url 'obitelji' %}" class="population-stat"><span>Kontakti</span><strong>{{ population_stats.households_with_contact }}</strong><small>kućanstva s telefonom ili e-mailom</small></a>
-      <div class="population-stat"><span>Župe u dekanatu</span><strong>{{ population_stats.deanery_parishes }}</strong><small>u dekanatskom imeniku</small></div>
+      <a href="{% page_url 'dugovanja' %}" class="population-stat"><span>Lukno {{ population_stats.previous_year }}</span><strong>{{ population_stats.previous_year_lukno_unpaid }}</strong><small>aktivnih kućanstava nije platilo</small></a>
+      <a href="{% page_url 'obitelji' %}" class="population-stat"><span>Nove obitelji</span><strong>{{ population_stats.households_added_this_year }}</strong><small>upisane u {{ population_stats.current_year }}.</small></a>
     </div>
   </section>
 
@@ -126,62 +119,39 @@
       </div>
       <div class="household-stat-list">
         <span><small>Samačka kućanstva</small><strong>{{ population_stats.single_person_households }}</strong></span>
-        <span><small>S maloljetnom djecom</small><strong>{{ population_stats.households_with_minors }}</strong></span>
-        <span><small>Bez maloljetne djece</small><strong>{{ population_stats.households_without_minors }}</strong></span>
-        <span><small>Maloljetne osobe</small><strong>{{ population_stats.minors }}</strong></span>
+        <span><small>Bez djece</small><strong>{{ population_stats.households_without_children }}</strong></span>
+        <span><small>S jednim djetetom</small><strong>{{ population_stats.households_with_one_child }}</strong></span>
+        <span><small>S dvoje djece</small><strong>{{ population_stats.households_with_two_children }}</strong></span>
+        <span><small>S troje djece</small><strong>{{ population_stats.households_with_three_children }}</strong></span>
+        <span><small>S više djece</small><strong>{{ population_stats.households_with_more_children }}</strong></span>
       </div>
-      <div class="data-quality-summary">
-        <span><strong>{{ population_stats.contact_coverage_percent }}%</strong><small>kućanstava ima telefon ili e-mail</small></span>
-        {% if population_stats.households_without_street %}<a href="{% page_url 'ulice' %}"><strong>{{ population_stats.households_without_street }}</strong><small>kućanstava bez dodijeljene ulice →</small></a>{% endif %}
-        {% if population_stats.empty_households %}<a href="{% page_url 'obitelji' %}"><strong>{{ population_stats.empty_households }}</strong><small>kartona bez članova →</small></a>{% endif %}
-      </div>
-      <p class="dashboard-method-note">Maloljetne osobe računaju se samo kada je upisana godina rođenja; sustav ne nagađa nedostajuće podatke.</p>
+      <p class="dashboard-method-note">Djeca se broje prema upisanom odnosu (sin, kći, dijete). Samačka kućanstva nisu uključena u ostale kategorije.</p>
     </section>
   </div>
 
-  <div class="operations-grid operations-grid--balanced">
-    <section class="card">
-      <div class="pro-section-head">
-        <div><p class="card-label">Sakramenti i priprava</p><h2 class="section-title">Stanje predmeta</h2></div>
-        <span class="badge">{{ today|slice:":4" }}</span>
-      </div>
-      <div class="pipeline-grid pipeline-grid--summary">
-        {% for item in sacrament_pipeline %}
-        <a href="{% page_url item.page %}" class="pipeline-item pipeline-item--{{ item.tone }}">
-          <span class="pipeline-top"><strong>{{ item.label }}</strong><em>{{ item.count }} zapisa</em></span>
-          <span class="pipeline-foot">
-            {% if item.missing %}<small>{{ item.missing }} traži dopunu</small><strong>Provjeri →</strong>{% else %}<small>Nema označenih nedostataka</small><strong>Otvori →</strong>{% endif %}
-          </span>
-        </a>
-        {% endfor %}
-      </div>
-      <div class="upcoming-list">
-        <h3>Sljedeći termini</h3>
-        {% for sacrament in sacraments_upcoming %}
-        <a href="{% page_url sacrament.page %}" class="mini-event-row"><time>{{ sacrament.date|hr_date }}</time><span><strong>{{ sacrament.name }}</strong><small>{{ sacrament.type }} · {{ sacrament.status }}</small></span><span>→</span></a>
-        {% empty %}
-        <p class="empty-state">Nema budućih sakramentalnih termina u evidenciji.</p>
-        {% endfor %}
-      </div>
-    </section>
-
-    <section class="card dashboard-bottom-list">
-      <div class="pro-section-head">
-        <div><p class="card-label">Dnevna evidencija</p><h2 class="section-title">Nakane i zadaci</h2></div>
-        <a href="{% page_url 'kalendar' %}" class="text-link">Kalendar →</a>
-      </div>
-      <div class="dashboard-today-list">
-        <h3>Misne nakane</h3>
-        {% for intention in intentions_today %}
-        <a href="{% page_url 'nakane' %}?date={{ today }}" class="compact-work-row"><time>{{ intention.massTime }}</time><span><strong>{{ intention.intentionFor }}</strong><small>zatražio/la: {{ intention.requestedBy|default:"nije navedeno" }}</small></span><span>→</span></a>
-        {% empty %}<p class="empty-state">Nema nakana za danas.</p>{% endfor %}
-
-        <h3 class="dashboard-list-separator">Prioritetni zadaci</h3>
-        {% for task in open_tasks %}
-        <a href="{% page_url 'kalendar' %}" class="compact-work-row"><span class="task-check" aria-hidden="true"></span><span><strong>{{ task.title }}</strong><small>{{ task.category|default:"župni ured" }}</small></span><span class="badge {% if task.due and task.due < today or task.priority == 'visoka' %}badge-urgent{% endif %}">{{ task.due|hr_date }}</span></a>
-        {% empty %}<p class="empty-state">Nema otvorenih zadataka.</p>{% endfor %}
-      </div>
-    </section>
-  </div>
+  <section class="card">
+    <div class="pro-section-head">
+      <div><p class="card-label">Sakramenti i priprava</p><h2 class="section-title">Stanje predmeta</h2></div>
+      <span class="badge">{{ today|slice:":4" }}</span>
+    </div>
+    <div class="pipeline-grid pipeline-grid--summary">
+      {% for item in sacrament_pipeline %}
+      <a href="{% page_url item.page %}" class="pipeline-item pipeline-item--{{ item.tone }}">
+        <span class="pipeline-top"><strong>{{ item.label }}</strong><em>{{ item.count }} zapisa</em></span>
+        <span class="pipeline-foot">
+          {% if item.missing %}<small>{{ item.missing }} traži dopunu</small><strong>Provjeri →</strong>{% else %}<small>Nema označenih nedostataka</small><strong>Otvori →</strong>{% endif %}
+        </span>
+      </a>
+      {% endfor %}
+    </div>
+    <div class="upcoming-list">
+      <h3>Sljedeći termini</h3>
+      {% for sacrament in sacraments_upcoming %}
+      <a href="{% page_url sacrament.page %}" class="mini-event-row"><time>{{ sacrament.date|hr_date }}</time><span><strong>{{ sacrament.name }}</strong><small>{{ sacrament.type }} · {{ sacrament.status }}</small></span><span>→</span></a>
+      {% empty %}
+      <p class="empty-state">Nema budućih sakramentalnih termina u evidenciji.</p>
+      {% endfor %}
+    </div>
+  </section>
 </div>
 {% endblock %}

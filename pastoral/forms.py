@@ -367,6 +367,50 @@ class FamilyMemberForm(forms.Form):
     )
 
 
+class FamilyContributionForm(forms.Form):
+    year = forms.IntegerField(
+        label='Godina',
+        min_value=1990,
+        max_value=2100,
+        widget=forms.NumberInput(attrs=_WIDGET),
+    )
+    lukno_amount = forms.DecimalField(
+        label='Lukno (€)',
+        min_value=0,
+        max_digits=10,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={**_WIDGET, 'step': '0.01'}),
+    )
+    lukno_paid = forms.BooleanField(
+        label='Lukno plaćeno',
+        required=False,
+    )
+    lukno_paid_at = forms.DateField(
+        label='Datum uplate lukna',
+        required=False,
+        widget=forms.DateInput(attrs={**_WIDGET, 'type': 'date'}),
+    )
+    church_donation = forms.DecimalField(
+        label='Dar za crkvu (€)',
+        min_value=0,
+        max_digits=10,
+        decimal_places=2,
+        required=False,
+        initial=0,
+        widget=forms.NumberInput(attrs={**_WIDGET, 'step': '0.01'}),
+    )
+    donation_date = forms.DateField(
+        label='Datum dara',
+        required=False,
+        widget=forms.DateInput(attrs={**_WIDGET, 'type': 'date'}),
+    )
+    notes = forms.CharField(
+        label='Bilješka',
+        required=False,
+        widget=forms.TextInput(attrs=_WIDGET),
+    )
+
+
 class IntentionForm(forms.Form):
     date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}))
     mass_time = forms.CharField(label='Vrijeme mise', max_length=10, widget=forms.TextInput(attrs={**_WIDGET, 'placeholder': 'npr. 09:00'}))

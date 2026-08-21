@@ -5,10 +5,11 @@ from typing import TYPE_CHECKING
 
 from django.contrib import messages
 
-from pastoral.forms import FamilyForm, FamilyMemberForm
+from pastoral.forms import FamilyContributionForm, FamilyForm, FamilyMemberForm
 from pastoral.services.api_action_handlers.families import (
     create_family,
     update_family,
+    upsert_contribution,
     upsert_family_member,
 )
 
@@ -40,6 +41,38 @@ def handle_family_action(
                 messages.error(request, 'Član obitelji nije mogao biti spremljen.')
         else:
             messages.error(request, 'Provjerite podatke člana obitelji.')
+        return True
+
+    if action_name == 'save_family_contribution':
+        contribution_form = FamilyContributionForm(request.POST)
+        if contribution_form.is_valid():
+            cleaned_data = contribution_form.cleaned_data
+            lukno_paid_at = cleaned_data.get('lukno_paid_at')
+            donation_date = cleaned_data.get('donation_date')
+            action_result = upsert_contribution(parish_data, {
+                'family_id': request.POST.get('family_id', ''),
+                'year': cleaned_data['year'],
+                'lukno_amount': cleaned_data['lukno_amount'],
+                'lukno_paid': cleaned_data.get('lukno_paid', False),
+                'lukno_paid_at': (
+                    lukno_paid_at.isoformat() if lukno_paid_at else ''
+                ),
+                'church_donation': cleaned_data.get('church_donation') or 0,
+                'donation_date': (
+                    donation_date.isoformat() if donation_date else ''
+                ),
+                'notes': cleaned_data.get('notes') or '',
+            })
+            if action_result.get('ok'):
+                parish_data_service.save(parish_data)
+                messages.success(request, 'Lukno i darovi su spremljeni.')
+            else:
+                messages.error(
+                    request,
+                    'Financijski zapis nije mogao biti spremljen.',
+                )
+        else:
+            messages.error(request, 'Provjerite podatke lukna i darova.')
         return True
 
     if action_name not in {'add_family', 'update_family'}:

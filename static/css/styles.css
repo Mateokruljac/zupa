@@ -1458,6 +1458,29 @@ a:hover {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent);
 }
 
+.form-control {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  color: var(--text);
+  font: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent);
+}
+
+textarea.form-control {
+  min-height: 96px;
+  resize: vertical;
+}
+
 .form-group .login-otp-input {
   padding: 14px 12px;
   text-align: center;
@@ -2078,6 +2101,13 @@ a:hover {
   align-items: center;
   gap: 6px;
   font-size: 0.88rem;
+}
+
+.mise-no-mass-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
 }
 
 @media (max-width: 960px) {
@@ -7501,6 +7531,48 @@ html.login-reveal-done .auth-footer {
   font-size: 0.7rem;
 }
 
+.day-mass-entry {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.day-mass-entry .day-mass-row {
+  border-bottom: 0;
+  padding-bottom: 4px;
+}
+
+.day-mass-intentions {
+  margin: 0 0 4px;
+  padding: 0 0 0 69px;
+  list-style: none;
+}
+
+.day-mass-intentions li {
+  margin: 0;
+  padding: 2px 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.day-mass-intentions a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.day-mass-intentions a:hover {
+  color: var(--primary);
+}
+
+.day-mass-intentions small {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.day-mass-intentions-empty {
+  font-style: italic;
+}
+
 .status-dot {
   width: 8px;
   height: 8px;
@@ -7642,7 +7714,7 @@ html.login-reveal-done .auth-footer {
 
 .population-stat-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -7695,17 +7767,13 @@ html.login-reveal-done .auth-footer {
   align-items: stretch;
 }
 
-.operations-grid--balanced {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 .operations-grid > .card {
   height: 100%;
 }
 
 .household-stat-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -8103,8 +8171,7 @@ html.login-reveal-done .auth-footer {
   border-top: 1px solid var(--border);
 }
 
-.upcoming-list h3,
-.bottom-list-grid h3 {
+.upcoming-list h3 {
   margin: 0 0 8px;
   color: var(--text-muted);
   font-family: var(--font-sans);
@@ -8196,52 +8263,6 @@ html.login-reveal-done .auth-footer {
 .activity-timeline strong { overflow: hidden; font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
 .activity-timeline em { overflow: hidden; color: var(--text-muted); font-size: 0.65rem; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
 
-.bottom-list-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 26px;
-}
-
-.dashboard-today-list h3 {
-  margin: 0 0 8px;
-  color: var(--text-muted);
-  font-family: var(--font-sans);
-  font-size: 0.67rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.dashboard-today-list .dashboard-list-separator {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.compact-work-row {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--border);
-  color: var(--text);
-  text-decoration: none;
-}
-
-.compact-work-row:hover { color: var(--primary); text-decoration: none; }
-.compact-work-row time { width: 42px; font-family: var(--font-serif); font-weight: 700; }
-.compact-work-row > span:nth-child(2) { min-width: 0; display: flex; flex-direction: column; }
-.compact-work-row strong { overflow: hidden; font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
-.compact-work-row small { color: var(--text-muted); font-size: 0.65rem; }
-
-.task-check {
-  width: 15px;
-  height: 15px;
-  border: 1.5px solid var(--border);
-  border-radius: 4px;
-}
-
 /* Svi moduli: uredniji filtri, KPI-i i tablice */
 body:not(.ui-page--dashboard) .content > .kpi-row,
 body:not(.ui-page--dashboard) .content > .page-kpi-stack {
@@ -8295,8 +8316,7 @@ html[data-color-scheme="dark"] .donut-chart {
 
 @media (max-width: 1080px) {
   .dashboard-day-grid,
-  .operations-grid,
-  .operations-grid--balanced { grid-template-columns: 1fr; }
+  .operations-grid { grid-template-columns: 1fr; }
   .command-summary { min-width: 340px; }
 }
 
@@ -8309,7 +8329,6 @@ html[data-color-scheme="dark"] .donut-chart {
   .signal-grid,
   .insights-grid,
   .pipeline-grid,
-  .bottom-list-grid,
   .population-stat-grid,
   .household-stat-list { grid-template-columns: 1fr; }
   .insight-card--wide { grid-column: auto; }
@@ -10142,14 +10161,79 @@ body.sidebar-collapsed .sidebar {
 .family-record-dialog header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 18px 20px 14px; border-bottom: 1px solid var(--border); }
 .family-record-dialog header h2,
 .family-record-dialog header .card-label { margin: 0; }
+.family-record-dialog header h2 { margin-top: 2px; color: var(--text); font-size: 1.2rem; line-height: 1.2; }
 .family-record-dialog header p:last-child { margin: 4px 0 0; color: var(--text-muted); font-size: .64rem; }
-.family-record-dialog header button { width: 34px; height: 34px; display: grid; flex: 0 0 auto; place-items: center; border: 0; border-radius: 9px; background: var(--surface-elevated); color: var(--text-muted); font-size: 1.25rem; cursor: pointer; }
-.family-record-dialog__intro { margin: 0; padding: 12px 20px 0; color: var(--text-muted); font-size: .65rem; }
-.family-record-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 15px; padding: 18px 20px; overflow-y: auto; }
+.family-record-dialog header button {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-elevated);
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.family-record-dialog header button:hover {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  color: var(--primary);
+}
+.family-record-dialog__intro { margin: 0; padding: 14px 20px 0; color: var(--text-muted); font-size: .78rem; line-height: 1.45; }
+.family-record-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 17px 20px;
+  padding: 18px 20px;
+  overflow-y: auto;
+}
 .family-record-form-grid p,
-.family-member-form p { min-width: 0; margin: 0; }
+.family-member-form p { min-width: 0; margin: 0; display: grid; align-content: start; gap: 7px; }
 .family-record-form-grid label,
-.family-member-form label { display: block; margin-bottom: 4px; color: var(--text-muted); font-size: .61rem; font-weight: 700; }
+.family-member-form label {
+  display: block;
+  margin: 0;
+  color: var(--text);
+  font-size: .87rem;
+  font-weight: 650;
+}
+.family-record-form-grid input,
+.family-record-form-grid select,
+.family-record-form-grid textarea,
+.family-member-form input,
+.family-member-form select,
+.family-member-form textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  color: var(--text);
+  font: inherit;
+}
+.family-record-form-grid textarea,
+.family-member-form textarea { min-height: 96px; resize: vertical; }
+.family-record-form-grid input:focus,
+.family-record-form-grid select:focus,
+.family-record-form-grid textarea:focus,
+.family-member-form input:focus,
+.family-member-form select:focus,
+.family-member-form textarea:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--primary) 55%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent);
+}
+.family-record-form-grid .errorlist,
+.family-member-form .errorlist {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--danger);
+  font-size: .8rem;
+}
 .family-record-form-grid p:has(textarea),
 .family-record-form-grid > button { grid-column: 1 / -1; }
 .family-record-dialog footer { display: flex; justify-content: flex-end; gap: 8px; padding: 13px 20px 17px; border-top: 1px solid var(--border); }
@@ -10160,7 +10244,55 @@ body.sidebar-collapsed .sidebar {
 .family-detail-section > summary span { min-width: 24px; padding: 3px 7px; border-radius: 999px; background: var(--primary-soft); font-size: .55rem; text-align: center; }
 .family-detail-section--edit .family-record-form-grid { padding-right: 0; padding-left: 0; }
 .family-member-form { display: grid; grid-template-columns: 1.3fr 1fr .7fr auto; gap: 10px; align-items: end; margin-top: 12px; padding: 13px; border-radius: 11px; background: var(--surface-elevated); }
-.street-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 16px; }
+.family-contribution-form {
+  margin-top: 12px;
+  padding: 13px;
+  border-radius: 11px;
+  background: var(--surface-elevated);
+}
+.family-contribution-form__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 14px;
+  margin-bottom: 12px;
+}
+.family-contribution-form__grid p {
+  min-width: 0;
+  margin: 0;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+.family-contribution-form__grid label {
+  margin: 0;
+  color: var(--text);
+  font-size: .78rem;
+  font-weight: 650;
+}
+.family-contribution-form__checkbox {
+  align-content: end;
+}
+.family-contribution-form__checkbox label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.family-contribution-form__checkbox input {
+  width: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+.family-contribution-form__wide { grid-column: 1 / -1; }
+.family-contribution-form .data-table small,
+.family-detail-section .data-table small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: .56rem;
+}
+.street-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 16px; }
 .street-workspace { margin-bottom: 16px; }
 .street-list-header { align-items: center; }
 .street-list-header .card-label,
@@ -10180,7 +10312,6 @@ body.sidebar-collapsed .sidebar {
 .street-family-link span { color: var(--text-muted); font-size: .61rem; text-align: right; }
 .street-all-families { margin-top: 14px; }
 .street-selection-empty { min-height: 180px; display: grid; place-items: center; }
-.street-family-list--unassigned { margin-top: 12px; }
 .visit-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 16px; }
 .visit-list-card { padding: 0; overflow: hidden; }
 .visit-list-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
@@ -10549,6 +10680,7 @@ body.sidebar-collapsed .sidebar {
   .family-filters { grid-template-columns: minmax(0, 1fr) minmax(180px, .7fr) auto; }
   .family-filters .btn-ghost { grid-column: 1 / -1; justify-self: start; }
   .family-member-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .family-contribution-form__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .family-context-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .operational-form-grid { grid-template-columns: minmax(0, 1fr); }
   .calendar-entry-form__grid { grid-template-columns: minmax(0, 1fr); }
@@ -10561,7 +10693,9 @@ body.sidebar-collapsed .sidebar {
   .submission-summary,
   .family-filters,
   .family-record-form-grid,
-  .family-member-form { grid-template-columns: minmax(0, 1fr); }
+  .family-member-form,
+  .family-contribution-form__grid { grid-template-columns: minmax(0, 1fr); }
+  .family-contribution-form__wide { grid-column: auto; }
   .family-record-form-grid p:has(textarea),
   .family-record-form-grid > button,
   .family-filters .btn-ghost { grid-column: auto; }
@@ -11114,7 +11248,7 @@ body.sidebar-collapsed .sidebar {
 
   .topbar-actions .theme-picker-root { min-width: 0; }
 
-  .topbar-actions > .btn:not(.topbar-print-action):not(.topbar-primary-action) {
+  .topbar-actions > .btn:not(.topbar-primary-action) {
     width: 100%;
     min-width: 0;
     min-height: 40px;
@@ -11132,16 +11266,14 @@ body.sidebar-collapsed .sidebar {
   }
 
   .topbar-actions .btn-theme-mode,
-  .topbar-actions .btn-theme-toggle,
-  .topbar-actions .topbar-print-action {
+  .topbar-actions .btn-theme-toggle {
     width: 40px;
     min-width: 40px;
     min-height: 40px;
     padding: 7px;
   }
 
-  .topbar-actions .theme-toggle-label,
-  .topbar-actions .topbar-print-action .topbar-action-label {
+  .topbar-actions .theme-toggle-label {
     display: none;
   }
 

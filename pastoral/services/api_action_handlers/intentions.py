@@ -1,25 +1,56 @@
 """API mutacije misnih nakana."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from pastoral.services.api_action_handlers.shared import (
     generate_payment_reference,
     generate_record_identifier,
     normalize_date_value,
 )
+from pastoral.services.mass_schedule import get_masses_for_date
+
+
+def _validate_intention_mass_slot(
+    parish_data: dict,
+    iso_date: str,
+    mass_time: str,
+) -> dict | None:
+    if not iso_date:
+        return {'ok': False, 'error': 'missing_date'}
+    masses = get_masses_for_date(parish_data, iso_date)
+    if not masses:
+        return {'ok': False, 'error': 'no_mass_on_date'}
+    allowed_times = {
+        str(mass.get('time') or '')
+        for mass in masses
+        if mass.get('time')
+    }
+    if mass_time and mass_time not in allowed_times:
+        return {'ok': False, 'error': 'mass_not_on_date'}
+    return None
 
 
 def create_intention(parish_data: dict, action_payload: dict) -> dict:
+    iso_date = normalize_date_value(action_payload.get('date'))
+    mass_time = (
+        action_payload.get('mass_time')
+        or action_payload.get('massTime')
+        or ''
+    )
+    validation_error = _validate_intention_mass_slot(
+        parish_data,
+        iso_date,
+        mass_time,
+    )
+    if validation_error:
+        return validation_error
+
     is_paid = bool(action_payload.get('paid'))
     intention_record = {
         'id': generate_record_identifier('n'),
-        'date': normalize_date_value(action_payload.get('date')),
-        'massTime': (
-            action_payload.get('mass_time')
-            or action_payload.get('massTime')
-            or ''
-        ),
+        'date': iso_date,
+        'massTime': mass_time,
         'requestedBy': (
             action_payload.get('requested_by')
             or action_payload.get('requestedBy')
@@ -52,39 +83,6 @@ def create_intention(parish_data: dict, action_payload: dict) -> dict:
     return {'ok': True, 'item': intention_record}
 
 
-def create_gregorian_intentions(
-    parish_data: dict,
-    action_payload: dict,
-) -> dict:
-    """Create the complete Gregorian series in one persisted API action."""
-    start_date_value = normalize_date_value(action_payload.get('start_date'))
-    intention_for = (action_payload.get('intention_for') or '').strip()
-    if not start_date_value or not intention_for:
-        return {'ok': False, 'error': 'date_and_intention_required'}
-
-    try:
-        start_date = date.fromisoformat(start_date_value)
-    except ValueError:
-        return {'ok': False, 'error': 'invalid_date'}
-
-    created_intentions = []
-    for sequence_number in range(1, 31):
-        intention_date = start_date + timedelta(days=sequence_number - 1)
-        creation_result = create_intention(parish_data, {
-            'date': intention_date.isoformat(),
-            'mass_time': action_payload.get('mass_time') or '',
-            'intention_for': (
-                f'{intention_for} (Gregorijanska {sequence_number}/30)'
-            ),
-            'requested_by': action_payload.get('requested_by') or '',
-            'stipend': action_payload.get('stipend') or 0,
-            'notes': 'Gregorijanska serija',
-        })
-        created_intentions.append(creation_result['item'])
-
-    return {'ok': True, 'items': created_intentions, 'count': 30}
-
-
 def update_intention(parish_data: dict, action_payload: dict) -> dict:
     intention_record = next(
         (
@@ -96,6 +94,9 @@ def update_intention(parish_data: dict, action_payload: dict) -> dict:
     )
     if not intention_record:
         return {'ok': False, 'error': 'not_found'}
+
+    original_date = intention_record.get('date') or ''
+    original_mass_time = intention_record.get('massTime') or ''
 
     field_mappings = (
         ('date', 'date'),
@@ -120,6 +121,21 @@ def update_intention(parish_data: dict, action_payload: dict) -> dict:
         intention_record['stipend'] = float(
             action_payload['stipend'] or 0
         )
+
+    updated_date = intention_record.get('date') or ''
+    updated_mass_time = intention_record.get('massTime') or ''
+    mass_slot_changed = (
+        updated_date != original_date
+        or updated_mass_time != original_mass_time
+    )
+    if mass_slot_changed:
+        validation_error = _validate_intention_mass_slot(
+            parish_data,
+            updated_date,
+            updated_mass_time,
+        )
+        if validation_error:
+            return validation_error
     return {'ok': True, 'item': intention_record}
 
 

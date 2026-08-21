@@ -56,6 +56,9 @@ def normalize_schedule_entry(entry: dict) -> dict:
     out.setdefault('notes', '')
     out.setdefault('validFrom', '')
     out.setdefault('validUntil', '')
+    out['noMass'] = bool(entry.get('noMass'))
+    if out['noMass']:
+        out['time'] = entry.get('time') or ''
     return out
 
 
@@ -67,6 +70,19 @@ def schedule_entry_applies_on_date(entry: dict, iso_date: str) -> bool:
     if valid_until and iso_date > valid_until:
         return False
     return True
+
+
+def no_mass_period_applies_on_date(data: dict, iso: str, js_dow: int) -> bool:
+    for raw in data.get('massSchedule') or []:
+        entry = normalize_schedule_entry(raw)
+        if not entry.get('noMass'):
+            continue
+        if not schedule_entry_applies_on_date(entry, iso):
+            continue
+        if js_dow not in weekdays_from_entry(entry):
+            continue
+        return True
+    return False
 
 
 def migrate_mass_schedule(data: dict) -> None:
@@ -86,9 +102,14 @@ def get_masses_for_date(data: dict, iso: str) -> list[dict]:
     js_dow = (dow + 1) % 7
     slots: list[dict] = []
 
+    if no_mass_period_applies_on_date(data, iso, js_dow):
+        return slots
+
     if not exc or not exc.get('cancelAll'):
         for raw in data.get('massSchedule') or []:
             entry = normalize_schedule_entry(raw)
+            if entry.get('noMass'):
+                continue
             if not schedule_entry_applies_on_date(entry, iso):
                 continue
             if js_dow not in weekdays_from_entry(entry):
@@ -125,8 +146,15 @@ def format_mass_schedule_html(data: dict) -> str:
     items = []
     for raw in rows:
         e = normalize_schedule_entry(raw)
+        if e.get('noMass'):
+            slot_label = 'nema mise'
+        else:
+            slot_label = e.get('time') or ''
         extra = ' · '.join(x for x in (e.get('celebrant'), e.get('notes')) if x)
-        line = f'<li><strong>{escape(e.get("day") or "")}</strong> — {escape(e.get("time") or "")}'
+        line = (
+            f'<li><strong>{escape(e.get("day") or "")}</strong>'
+            f' — {escape(slot_label)}'
+        )
         valid_from = e.get('validFrom') or ''
         valid_until = e.get('validUntil') or ''
         if valid_from or valid_until:

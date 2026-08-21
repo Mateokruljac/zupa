@@ -34,7 +34,16 @@ class SharedApiActionHelpersTests(SimpleTestCase):
 
 class IntentionApiActionsTests(SimpleTestCase):
     def test_creates_and_marks_intention_paid(self):
-        parish_data = {'intentions': []}
+        parish_data = {
+            'intentions': [],
+            'massSchedule': [{
+                'id': 'ms-1',
+                'time': '18:30',
+                'weekdays': [5],
+                'day': 'Petak',
+            }],
+            'massExceptions': [],
+        }
 
         creation_result = create_intention(parish_data, {
             'date': '2026-08-14',
@@ -54,6 +63,61 @@ class IntentionApiActionsTests(SimpleTestCase):
         self.assertEqual(intention_record['intentionFor'], 'Pokojni Ivan')
         self.assertTrue(payment_result['item']['paid'])
         self.assertTrue(payment_result['item']['paymentId'].startswith('PAY-'))
+
+    def test_rejects_intention_when_day_has_no_mass(self):
+        parish_data = {
+            'intentions': [],
+            'massSchedule': [{
+                'id': 'ms-1',
+                'time': '09:00',
+                'weekdays': [0],
+                'day': 'Nedjelja',
+            }],
+            'massExceptions': [],
+        }
+
+        creation_result = create_intention(parish_data, {
+            'date': '2026-08-14',
+            'mass_time': '09:00',
+            'intention_for': 'Pokojni Ivan',
+        })
+
+        self.assertFalse(creation_result['ok'])
+        self.assertEqual(creation_result['error'], 'no_mass_on_date')
+        self.assertEqual(parish_data['intentions'], [])
+
+    def test_rejects_intention_during_no_mass_period(self):
+        parish_data = {
+            'intentions': [],
+            'massSchedule': [
+                {
+                    'id': 'ms-1',
+                    'time': '18:30',
+                    'weekdays': [5],
+                    'day': 'Petak',
+                },
+                {
+                    'id': 'ms-2',
+                    'noMass': True,
+                    'weekdays': [5],
+                    'day': 'Petak',
+                    'validFrom': '2026-08-01',
+                    'validUntil': '2026-08-31',
+                    'notes': 'Godišnji odmor',
+                },
+            ],
+            'massExceptions': [],
+        }
+
+        creation_result = create_intention(parish_data, {
+            'date': '2026-08-14',
+            'mass_time': '18:30',
+            'intention_for': 'Pokojni Ivan',
+        })
+
+        self.assertFalse(creation_result['ok'])
+        self.assertEqual(creation_result['error'], 'no_mass_on_date')
+        self.assertEqual(parish_data['intentions'], [])
 
 
 class FamilyApiActionsTests(SimpleTestCase):
@@ -76,6 +140,7 @@ class FamilyApiActionsTests(SimpleTestCase):
         self.assertTrue(family_result['ok'])
         self.assertTrue(member_result['ok'])
         self.assertEqual(family['streetId'], 'street-1')
+        self.assertTrue(family['createdAt'])
         self.assertEqual(parish_data['parishioners'][0]['name'], 'Iva Kovač')
         self.assertEqual(parish_data['parishioners'][0]['family'], 'Kovač')
 
