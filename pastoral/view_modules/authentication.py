@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -12,12 +13,14 @@ from django_ratelimit.decorators import ratelimit
 
 from pastoral.forms import LoginForm, OtpVerifyForm
 from pastoral.services.data import ParishDataService
-from pastoral.services.otp import (
-    OtpCooldownError,
-    request_otp_delivery,
-    verify_otp_challenge,
-)
-from users.models import User
+from pastoral.services.otp import send_login_code, verify_login_code
+from pastoral.web_manifest_data import WEB_MANIFEST
+from pastoral.models import User
+
+
+def web_manifest_view(request):
+    """PWA manifest — zamjena za static/manifest.json."""
+    return JsonResponse(WEB_MANIFEST)
 
 
 def index_view(request):
@@ -92,7 +95,7 @@ def login_view(request):
     if pending_login and request.method == 'POST' and 'code' in request.POST:
         verification_form = OtpVerifyForm(request.POST)
         if verification_form.is_valid():
-            code_is_valid, verification_status = verify_otp_challenge(
+            code_is_valid, verification_status = verify_login_code(
                 pending_login['email'],
                 pending_login['role'],
                 verification_form.cleaned_data['code'],
@@ -113,7 +116,6 @@ def login_view(request):
                 return redirect(_login_destination(request, user))
             verification_messages = {
                 'expired': 'Kod je istekao. Zatražite novi kod.',
-                'locked': 'Dosegnut je najveći broj pokušaja. Zatražite novi kod.',
                 'missing': 'Kod više nije aktivan. Zatražite novi kod.',
             }
             messages.error(
@@ -140,22 +142,22 @@ def login_view(request):
             .first()
             or User._meta.get_field('role').default
         )
-        try:
-            email_was_sent, email_result = request_otp_delivery(
-                request,
-                email=email_address,
-                role=user_role,
-            )
-        except OtpCooldownError as exception:
-            messages.error(
-                request,
-                f'Pričekajte {exception.retry_after_seconds} sekundi prije slanja novog koda.',
-            )
-            return _render_login_page(request, {
-                'form': login_form,
-                'otp_form': OtpVerifyForm(),
-            }, status=429)
+        email_was_sent, email_result = send_login_code(
+            request,
+            email=email_address,
+            role=user_role,
+        )
         if not email_was_sent:
+            if email_result.get('error') == 'cooldown':
+                messages.error(
+                    request,
+                    f'Pričekajte {email_result["retry_after_seconds"]} '
+                    'sekundi prije slanja novog koda.',
+                )
+                return _render_login_page(request, {
+                    'form': login_form,
+                    'otp_form': OtpVerifyForm(),
+                }, status=429)
             error_detail = email_result.get('detail') or email_result.get(
                 'error',
                 'mail_failed',

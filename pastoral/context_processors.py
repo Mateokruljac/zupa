@@ -4,16 +4,17 @@ from django.conf import settings
 from django.db.models import Q
 from django.utils import timezone
 
+from pastoral.models import Parish, ParishMembership
 from pastoral.services.data import ParishDataService
 from pastoral.services.admin_interface_theme import (
     synchronize_admin_interface_theme,
 )
 from pastoral.services.permissions import (
+    current_nav_page,
     filter_nav,
     group_nav_sections,
     nav_badges_from_stats,
 )
-from control_plane.models import ParishMembership
 
 
 THEME_COLOR_PATTERN = re.compile(r'^#[0-9a-fA-F]{6}$')
@@ -83,15 +84,12 @@ def pastoral_globals(request):
         return {'technical_admin_theme': _technical_admin_theme(request)}
     if not request.user.is_authenticated:
         return {}
-    parish_data_service = ParishDataService()
-    current_page = getattr(request.resolver_match, 'kwargs', {}).get(
-        'page',
-        'dashboard',
-    )
-    if request.resolver_match and request.resolver_match.url_name == 'app':
-        current_page = 'dashboard'
+    parish_data_service = ParishDataService.for_request(request)
+    current_page = current_nav_page(request)
     parish_settings = parish_data_service.load_settings()
-    parish_data = parish_data_service.load()
+    parish_data = getattr(request, '_pastoral_parish_data', None)
+    if parish_data is None:
+        parish_data = parish_data_service.load()
     office_statistics = parish_data_service.office_statistics(parish_data)
     tenant_context = getattr(request, 'tenant_context', None)
     active_role = tenant_context.role if tenant_context else request.user.role

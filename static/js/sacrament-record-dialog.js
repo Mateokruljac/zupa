@@ -63,4 +63,7 @@
       }
     });
   });
+  document.querySelectorAll(".sacrament-record-dialog[data-sacrament-dialog-open]").forEach((dialog) => {
+    if (dialog.id) openSacramentRecordDialog(dialog.id);
+  });
 })();

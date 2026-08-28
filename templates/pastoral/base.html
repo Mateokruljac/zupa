@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token }}">
   <meta name="theme-color" content="{{ parish_settings.primaryColor|default:'#5c2e3a' }}">
-  <link rel="manifest" href="{% static 'manifest.json' %}">
+  <link rel="manifest" href="{% url 'pastoral:web_manifest' %}">
   <title>{% block title %}{{ page_title|default:"Pastoral" }}{% endblock %} — Pastoral</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
   {{ parish_settings|json_script:"parish-settings-data" }}

@@ -189,7 +189,10 @@
   }
 
   async function fetchJson(url) {
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    const res = await fetch(url, {
+      credentials: "same-origin",
+      headers: { Accept: "application/json" },
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data?.status >= 400 || data?.title === "Too Many Requests") {
@@ -199,16 +202,7 @@
   }
 
   function litcalBundleUrl(year) {
-    try {
-      if (global.PastoralBase?.asset) {
-        return global.PastoralBase.asset(`data/litcal/${year}.json`);
-      }
-      const path = global.location?.pathname || "";
-      const base = path.includes("/pages/") ? "../data/litcal" : "data/litcal";
-      return `${base}/${year}.json`;
-    } catch {
-      return `data/litcal/${year}.json`;
-    }
+    return `/api/liturgical/raw/${year}/`;
   }
 
   async function fetchLocalLitcalBundle(year) {

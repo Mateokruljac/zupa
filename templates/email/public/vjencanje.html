@@ -1,0 +1,16 @@
+{% extends "email/base.html" %}
+
+{% block title %}Nova prijava — Vjenčanje{% endblock %}
+
+{% block header_tagline %}Javna prijava — sakrament ženidbe{% endblock %}
+
+{% block content %}
+<p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#3d3835;">
+  Stigla je nova <strong>prijava za vjenčanje</strong> putem javnog obrasca.
+</p>
+<p style="margin:0 0 20px;font-size:13px;color:#8a827c;">Primljeno: {{ submitted_at }}</p>
+{% include "email/public/_fields.html" %}
+<p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#8a827c;">
+  Pregled i uvoz u evidenciju vjenčanja nalaze se u modulu <strong>Javne prijave</strong>.
+</p>
+{% endblock %}

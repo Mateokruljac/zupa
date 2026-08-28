@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 
+from pastoral.models import User
 from pastoral.services.data import ParishDataService
-from users.models import User
 
 
 class Command(BaseCommand):

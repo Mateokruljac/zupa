@@ -70,12 +70,13 @@ def migrate_family_contributions(family: dict) -> None:
 
 
 def normalize_parish_data(parish_data: dict) -> dict:
+    """Priprema snapshot za mutacije (lukno redovi + izvedeni parishioners).
+
+    Oblik kolekcija dolazi iz ORM loadera — ovdje nema shape-migracija.
+    """
     for family in parish_data.get('families', []):
         migrate_family_contributions(family)
     synchronize_parishioners(parish_data)
-
-    from pastoral.services.data_normalize import migrate_all
-    migrate_all(parish_data)
     return parish_data
 
 

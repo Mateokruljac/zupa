@@ -1,0 +1,138 @@
+{% extends "pastoral/base.html" %}
+{% load static pastoral_tags %}
+
+{% block content %}
+<div class="kpi-row formation-summary">
+  <article class="card kpi-card"><p class="card-label">Prvopričesnici {{ fc_year }}</p><p class="card-value">{{ fc_stats.total }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Označena naknada</p><p class="card-value">{{ fc_stats.paid }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Grupna naknada</p><p class="card-value">{% if fc_group.groupFeePaid %}Plaćeno{% elif fc_group.groupFee %}{{ fc_group.groupFee|money_eur }}{% else %}—{% endif %}</p></article>
+</div>
+
+<section class="card formation-year-card">
+  <header class="formation-year-card__header">
+    <div>
+      <p class="card-label">Priprava</p>
+      <h2 class="section-title">Godina prve pričesti</h2>
+    </div>
+    <div class="formation-year-card__actions">
+      <form method="get" class="formation-year-form">
+        <label for="first-communion-year">Godina</label>
+        <select id="first-communion-year" name="year" class="form-control" onchange="this.form.submit()">
+          {% for year in fc_years %}<option value="{{ year }}" {% if year == fc_year %}selected{% endif %}>{{ year }}</option>{% endfor %}
+        </select>
+      </form>
+      <button type="button" class="btn btn-ghost btn-sm" data-sacrament-dialog="first-communion-year-edit">Uredi godinu</button>
+      <button type="button" class="btn btn-primary btn-sm" data-sacrament-dialog="first-communion-year-add">+ Nova godina</button>
+    </div>
+  </header>
+  <div class="formation-overview__details">
+    <div><span class="card-sub">Skupina</span><strong>{{ fc_group.groupName|default:"—" }}</strong></div>
+    <div><span class="card-sub">Datum prve pričesti</span><strong>{{ fc_group.ceremonyDate|hr_date }}</strong></div>
+    <div><span class="card-sub">Svećenik</span><strong>{{ fc_group.celebrant|default:"—" }}</strong></div>
+  </div>
+</section>
+
+<section class="card formation-candidates-card">
+  <header class="formation-candidates-card__header">
+    <div>
+      <p class="card-label">Odabrana godina</p>
+      <h2 class="section-title">Prvopričesnici {{ fc_year }}</h2>
+    </div>
+    <div class="family-list-actions">
+      <span class="badge">Prikazano {{ fc_candidates|length }} od {{ fc_stats.total }}</span>
+      <button type="button" class="btn btn-primary btn-sm" data-sacrament-dialog="first-communion-candidate-add">+ Dodaj prvopričesnika</button>
+    </div>
+  </header>
+  <form method="get" class="sacrament-filter-toolbar formation-filter-toolbar">
+    <input type="hidden" name="year" value="{{ fc_year }}">
+    <div class="sacrament-filter-toolbar__field"><label for="first-communion-search">Pretraži ime, školu ili roditelje</label><input type="search" id="first-communion-search" name="q" value="{{ fc_filters.q }}" class="form-control" placeholder="Upišite pojam…"></div>
+    <button type="submit" class="btn btn-primary">Filtriraj</button>
+    {% if fc_filters.q %}<a href="{% page_url 'prva-pricest' %}?year={{ fc_year }}" class="btn btn-ghost">Poništi</a>{% endif %}
+  </form>
+  <div class="table-wrap"><table class="data-table">
+    <thead><tr><th>Ime</th><th>Škola</th><th>Razred</th><th>Roditelji</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {% for first_communion_candidate in fc_candidates %}
+      <tr><td><strong>{{ first_communion_candidate.name }}</strong></td><td>{{ first_communion_candidate.school|default:"—" }}</td><td>{{ first_communion_candidate.class|default:"—" }}</td><td>{{ first_communion_candidate.parents|default:"—" }}</td><td><span class="badge">{{ first_communion_candidate.status|default:"—" }}</span></td><td><button type="button" class="btn btn-ghost btn-sm" data-sacrament-dialog="first-communion-candidate-{{ first_communion_candidate.id }}">Detalji</button></td></tr>
+      {% empty %}<tr><td colspan="6" class="empty-state">Nema prvopričesnika.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</section>
+
+<dialog id="first-communion-year-edit" class="sacrament-record-dialog"{% if first_communion_group_form.errors %} data-sacrament-dialog-open{% endif %}>
+  <form method="post" class="sacrament-record-dialog__form">
+    {% csrf_token %}<input type="hidden" name="action" value="save_first_communion_group">
+    {{ first_communion_group_form.year }}{{ first_communion_group_form.non_field_errors }}
+    <header><div><p class="card-label">Godina {{ fc_year }}</p><h2>Uredi podatke godine</h2></div><button type="button" class="dialog-close" data-sacrament-dialog-close aria-label="Zatvori">×</button></header>
+    <div class="sacrament-entry-form__grid sacrament-record-dialog__body">
+      <div class="sacrament-entry-form__field">{{ first_communion_group_form.group_name.label_tag }}{{ first_communion_group_form.group_name }}{{ first_communion_group_form.group_name.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ first_communion_group_form.ceremony_date.label_tag }}{{ first_communion_group_form.ceremony_date }}{{ first_communion_group_form.ceremony_date.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ first_communion_group_form.celebrant.label_tag }}{{ first_communion_group_form.celebrant }}{{ first_communion_group_form.celebrant.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ first_communion_group_form.group_fee.label_tag }}{{ first_communion_group_form.group_fee }}{{ first_communion_group_form.group_fee.errors }}</div>
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide sacrament-entry-form__checkbox"><label>{{ first_communion_group_form.group_fee_paid }}<span>{{ first_communion_group_form.group_fee_paid.label }}</span></label>{{ first_communion_group_form.group_fee_paid.errors }}</div>
+    </div>
+    <footer><button type="button" class="btn btn-ghost" data-sacrament-dialog-close>Odustani</button><button type="submit" class="btn btn-primary">Spremi godinu</button></footer>
+  </form>
+</dialog>
+
+<dialog id="first-communion-year-add" class="sacrament-record-dialog"{% if first_communion_year_create_form.errors %} data-sacrament-dialog-open{% endif %}>
+  <form method="post" class="sacrament-record-dialog__form" data-formation-year-form>
+    {% csrf_token %}<input type="hidden" name="action" value="add_first_communion_year">
+    {{ first_communion_year_create_form.non_field_errors }}
+    <header><div><p class="card-label">Nova skupina</p><h2>Dodaj godinu prve pričesti</h2></div><button type="button" class="dialog-close" data-sacrament-dialog-close aria-label="Zatvori">×</button></header>
+    <div class="sacrament-entry-form__grid sacrament-record-dialog__body">
+      <div class="sacrament-entry-form__field">{{ first_communion_year_create_form.year.label_tag }}{{ first_communion_year_create_form.year }}{{ first_communion_year_create_form.year.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ first_communion_year_create_form.group_name.label_tag }}{{ first_communion_year_create_form.group_name }}{{ first_communion_year_create_form.group_name.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ first_communion_year_create_form.ceremony_date.label_tag }}{{ first_communion_year_create_form.ceremony_date }}{{ first_communion_year_create_form.ceremony_date.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ first_communion_year_create_form.celebrant.label_tag }}{{ first_communion_year_create_form.celebrant }}{{ first_communion_year_create_form.celebrant.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ first_communion_year_create_form.group_fee.label_tag }}{{ first_communion_year_create_form.group_fee }}{{ first_communion_year_create_form.group_fee.errors }}</div>
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide sacrament-entry-form__checkbox"><label>{{ first_communion_year_create_form.group_fee_paid }}<span>{{ first_communion_year_create_form.group_fee_paid.label }}</span></label>{{ first_communion_year_create_form.group_fee_paid.errors }}</div>
+    </div>
+    <footer><button type="button" class="btn btn-ghost" data-sacrament-dialog-close>Odustani</button><button type="submit" class="btn btn-primary">Dodaj godinu</button></footer>
+  </form>
+</dialog>
+
+<dialog id="first-communion-candidate-add" class="sacrament-record-dialog"{% if first_communion_candidate_form.errors %} data-sacrament-dialog-open{% endif %}>
+  <form method="post" class="sacrament-record-dialog__form">
+    {% csrf_token %}<input type="hidden" name="action" value="add_first_communion_candidate">
+    {{ first_communion_candidate_form.year }}{{ first_communion_candidate_form.non_field_errors }}
+    <header><div><p class="card-label">Godina {{ fc_year }}</p><h2>Dodaj prvopričesnika</h2></div><button type="button" class="dialog-close" data-sacrament-dialog-close aria-label="Zatvori">×</button></header>
+    <div class="sacrament-entry-form__grid sacrament-record-dialog__body">
+      <div class="sacrament-entry-form__field">{{ first_communion_candidate_form.first_name.label_tag }}{{ first_communion_candidate_form.first_name }}{{ first_communion_candidate_form.first_name.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ first_communion_candidate_form.last_name.label_tag }}{{ first_communion_candidate_form.last_name }}{{ first_communion_candidate_form.last_name.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ first_communion_candidate_form.school.label_tag }}{{ first_communion_candidate_form.school }}{{ first_communion_candidate_form.school.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ first_communion_candidate_form.school_class.label_tag }}{{ first_communion_candidate_form.school_class }}{{ first_communion_candidate_form.school_class.errors }}</div>
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide">{{ first_communion_candidate_form.parents.label_tag }}{{ first_communion_candidate_form.parents }}{{ first_communion_candidate_form.parents.errors }}</div>
+      <div class="sacrament-entry-form__field">{{ first_communion_candidate_form.status.label_tag }}{{ first_communion_candidate_form.status }}{{ first_communion_candidate_form.status.errors }}</div>
+      <div class="sacrament-entry-form__field sacrament-entry-form__checkbox"><label>{{ first_communion_candidate_form.paid }}<span>{{ first_communion_candidate_form.paid.label }}</span></label>{{ first_communion_candidate_form.paid.errors }}</div>
+    </div>
+    <footer><button type="button" class="btn btn-ghost" data-sacrament-dialog-close>Odustani</button><button type="submit" class="btn btn-primary">Dodaj prvopričesnika</button></footer>
+  </form>
+</dialog>
+
+{% for first_communion_candidate in fc_candidates %}
+<dialog id="first-communion-candidate-{{ first_communion_candidate.id }}" class="sacrament-record-dialog">
+  <form method="post" class="sacrament-record-dialog__form">
+    {% csrf_token %}<input type="hidden" name="action" value="update_first_communion_candidate"><input type="hidden" name="candidate_id" value="{{ first_communion_candidate.id }}"><input type="hidden" name="year" value="{{ fc_year }}">
+    <header><div><p class="card-label">Detalji prvopričesnika</p><h2>{{ first_communion_candidate.name }}</h2></div><button type="button" class="dialog-close" data-sacrament-dialog-close aria-label="Zatvori">×</button></header>
+    <div class="sacrament-entry-form__grid sacrament-record-dialog__body">
+      <div class="sacrament-entry-form__field"><label for="communicant-first-name-{{ first_communion_candidate.id }}">Ime</label><input class="form-control" id="communicant-first-name-{{ first_communion_candidate.id }}" name="first_name" maxlength="100" required value="{{ first_communion_candidate.firstName|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="communicant-last-name-{{ first_communion_candidate.id }}">Prezime</label><input class="form-control" id="communicant-last-name-{{ first_communion_candidate.id }}" name="last_name" maxlength="100" required value="{{ first_communion_candidate.lastName|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="communicant-school-{{ first_communion_candidate.id }}">Škola</label><input class="form-control" id="communicant-school-{{ first_communion_candidate.id }}" name="school" maxlength="160" value="{{ first_communion_candidate.school|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="communicant-class-{{ first_communion_candidate.id }}">Razred</label><input class="form-control" id="communicant-class-{{ first_communion_candidate.id }}" name="school_class" maxlength="30" value="{{ first_communion_candidate.class|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field sacrament-entry-form__field--wide"><label for="communicant-parents-{{ first_communion_candidate.id }}">Roditelji / skrbnici</label><input class="form-control" id="communicant-parents-{{ first_communion_candidate.id }}" name="parents" maxlength="200" value="{{ first_communion_candidate.parents|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field"><label for="communicant-status-{{ first_communion_candidate.id }}">Status</label><input class="form-control" id="communicant-status-{{ first_communion_candidate.id }}" name="status" maxlength="60" value="{{ first_communion_candidate.status|default_if_none:'' }}"></div>
+      <div class="sacrament-entry-form__field sacrament-entry-form__checkbox"><label><input name="paid" type="checkbox" {% if first_communion_candidate.paid %}checked{% endif %}><span>Naknada je plaćena</span></label></div>
+    </div>
+    <footer><button type="submit" class="btn btn-danger sacrament-record-dialog__delete-button" form="delete-first-communion-candidate-{{ first_communion_candidate.id }}">Obriši</button><button type="button" class="btn btn-ghost" data-sacrament-dialog-close>Odustani</button><button type="submit" class="btn btn-primary">Spremi promjene</button></footer>
+  </form>
+</dialog>
+<form id="delete-first-communion-candidate-{{ first_communion_candidate.id }}" method="post" data-confirm-delete data-record-label="prvopričesnika {{ first_communion_candidate.name }}">{% csrf_token %}<input type="hidden" name="action" value="delete_first_communion_candidate"><input type="hidden" name="candidate_id" value="{{ first_communion_candidate.id }}"><input type="hidden" name="year" value="{{ fc_year }}"></form>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/modal-kit.js' %}"></script>
+<script src="{% static 'js/sacrament-record-dialog.js' %}"></script>
+<script src="{% static 'js/formation.js' %}"></script>
+{% endblock %}

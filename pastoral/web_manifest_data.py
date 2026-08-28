@@ -1,0 +1,26 @@
+"""PWA web manifest."""
+from __future__ import annotations
+
+import json
+
+WEB_MANIFEST = json.loads(r"""
+{
+  "name": "Pastoral — župna administracija",
+  "short_name": "Pastoral",
+  "description": "Administracija župe za svećenika i župni ured",
+  "start_url": "/login/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f3ed",
+  "theme_color": "#5c2e3a",
+  "lang": "hr",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%235c2e3a' width='192' height='192' rx='24'/%3E%3Cpath stroke='%23fff' stroke-width='12' d='M96 48v96M48 96h96'/%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
+""")

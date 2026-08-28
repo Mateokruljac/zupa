@@ -226,9 +226,29 @@ def doc_category_label(cat_id):
 
 
 @register.filter
+def cashbook_category_label(category):
+    from financije.ledgers import CASHBOOK_CATEGORY_LABELS
+    key = str(category or '').strip()
+    if not key:
+        return '—'
+    return CASHBOOK_CATEGORY_LABELS.get(key, key)
+
+
+@register.filter
 def debt_cat_label(cat_id, direction='receivable'):
-    from pastoral.services.debts import cat_meta
+    from financije.services.debts import cat_meta
     return cat_meta(cat_id, direction).get('label', cat_id)
+
+
+@register.simple_tag(takes_context=True)
+def can_access(context, page):
+    request = context.get('request')
+    if request is None or not getattr(request, 'user', None):
+        return False
+    tenant_context = getattr(request, 'tenant_context', None)
+    role = tenant_context.role if tenant_context else request.user.role
+    from pastoral.services.permissions import can_access_page
+    return can_access_page(page, role)
 
 
 @register.simple_tag

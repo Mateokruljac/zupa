@@ -1,0 +1,169 @@
+{% extends "sakramenti/public/base_public.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+{% block body_class %}public-page--form{% endblock %}
+
+{% block content %}
+<header class="public-header public-header--form">
+  <a class="public-back" href="{% url 'pastoral:public_index' %}">← Svi obrasci</a>
+  <h1>{{ form_title }}</h1>
+  {% if form_intro %}<p>{{ form_intro }}</p>{% endif %}
+  <p class="card-sub">{{ parish_settings.name }}{% if parish_settings.city %} · {{ parish_settings.city }}{% endif %}</p>
+</header>
+
+{% for tone, notice in form.WIZARD_NOTICES %}
+<aside class="public-notice{% if tone == 'alert' %} public-notice--alert{% endif %}">{{ notice }}</aside>
+{% endfor %}
+
+<form method="post" class="card public-form public-form--wizard" id="public-form" data-public-wizard novalidate>
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+  <div class="public-flash public-flash--error" role="alert">
+    {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <ol class="public-steps" aria-label="Koraci prijave">
+    {% for step in wizard_steps %}
+    <li>
+      <button type="button" class="public-step{% if forloop.first %} is-active{% endif %}" data-step-target="{{ forloop.counter0 }}">
+        <span class="public-step-index">{{ forloop.counter }}</span>
+        {{ step.label }}
+      </button>
+    </li>
+    {% endfor %}
+  </ol>
+
+  {% for step in wizard_steps %}
+  <section class="public-step-panel" data-step-panel="{{ forloop.counter0 }}" {% if not forloop.first %}hidden{% endif %}>
+    <h2 class="public-step-title">{{ step.label }}</h2>
+    {% if step.intro %}<p class="card-sub">{{ step.intro }}</p>{% endif %}
+
+    <div class="form-grid"{% if step.id == 'otac' %} data-parent-known="id_otac_poznat"{% elif step.id == 'majka' %} data-parent-known="id_majka_poznata"{% endif %}>
+      {% for field in step.fields %}
+        {% include "sakramenti/public/_field.html" %}
+      {% endfor %}
+    </div>
+
+    {% if step.id == form.ADDRESS_STEP %}
+    <aside class="public-address-help operational-warning" id="address-help" hidden>
+      <strong>Adresa nije na popisu.</strong>
+      <span>
+        Obratite se župnom uredu
+        {% if parish_settings.email %}putem e-pošte <a href="mailto:{{ parish_settings.email }}">{{ parish_settings.email }}</a>{% endif %}
+        {% if parish_settings.phone %} ili telefonom <a href="tel:{{ parish_settings.phone|cut:' '|cut:'+' }}">{{ parish_settings.phone }}</a>{% endif %}
+        ili osobnim dolaskom. Prijava putem obrasca nije moguća bez adrese s popisa.
+      </span>
+    </aside>
+    {% endif %}
+
+    {% if forloop.last %}
+    {% include "sakramenti/public/_legal_consent.html" %}
+    {% endif %}
+  </section>
+  {% endfor %}
+
+  <div class="public-wizard-nav">
+    <button type="button" class="btn btn-ghost" data-wizard-prev hidden>Prethodno</button>
+    <button type="button" class="btn btn-primary" data-wizard-next>Nastavak</button>
+    <button type="submit" class="btn btn-primary fx-btn-shine" id="submit-btn" hidden>Pošalji prijavu</button>
+  </div>
+</form>
+
+<script>
+(function () {
+  const form = document.getElementById('public-form');
+  if (!form) return;
+  const panels = [...form.querySelectorAll('[data-step-panel]')];
+  const tabs = [...form.querySelectorAll('[data-step-target]')];
+  const prev = form.querySelector('[data-wizard-prev]');
+  const next = form.querySelector('[data-wizard-next]');
+  const submit = document.getElementById('submit-btn');
+  const street = document.getElementById('street-select');
+  const help = document.getElementById('address-help');
+  const other = '{{ street_not_listed }}';
+  let index = 0;
+
+  function requiredFields(panel) {
+    return [...panel.querySelectorAll('input, select, textarea')].filter((el) => {
+      if (el.disabled || el.closest('[hidden]') || el.type === 'hidden') return false;
+      if (el.type === 'checkbox') return el.required;
+      return el.required || el.getAttribute('required') !== null;
+    });
+  }
+
+  function validatePanel(panel) {
+    let ok = true;
+    requiredFields(panel).forEach((el) => {
+      const empty = el.type === 'checkbox' ? !el.checked : !String(el.value || '').trim();
+      el.classList.toggle('is-invalid', empty);
+      if (empty) ok = false;
+    });
+    return ok;
+  }
+
+  function show(i) {
+    index = i;
+    panels.forEach((panel, n) => {
+      panel.hidden = n !== index;
+    });
+    tabs.forEach((tab, n) => {
+      tab.classList.toggle('is-active', n === index);
+      tab.classList.toggle('is-done', n < index);
+    });
+    prev.hidden = index === 0;
+    next.hidden = index === panels.length - 1;
+    submit.hidden = index !== panels.length - 1;
+    panels[index].querySelector('input, select, textarea')?.focus();
+  }
+
+  function syncParentKnown(grid) {
+    const select = document.getElementById(grid.getAttribute('data-parent-known'));
+    if (!select) return;
+    const known = select.value !== 'ne';
+    [...grid.querySelectorAll('.form-group')].forEach((group, n) => {
+      if (n === 0) return;
+      group.hidden = !known;
+      group.querySelectorAll('input, select, textarea').forEach((el) => {
+        el.disabled = !known;
+      });
+    });
+  }
+
+  function syncStreet() {
+    if (!street || !help) return;
+    const isOther = street.value === other;
+    help.hidden = !isOther;
+    if (submit) submit.disabled = isOther;
+  }
+
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const target = Number(tab.getAttribute('data-step-target'));
+      if (target <= index || validatePanel(panels[index])) show(target);
+    });
+  });
+  prev.addEventListener('click', () => show(Math.max(0, index - 1)));
+  next.addEventListener('click', () => {
+    if (!validatePanel(panels[index])) return;
+    show(Math.min(panels.length - 1, index + 1));
+  });
+  form.querySelectorAll('[data-parent-known]').forEach((grid) => {
+    const select = document.getElementById(grid.getAttribute('data-parent-known'));
+    if (!select) return;
+    select.addEventListener('change', () => syncParentKnown(grid));
+    syncParentKnown(grid);
+  });
+  street?.addEventListener('change', syncStreet);
+  syncStreet();
+
+  if (form.querySelector('.form-error, .public-flash--error')) {
+    const invalidPanel = panels.findIndex((panel) => panel.querySelector('.form-error'));
+    show(invalidPanel >= 0 ? invalidPanel : 0);
+  } else {
+    show(0);
+  }
+})();
+</script>
+{% endblock %}

@@ -1,13 +1,14 @@
-import uuid
-import unicodedata
+"""Jezgra pastoral shella — župa i OTP."""
 from datetime import timedelta
-
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import F, Q
+from django.db.models import Q, F
 from django.utils import timezone
+from django.contrib.auth.models import (AbstractBaseUser, BaseUserManager, PermissionsMixin)
 
+
+import uuid
 
 def otp_challenge_expiry():
     return timezone.now() + timedelta(
@@ -15,136 +16,28 @@ def otp_challenge_expiry():
     )
 
 
-def normalize_person_search_text(value: str) -> str:
-    """Return a predictable accent-insensitive value used only for searching."""
-    decomposed_value = unicodedata.normalize('NFKD', value or '')
-    characters_without_accents = (
-        character
-        for character in decomposed_value
-        if not unicodedata.combining(character)
-    )
-    return ' '.join(''.join(characters_without_accents).casefold().split())
 
-
-class LiturgicalTradition(models.Model):
-    """Kontrolirani globalni popis liturgijskih tradicija."""
-
+class UUIDTimestampedModel(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    code = models.SlugField('Stabilni kod', max_length=50, unique=True)
-    name = models.CharField('Naziv', max_length=160)
-    is_active = models.BooleanField('Aktivno', default=True, db_index=True)
-    created_at = models.DateTimeField('Kreirano', auto_now_add=True)
-    updated_at = models.DateTimeField('Ažurirano', auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class Diocese(UUIDTimestampedModel):
+    code = models.SlugField(unique=True)
+    name = models.CharField(max_length=200)
+    active = models.BooleanField(default=True, db_index=True)
 
     class Meta:
         ordering = ('name',)
-        verbose_name = 'Liturgijska tradicija'
-        verbose_name_plural = 'Liturgijske tradicije'
+        verbose_name = 'Biskupija'
+        verbose_name_plural = 'Biskupije'
 
     def __str__(self):
         return self.name
-
-
-class ChurchSuiIuris(models.Model):
-    """Katolička Crkva sui iuris kojoj osoba ili župa pripada."""
-
-    class CanonicalTradition(models.TextChoices):
-        LATIN = 'latin', 'Latinska'
-        EASTERN = 'eastern', 'Istočna'
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    code = models.SlugField('Stabilni kod', max_length=60, unique=True)
-    official_name = models.CharField('Službeni naziv', max_length=200)
-    short_name = models.CharField('Kratki naziv', max_length=120, blank=True)
-    canonical_tradition = models.CharField(
-        'Kanonska tradicija',
-        max_length=16,
-        choices=CanonicalTradition.choices,
-        db_index=True,
-    )
-    default_liturgical_tradition = models.ForeignKey(
-        LiturgicalTradition,
-        verbose_name='Zadana liturgijska tradicija',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='churches_sui_iuris',
-    )
-    is_active = models.BooleanField('Aktivno', default=True, db_index=True)
-    created_at = models.DateTimeField('Kreirano', auto_now_add=True)
-    updated_at = models.DateTimeField('Ažurirano', auto_now=True)
-
-    class Meta:
-        ordering = ('official_name',)
-        verbose_name = 'Crkva sui iuris'
-        verbose_name_plural = 'Crkve sui iuris'
-
-    def __str__(self):
-        return self.official_name
-
-
-class EcclesiasticalJurisdiction(models.Model):
-    """Biskupija, eparhija ili druga kontrolirana crkvena jurisdikcija."""
-
-    class JurisdictionType(models.TextChoices):
-        DIOCESE = 'diocese', 'Biskupija'
-        ARCHDIOCESE = 'archdiocese', 'Nadbiskupija'
-        EPARCHY = 'eparchy', 'Eparhija'
-        ARCHEPARCHY = 'archeparchy', 'Arhieparhija'
-        OTHER = 'other', 'Drugo'
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    code = models.SlugField('Stabilni kod', max_length=80, unique=True)
-    official_name = models.CharField('Službeni naziv', max_length=220)
-    jurisdiction_type = models.CharField(
-        'Vrsta jurisdikcije',
-        max_length=20,
-        choices=JurisdictionType.choices,
-        db_index=True,
-    )
-    church_sui_iuris = models.ForeignKey(
-        ChurchSuiIuris,
-        verbose_name='Crkva sui iuris',
-        on_delete=models.PROTECT,
-        related_name='jurisdictions',
-    )
-    parent_jurisdiction = models.ForeignKey(
-        'self',
-        verbose_name='Nadređena jurisdikcija',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='child_jurisdictions',
-    )
-    is_active = models.BooleanField('Aktivno', default=True, db_index=True)
-    created_at = models.DateTimeField('Kreirano', auto_now_add=True)
-    updated_at = models.DateTimeField('Ažurirano', auto_now=True)
-
-    class Meta:
-        ordering = ('official_name',)
-        verbose_name = 'Crkvena jurisdikcija'
-        verbose_name_plural = 'Crkvene jurisdikcije'
-
-    def __str__(self):
-        return self.official_name
-
-    def clean(self):
-        super().clean()
-        validation_errors = {}
-        if self.parent_jurisdiction_id == self.id:
-            validation_errors['parent_jurisdiction'] = (
-                'Jurisdikcija ne može biti nadređena sama sebi.'
-            )
-        elif (
-            self.parent_jurisdiction_id
-            and self.parent_jurisdiction.church_sui_iuris_id
-            != self.church_sui_iuris_id
-        ):
-            validation_errors['parent_jurisdiction'] = (
-                'Nadređena jurisdikcija mora pripadati istoj Crkvi sui iuris.'
-            )
-        if validation_errors:
-            raise ValidationError(validation_errors)
 
 
 class Parish(models.Model):
@@ -160,30 +53,27 @@ class Parish(models.Model):
     tenant_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     slug = models.SlugField(unique=True, default=settings.PARISH_DEFAULT_SLUG)
     diocese = models.ForeignKey(
-        'control_plane.Diocese',
+        'pastoral.Diocese',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='parishes',
     )
-    church_sui_iuris = models.ForeignKey(
-        ChurchSuiIuris,
+    church_sui_iuris = models.ForeignKey('zupa_vjernici.ChurchSuiIuris',
         verbose_name='Crkva sui iuris',
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name='parishes',
     )
-    ecclesiastical_jurisdiction = models.ForeignKey(
-        EcclesiasticalJurisdiction,
+    ecclesiastical_jurisdiction = models.ForeignKey('zupa_vjernici.EcclesiasticalJurisdiction',
         verbose_name='Crkvena jurisdikcija',
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name='parishes',
     )
-    default_liturgical_tradition = models.ForeignKey(
-        LiturgicalTradition,
+    default_liturgical_tradition = models.ForeignKey('liturgija.LiturgicalTradition',
         verbose_name='Zadana liturgijska tradicija',
         on_delete=models.PROTECT,
         null=True,
@@ -222,284 +112,6 @@ class Parish(models.Model):
             })
 
 
-class Person(models.Model):
-    """Jedinstvena osoba unutar provjerenog tenant opsega jedne župe."""
-
-    class Sex(models.TextChoices):
-        FEMALE = 'female', 'Ženski'
-        MALE = 'male', 'Muški'
-        UNKNOWN = 'unknown', 'Nepoznato / nepotvrđeno'
-
-    class Status(models.TextChoices):
-        ACTIVE = 'active', 'Aktivna'
-        MERGED = 'merged', 'Spojena'
-        ARCHIVED = 'archived', 'Arhivirana'
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    parish = models.ForeignKey(
-        Parish,
-        verbose_name='Župa',
-        on_delete=models.PROTECT,
-        related_name='persons',
-    )
-    given_names = models.CharField('Ime / imena', max_length=160)
-    surname = models.CharField('Prezime', max_length=160)
-    birth_surname = models.CharField('Rođeno prezime', max_length=160, blank=True)
-    sex = models.CharField(
-        'Spol',
-        max_length=12,
-        choices=Sex.choices,
-        default=Sex.UNKNOWN,
-    )
-    date_of_birth = models.DateField('Datum rođenja', null=True, blank=True)
-    place_of_birth = models.CharField('Mjesto rođenja', max_length=180, blank=True)
-    father = models.ForeignKey(
-        'self',
-        verbose_name='Otac',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='children_as_father',
-    )
-    mother = models.ForeignKey(
-        'self',
-        verbose_name='Majka',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='children_as_mother',
-    )
-    normalized_given_names = models.CharField(
-        max_length=160,
-        editable=False,
-        db_index=True,
-    )
-    normalized_surname = models.CharField(
-        max_length=160,
-        editable=False,
-        db_index=True,
-    )
-    status = models.CharField(
-        'Status',
-        max_length=12,
-        choices=Status.choices,
-        default=Status.ACTIVE,
-        db_index=True,
-    )
-    created_at = models.DateTimeField('Kreirano', auto_now_add=True)
-    updated_at = models.DateTimeField('Ažurirano', auto_now=True)
-
-    class Meta:
-        ordering = ('surname', 'given_names', 'date_of_birth')
-        indexes = (
-            models.Index(
-                fields=('parish', 'normalized_surname', 'normalized_given_names'),
-                name='person_parish_name_lookup',
-            ),
-            models.Index(
-                fields=('parish', 'date_of_birth'),
-                name='person_parish_birth_lookup',
-            ),
-        )
-        verbose_name = 'Osoba'
-        verbose_name_plural = 'Osobe'
-
-    def __str__(self):
-        return f'{self.given_names} {self.surname}'.strip()
-
-    def clean(self):
-        super().clean()
-        relationship_errors = {}
-        for field_name in ('father', 'mother'):
-            related_person = getattr(self, field_name, None)
-            if related_person and related_person.parish_id != self.parish_id:
-                relationship_errors[field_name] = (
-                    'Roditelj mora pripadati istoj župi kao osoba.'
-                )
-            if related_person and related_person.pk == self.pk:
-                relationship_errors[field_name] = 'Osoba ne može biti vlastiti roditelj.'
-        if relationship_errors:
-            raise ValidationError(relationship_errors)
-
-    def save(self, *args, **kwargs):
-        self.normalized_given_names = normalize_person_search_text(self.given_names)
-        self.normalized_surname = normalize_person_search_text(self.surname)
-        selected_update_fields = kwargs.get('update_fields')
-        if selected_update_fields is not None:
-            kwargs['update_fields'] = set(selected_update_fields) | {
-                'normalized_given_names',
-                'normalized_surname',
-            }
-        return super().save(*args, **kwargs)
-
-
-class ChurchEnrollment(models.Model):
-    """Verzionirana i dokaziva pripadnost osobe Crkvi sui iuris."""
-
-    class Status(models.TextChoices):
-        UNCONFIRMED = 'unconfirmed', 'Nepotvrđeno'
-        CONFIRMED = 'confirmed', 'Potvrđeno'
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    parish = models.ForeignKey(
-        Parish,
-        verbose_name='Župa',
-        on_delete=models.PROTECT,
-        related_name='church_enrollments',
-    )
-    person = models.ForeignKey(
-        Person,
-        verbose_name='Osoba',
-        on_delete=models.PROTECT,
-        related_name='church_enrollments',
-    )
-    church_sui_iuris = models.ForeignKey(
-        ChurchSuiIuris,
-        verbose_name='Crkva sui iuris',
-        on_delete=models.PROTECT,
-        related_name='person_enrollments',
-    )
-    valid_from = models.DateField('Vrijedi od', null=True, blank=True)
-    valid_until = models.DateField('Vrijedi do', null=True, blank=True)
-    enrollment_basis = models.CharField('Temelj pripadnosti', max_length=200, blank=True)
-    decree_reference = models.CharField('Referenca dekreta', max_length=200, blank=True)
-    previous_enrollment = models.ForeignKey(
-        'self',
-        verbose_name='Prethodna pripadnost',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='following_enrollments',
-    )
-    status = models.CharField(
-        'Status',
-        max_length=12,
-        choices=Status.choices,
-        default=Status.UNCONFIRMED,
-        db_index=True,
-    )
-    recorded_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        verbose_name='Evidentirao',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='recorded_church_enrollments',
-    )
-    created_at = models.DateTimeField('Kreirano', auto_now_add=True)
-    updated_at = models.DateTimeField('Ažurirano', auto_now=True)
-
-    class Meta:
-        ordering = ('person', '-valid_from', '-created_at')
-        constraints = (
-            models.CheckConstraint(
-                condition=Q(valid_until__isnull=True) | Q(valid_from__isnull=True)
-                | Q(valid_until__gte=F('valid_from')),
-                name='enrollment_valid_period',
-            ),
-            models.UniqueConstraint(
-                fields=('person',),
-                condition=Q(valid_until__isnull=True, status='confirmed'),
-                name='one_current_confirmed_enrollment',
-            ),
-        )
-        indexes = (
-            models.Index(
-                fields=('parish', 'status'),
-                name='enrollment_parish_status',
-            ),
-        )
-        verbose_name = 'Pripadnost Crkvi sui iuris'
-        verbose_name_plural = 'Pripadnosti Crkvi sui iuris'
-
-    def __str__(self):
-        return f'{self.person} · {self.church_sui_iuris}'
-
-    def clean(self):
-        super().clean()
-        validation_errors = {}
-        if self.person_id and self.person.parish_id != self.parish_id:
-            validation_errors['person'] = 'Osoba mora pripadati odabranoj župi.'
-        if self.valid_from and self.valid_until and self.valid_until < self.valid_from:
-            validation_errors['valid_until'] = 'Završni datum ne smije biti prije početnog.'
-        if self.previous_enrollment_id:
-            if self.previous_enrollment_id == self.id:
-                validation_errors['previous_enrollment'] = (
-                    'Zapis ne može kao prethodnika navesti sam sebe.'
-                )
-            elif self.previous_enrollment.person_id != self.person_id:
-                validation_errors['previous_enrollment'] = (
-                    'Prethodna pripadnost mora pripadati istoj osobi.'
-                )
-        if validation_errors:
-            raise ValidationError(validation_errors)
-
-
-class RegistryAuditEvent(models.Model):
-    """Nepromenjivi tenant-svjestan trag osjetljivih matičnih radnji."""
-
-    class Outcome(models.TextChoices):
-        SUCCESS = 'success', 'Uspjeh'
-        DENIED = 'denied', 'Odbijeno'
-        FAILURE = 'failure', 'Greška'
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    parish = models.ForeignKey(
-        Parish,
-        verbose_name='Župa',
-        on_delete=models.PROTECT,
-        related_name='registry_audit_events',
-    )
-    actor = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        verbose_name='Korisnik',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='registry_audit_events',
-    )
-    event_type = models.CharField('Vrsta događaja', max_length=100, db_index=True)
-    target_type = models.CharField('Vrsta cilja', max_length=100, blank=True)
-    target_id = models.CharField('Identifikator cilja', max_length=100, blank=True)
-    outcome = models.CharField(
-        'Ishod',
-        max_length=16,
-        choices=Outcome.choices,
-        default=Outcome.SUCCESS,
-        db_index=True,
-    )
-    correlation_id = models.UUIDField(default=uuid.uuid4, db_index=True)
-    changed_fields = models.JSONField('Promijenjena polja', default=list, blank=True)
-    metadata = models.JSONField('Metapodaci', default=dict, blank=True)
-    occurred_at = models.DateTimeField('Vrijeme', auto_now_add=True, db_index=True)
-
-    class Meta:
-        ordering = ('-occurred_at',)
-        indexes = (
-            models.Index(
-                fields=('parish', 'occurred_at'),
-                name='registry_audit_parish_time',
-            ),
-            models.Index(
-                fields=('actor', 'occurred_at'),
-                name='registry_audit_actor_time',
-            ),
-        )
-        verbose_name = 'Audit matične evidencije'
-        verbose_name_plural = 'Audit matične evidencije'
-
-    def __str__(self):
-        return f'{self.event_type} · {self.get_outcome_display()}'
-
-    def save(self, *args, **kwargs):
-        if self.pk and type(self).objects.filter(pk=self.pk).exists():
-            raise ValidationError('Audit događaj je nepromjenjiv.')
-        return super().save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        raise ValidationError('Audit događaj se ne smije brisati.')
-
-
 class OtpChallenge(models.Model):
     """Jednokratni, vremenski ograničen izazov za prijavu."""
 
@@ -518,130 +130,161 @@ class OtpChallenge(models.Model):
         ordering = ['-created_at']
 
 
-class LiturgicalCalendarImport(models.Model):
-    """Provjereni godišnji kalendar koji je uvezen kroz Django admin."""
+class PhaseTwoRecord(models.Model):
+    """ORM spremište za kolekcije faze 2 (legacy payload po ključu)."""
 
-    class Provider(models.TextChoices):
-        LITCAL_VATICAN = 'litcal-va', 'LitCal — opći rimski kalendar'
-
-    year = models.PositiveSmallIntegerField('Godina')
-    provider = models.CharField(
-        'Izvor',
-        max_length=30,
-        choices=Provider.choices,
-        default=Provider.LITCAL_VATICAN,
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    parish = models.ForeignKey(
+        Parish,
+        on_delete=models.CASCADE,
+        related_name='phase_two_records',
     )
-    events = models.JSONField('Uvezeni događaji', default=list, editable=False)
-    event_count = models.PositiveIntegerField('Broj događaja', default=0, editable=False)
-    source_file_name = models.CharField('Izvorna datoteka', max_length=255, blank=True, editable=False)
-    checksum = models.CharField('SHA-256 kontrolni zbroj', max_length=64, blank=True, editable=False)
-    imported_by = models.ForeignKey(
+    collection_key = models.CharField(max_length=80, db_index=True)
+    public_identifier = models.CharField(max_length=120, blank=True, db_index=True)
+    payload = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('parish', 'collection_key', 'public_identifier')]
+        indexes = [
+            models.Index(fields=['parish', 'collection_key']),
+        ]
+
+class UserManager(BaseUserManager):
+    """Manager for users."""
+
+    def create_user(self, email, password=None, **extra_fields):
+        """Create, save and return a new user."""
+        if not email:
+            raise ValueError('User must have an email address.')
+        user = self.model(email=self.normalize_email(email), **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+
+        return user
+
+    def create_superuser(self, email, password):
+        """Create and return a new superuser."""
+        user = self.create_user(email, password)
+        user.is_staff = True
+        user.is_superuser = True
+        user.save(using=self._db)
+
+        return user
+
+
+class User(AbstractBaseUser, PermissionsMixin):
+    objects = UserManager()
+
+    ROLE_CHOICES = [
+        ('zupnik', 'Župnik'),
+        ('vikar', 'Vikar'),
+        ('upravitelj', 'Župni upravitelj'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, unique=True)
+    email = models.EmailField(max_length=254, unique=True, db_index=True)
+    name = models.CharField(max_length=100, db_index=True, blank=True, default='')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='zupnik')
+    is_active = models.BooleanField(default=True, db_index=True)
+    is_staff = models.BooleanField(default=False, db_index=True)
+    address = models.CharField(max_length=100, blank=True, default='')
+    date_of_birth = models.DateField(null=True, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True, default='')
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []
+
+    class Meta:
+        db_table = 'users_user'
+
+    def __str__(self):
+        return self.email
+
+    @property
+    def role_label(self):
+        return dict(self.ROLE_CHOICES).get(self.role, self.role)
+
+
+
+class ParishMembership(UUIDTimestampedModel):
+    class Role(models.TextChoices):
+        PASTOR = 'zupnik', 'Župnik'
+        ASSOCIATE = 'vikar', 'Župnik suradnik / vikar'
+        MANAGER = 'upravitelj', 'Župni upravitelj'
+        OFFICE = 'ured', 'Župni ured'
+        FINANCE = 'financije', 'Financije'
+        AUDITOR = 'revizor', 'Revizor'
+        DIOCESE_VIEWER = 'biskupija', 'Biskupijski preglednik'
+
+    class Status(models.TextChoices):
+        ACTIVE = 'active', 'Aktivno'
+        SUSPENDED = 'suspended', 'Suspendirano'
+        REVOKED = 'revoked', 'Opozvano'
+
+    parish = models.ForeignKey(
+        'pastoral.Parish',
+        on_delete=models.PROTECT,
+        related_name='memberships',
+    )
+    user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        verbose_name='Uvezao',
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
+        related_name='parish_memberships',
+    )
+    role = models.CharField(max_length=24, choices=Role.choices)
+    status = models.CharField(
+        max_length=16,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        db_index=True,
+    )
+    permission_set = models.JSONField(default=dict, blank=True)
+    valid_from = models.DateTimeField(default=timezone.now)
+    valid_until = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
-        editable=False,
-        related_name='liturgical_calendar_imports',
+        related_name='approved_parish_memberships',
     )
-    imported_at = models.DateTimeField('Vrijeme uvoza', null=True, blank=True, editable=False)
-    created_at = models.DateTimeField('Kreirano', auto_now_add=True)
-    updated_at = models.DateTimeField('Ažurirano', auto_now=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='revoked_parish_memberships',
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revocation_reason = models.TextField(blank=True)
 
     class Meta:
-        ordering = ['-year', 'provider']
-        constraints = [
+        ordering = ('parish', 'user__email')
+        verbose_name = 'Članstvo u župi'
+        verbose_name_plural = 'Članstva u župama'
+        constraints = (
             models.UniqueConstraint(
-                fields=('year', 'provider'),
-                name='unique_liturgical_calendar_import',
+                fields=('parish', 'user'),
+                name='control_unique_parish_user_membership',
             ),
-        ]
-        verbose_name = 'Uvoz liturgijskog kalendara'
-        verbose_name_plural = 'Uvozi liturgijskog kalendara'
+            models.CheckConstraint(
+                condition=Q(valid_until__isnull=True) | Q(valid_until__gte=F('valid_from')),
+                name='control_membership_valid_period',
+            ),
+        )
+        indexes = (
+            models.Index(fields=('parish', 'status'), name='control_mem_parish_status'),
+            models.Index(fields=('user', 'status'), name='control_mem_user_status'),
+        )
 
     def __str__(self):
-        return f'{self.get_provider_display()} — {self.year}'
+        return f'{self.user} · {self.parish} · {self.get_role_display()}'
 
-
-class LiturgicalCalendarEntry(models.Model):
-    """Globalno liturgijsko slavlje dobiveno iz kontroliranog importa."""
-
-    class LiturgicalColor(models.TextChoices):
-        WHITE = 'white', 'Bijela'
-        RED = 'red', 'Crvena'
-        GREEN = 'green', 'Zelena'
-        PURPLE = 'purple', 'Ljubičasta'
-        ROSE = 'rose', 'Ružičasta'
-        BLACK = 'black', 'Crna'
-        OTHER = 'other', 'Druga / nepoznata'
-
-    calendar_import = models.ForeignKey(
-        LiturgicalCalendarImport,
-        verbose_name='Kalendarski import',
-        on_delete=models.CASCADE,
-        related_name='calendar_entries',
-    )
-    date = models.DateField('Datum', db_index=True)
-    name = models.CharField('Svetac ili slavlje', max_length=255)
-    original_name = models.CharField('Izvorni naziv', max_length=255, blank=True)
-    liturgical_color = models.CharField(
-        'Liturgijska boja',
-        max_length=20,
-        choices=LiturgicalColor.choices,
-        default=LiturgicalColor.OTHER,
-        db_index=True,
-    )
-    priority = models.PositiveSmallIntegerField(
-        'Prioritet',
-        default=0,
-        help_text='LitCal stupanj slavlja; veći broj znači viši prioritet.',
-    )
-    priority_label = models.CharField('Naziv prioriteta', max_length=120, blank=True)
-    is_primary = models.BooleanField(
-        'Glavno slavlje dana',
-        default=False,
-        db_index=True,
-    )
-    external_identifier = models.CharField('Identifikator izvora', max_length=160, blank=True)
-    source_position = models.PositiveIntegerField('Redni broj u importu')
-    raw_data = models.JSONField('Izvorni podaci', default=dict, editable=False)
-
-    class Meta:
-        ordering = ['date', '-is_primary', '-priority', 'name']
-        constraints = [
-            models.UniqueConstraint(
-                fields=('calendar_import', 'source_position'),
-                name='unique_liturgical_entry_source_position',
-            ),
-        ]
-        indexes = [
-            models.Index(
-                fields=('date', 'is_primary'),
-                name='liturgical_date_primary_idx',
-            ),
-        ]
-        verbose_name = 'Liturgijski kalendarski zapis'
-        verbose_name_plural = 'Liturgijski kalendarski zapisi'
-
-    def __str__(self):
-        return f'{self.date:%d.%m.%Y.} — {self.name}'
-
-
-# Registry models live in a separate module so this file remains readable. Importing
-# them here keeps Django's conventional ``pastoral.models`` discovery intact.
-from .registry_models import (  # noqa: E402, F401
-    AnointingDetails,
-    BaptismDetails,
-    EventParticipant,
-    FormationCandidate,
-    FormationProgramYear,
-    FuneralDetails,
-    GeneralRegisterEntry,
-    MarriageDetails,
-    RegisterBook,
-    RegisterBookYear,
-    RegisterEntry,
-    RegisterTemplate,
-    RegisterTemplateVersion,
-    SacramentalEvent,
-)
+    def is_valid_at(self, moment=None):
+        moment = moment or timezone.now()
+        return (
+            self.status == self.Status.ACTIVE
+            and self.valid_from <= moment
+            and (self.valid_until is None or self.valid_until >= moment)
+        )

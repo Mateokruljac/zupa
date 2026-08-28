@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable
 
-from pastoral.page_actions.councils import handle_council_action
-from pastoral.page_actions.calendar import handle_calendar_action
-from pastoral.page_actions.families import handle_family_action
-from pastoral.page_actions.formation import handle_formation_action
-from pastoral.page_actions.finance import handle_finance_action
-from pastoral.page_actions.office_records import handle_office_records_action
-from pastoral.page_actions.sacraments import handle_sacrament_action
-from pastoral.page_actions.settings import handle_settings_action
+from django.db import transaction
+
+from financije.page_actions import handle_finance_action
+from isprave.page_actions import handle_registry_books_action
+from liturgija.page_actions import handle_intention_page_action
+from sakramenti.page_actions import handle_sakramenti_action
+from ured.page_actions import handle_ured_action
+from zupa_vjernici.page_actions import handle_parish_community_action
 
 if TYPE_CHECKING:
     from pastoral.services.data import ParishDataService
@@ -19,14 +19,12 @@ if TYPE_CHECKING:
 PageActionHandler = Callable[[object, str, str, dict, 'ParishDataService'], bool]
 
 MVP_PAGE_ACTION_HANDLERS: tuple[PageActionHandler, ...] = (
-    handle_calendar_action,
-    handle_council_action,
-    handle_family_action,
-    handle_formation_action,
+    handle_ured_action,
+    handle_parish_community_action,
+    handle_sakramenti_action,
     handle_finance_action,
-    handle_sacrament_action,
-    handle_office_records_action,
-    handle_settings_action,
+    handle_intention_page_action,
+    handle_registry_books_action,
 )
 
 # Javno ime ostaje stabilno za postojeće integracije koje nadomještaju skup
@@ -35,22 +33,8 @@ PAGE_ACTION_HANDLERS = MVP_PAGE_ACTION_HANDLERS
 
 
 def page_action_handlers() -> tuple[PageActionHandler, ...]:
-    """Vraća MVP akcije i, samo kada je aktivna, akcije faze 2."""
-    from phase_two.module_registry import PRODUCT_MODULES
-
-    if not any(product_module.is_available for product_module in PRODUCT_MODULES):
-        return PAGE_ACTION_HANDLERS
-
-    from phase_two.interparish_collaboration.actions import (
-        handle_deanery_action,
-    )
-    from phase_two.operations_center.actions import handle_operations_action
-
-    return (
-        *PAGE_ACTION_HANDLERS,
-        handle_deanery_action,
-        handle_operations_action,
-    )
+    """Vraća registrirane page action handlere."""
+    return PAGE_ACTION_HANDLERS
 
 
 def handle_page_post(
@@ -63,14 +47,16 @@ def handle_page_post(
     if not action_name:
         return False
 
-    parish_data = parish_data_service.load()
-    for action_handler in page_action_handlers():
-        if action_handler(
-            request,
-            page,
-            action_name,
-            parish_data,
-            parish_data_service,
-        ):
-            return True
+    with transaction.atomic():
+        parish_data_service.lock_for_update()
+        parish_data = parish_data_service.load()
+        for action_handler in page_action_handlers():
+            if action_handler(
+                request,
+                page,
+                action_name,
+                parish_data,
+                parish_data_service,
+            ):
+                return True
     return False

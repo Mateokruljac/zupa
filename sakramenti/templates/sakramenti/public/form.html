@@ -1,0 +1,68 @@
+{% extends "sakramenti/public/base_public.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+{% block body_class %}public-page--form{% endblock %}
+
+{% block content %}
+<header class="public-header public-header--form">
+  <a class="public-back" href="{% url 'pastoral:public_index' %}">← Svi obrasci</a>
+  <h1>{{ form_title }}</h1>
+  {% if form_intro %}<p>{{ form_intro }}</p>{% endif %}
+  <p class="card-sub">{{ parish_settings.name }}{% if parish_settings.city %} · {{ parish_settings.city }}{% endif %}</p>
+</header>
+
+<form method="post" class="card public-form" id="public-form">
+  {% csrf_token %}
+
+  {% if form.non_field_errors %}
+  <div class="public-flash public-flash--error" role="alert">
+    {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="form-grid">
+    {% for field in form %}
+      {% if field.name != 'gdpr_consent' %}
+      <div class="form-group{% if field.field.widget.attrs.rows %} form-wide{% endif %}">
+        <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+        {{ field }}
+        {% if field.errors %}
+          {% for error in field.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+        {% endif %}
+      </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <aside class="public-address-help operational-warning" id="address-help" hidden>
+    <strong>Adresa nije na popisu.</strong>
+    <span>
+      Obratite se župnom uredu
+      {% if parish_settings.email %}putem e-pošte <a href="mailto:{{ parish_settings.email }}">{{ parish_settings.email }}</a>{% endif %}
+      {% if parish_settings.phone %} ili telefonom <a href="tel:{{ parish_settings.phone|cut:' '|cut:'+' }}">{{ parish_settings.phone }}</a>{% endif %}
+      ili osobnim dolaskom. Prijava putem obrasca nije moguća bez adrese s popisa.
+    </span>
+  </aside>
+
+  {% include "sakramenti/public/_legal_consent.html" %}
+
+  <button type="submit" class="btn btn-primary fx-btn-shine" id="submit-btn">Pošalji prijavu</button>
+</form>
+
+<script>
+(function () {
+  const select = document.getElementById('street-select');
+  const help = document.getElementById('address-help');
+  const submit = document.getElementById('submit-btn');
+  const other = '{{ street_not_listed }}';
+  if (!select || !help) return;
+  function sync() {
+    const isOther = select.value === other;
+    help.hidden = !isOther;
+    if (submit) submit.disabled = isOther;
+  }
+  select.addEventListener('change', sync);
+  sync();
+})();
+</script>
+{% endblock %}

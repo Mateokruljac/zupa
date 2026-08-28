@@ -67,8 +67,8 @@
           {{ form.email }}
           {% if form.email.errors %}<p class="form-error">{{ form.email.errors.0 }}</p>{% endif %}
         </div>
-        <div class="form-group">
-          <label>{{ form.gdpr_consent }} {{ form.gdpr_consent.label }}</label>
+        <div class="form-group gdpr-login-block">
+          <label class="gdpr-consent-label">{{ form.gdpr_consent }} <span>{{ form.gdpr_consent.label }} Pregledajte <a href="{% url 'pastoral:public_privacy' %}" target="_blank" rel="noopener">Politiku privatnosti</a> i <a href="{% url 'pastoral:public_terms' %}" target="_blank" rel="noopener">Uvjete korištenja</a>.</span></label>
           {% if form.gdpr_consent.errors %}<p class="form-error">{{ form.gdpr_consent.errors.0 }}</p>{% endif %}
         </div>
         <p id="login-credentials-error" class="login-otp-error hidden"></p>
@@ -78,7 +78,9 @@
     </div>
 
     <p style="margin-top:20px;text-align:center;font-size:0.9rem;color:var(--text-muted)">
-      <a href="{% url 'pastoral:public_index' %}">Javni obrasci</a> — krizma, krštenje, pričest, ukop
+      <a href="{% url 'pastoral:public_index' %}">Javni obrasci</a>
+      · <a href="{% url 'pastoral:public_privacy' %}">Privatnost</a>
+      · <a href="{% url 'pastoral:public_terms' %}">Uvjeti</a>
     </p>
   </div>
   <footer class="auth-footer card-sub" style="margin-top:32px;text-align:center">

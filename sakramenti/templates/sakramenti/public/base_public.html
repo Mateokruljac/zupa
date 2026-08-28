@@ -1,0 +1,47 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="hr" data-public-site>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="{{ parish_settings.primaryColor|default:'#5c2e3a' }}">
+  <title>{% block title %}Javni obrasci{% endblock %} — {{ parish_settings.shortName|default:parish_settings.name|default:"Pastoral" }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  {{ parish_settings|json_script:"parish-settings-data" }}
+  <script src="{% static 'js/theme-init.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+  <style>
+    :root {
+      --tenant-primary: {{ parish_settings.primaryColor|default:'#5c2e3a' }};
+      --tenant-accent: {{ parish_settings.accentColor|default:'#b8922a' }};
+    }
+  </style>
+</head>
+<body class="public-page {% block body_class %}{% endblock %}">
+  <main class="public-wrap">
+    {% if messages %}
+    <div class="public-flashes" role="status">
+      {% for message in messages %}
+      <div class="public-flash public-flash--{{ message.tags|default:'info' }}">{{ message }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+    <footer class="public-footer">
+      {% if parish_settings.phone or parish_settings.email %}
+      <p class="public-footer-contact">
+        {% if parish_settings.phone %}<a href="tel:{{ parish_settings.phone|cut:' '|cut:'+' }}">{{ parish_settings.phone }}</a>{% endif %}
+        {% if parish_settings.phone and parish_settings.email %}<span aria-hidden="true">·</span>{% endif %}
+        {% if parish_settings.email %}<a href="mailto:{{ parish_settings.email }}">{{ parish_settings.email }}</a>{% endif %}
+      </p>
+      {% endif %}
+      <p class="public-footer-legal">
+        <a href="{% url 'pastoral:public_privacy' %}">Politika privatnosti</a>
+        <span aria-hidden="true">·</span>
+        <a href="{% url 'pastoral:public_terms' %}">Uvjeti korištenja</a>
+        
+      </p>
+    </footer>
+  </main>
+</body>
+</html>

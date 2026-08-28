@@ -1,0 +1,57 @@
+{% extends "sakramenti/public/legal.html" %}
+
+{% block legal_body %}
+<p>Ova politika objašnjava kako {{ parish_settings.name }} («župa», «mi») obrađuje osobne podatke kada koristite javne obrasce i informacijski sustav Pastoral.</p>
+
+<h2>1. Voditelj obrade</h2>
+<p>Voditelj obrade osobnih podataka zaprimljenih putem javnih obrazaca je župa:</p>
+<ul>
+  <li><strong>{{ parish_settings.name }}</strong>{% if parish_settings.city %}, {{ parish_settings.city }}{% endif %}</li>
+  {% if parish_settings.diocese %}<li>{{ parish_settings.diocese }}</li>{% endif %}
+  {% if parish_settings.email %}<li>E-pošta: <a href="mailto:{{ parish_settings.email }}">{{ parish_settings.email }}</a></li>{% endif %}
+  {% if parish_settings.phone %}<li>Telefon: {{ parish_settings.phone }}</li>{% endif %}
+</ul>
+<p>Informacijski sustav Pastoral pruža tehničku obradu u ime župe (izvršitelj obrade). Župa određuje svrhe i sredstva obrade.</p>
+
+<h2>2. Koje podatke prikupljamo</h2>
+<p>Putem javnih obrazaca prikupljamo samo podatke koje sami unesete, ovisno o vrsti prijave. To mogu biti:</p>
+<ul>
+  <li>identifikacijski podaci (ime, prezime, spol, datum i mjesto rođenja),</li>
+  <li>kontakt (telefon, e-pošta, adresa u župi),</li>
+  <li>podaci o roditeljima, skrbnicima, kumovima i svjedocima,</li>
+  <li>podaci potrebni za pastoralnu pripremu (škola, razred, vjeronauk, župa krštenja, župa slavlja ženidbe),</li>
+  <li>dogovoreni ili željeni termin i napomene.</li>
+</ul>
+<p>Ne tražimo OIB ni JMBG putem javnih obrazaca. Ne koristimo oglašivačko praćenje ni profiliranje.</p>
+
+<h2>3. Svrhe i pravne osnove</h2>
+<p>Podatke obrađujemo kako bismo:</p>
+<ul>
+  <li>zaprimili i razmotrili vašu prijavu,</li>
+  <li>kontaktirali vas u vezi prijave,</li>
+  <li>upisali podatke u župnu evidenciju i, kada je to potrebno, u matične knjige,</li>
+  <li>ispunili zakonske i kanonske obveze župe.</li>
+</ul>
+<p>Pravne osnove su vaša <strong>privola</strong> (čl. 6. st. 1. točka a) GDPR-a), <strong>legitimni interes</strong> župe za vođenje pastoralne evidencije te, za matične knjige, <strong>pravna / kanonska obveza</strong> čuvanja.</p>
+
+<h2>4. Tko vidi podatke</h2>
+<p>Pristup imaju ovlašteni djelatnici župnog ureda. Podaci se ne prodaju niti ustupaju trećima u marketinške svrhe. Mogu se proslijediti nadležnoj biskupiji ili drugoj župi samo kada to zahtijeva kanonsko pravo ili zakon (npr. potvrda kuma, prijenos matičnog podatka).</p>
+
+<h2>5. Čuvanje</h2>
+<p>Prijava se čuva dok se ne obradi, a zatim u skladu s rokovima župne arhive. Podaci upisani u matične knjige čuvaju se trajno, sukladno crkvenim propisima o maticama. Ako prijavu arhivirate bez uvoza, župa je može izbrisati kada više nije potrebna.</p>
+
+<h2>6. Maloljetnici</h2>
+<p>Za osobu mlađu od 16 godina prijavu podnosi roditelj ili skrbnik. Podnositelj izjavljuje da je ovlašten unijeti navedene podatke.</p>
+
+<h2>7. Kolačići i tehnički podaci</h2>
+<p>Javne stranice koriste nužne tehničke zapise (npr. izbor svijetle/tamne teme u pregledniku). Ne postavljamo marketinške kolačiće trećih strana.</p>
+
+<h2>8. Vaša prava</h2>
+<p>Imate pravo na pristup, ispravak, ograničenje obrade, prigovor i, gdje je to moguće, brisanje i prenosivost. Pravo na brisanje ne vrijedi ako župa mora čuvati podatak zbog zakona ili kanonskog prava (npr. upis u knjigu krštenih).</p>
+<p>Privolu možete povući u bilo kojem trenutku obratom župnom uredu. Povlačenje ne utječe na zakonitost obrade prije povlačenja.</p>
+<p>Prigovor možete podnijeti i Agenciji za zaštitu osobnih podataka (AZOP).</p>
+
+<h2>9. Sigurnost i izmjene</h2>
+<p>Primjenjujemo organizacijske i tehničke mjere primjerene pastoralnoj evidenciji. Ova politika može se ažurirati; važeća verzija objavljena je na ovoj stranici.</p>
+<p>Za upite o osobnim podacima obratite se župnom uredu{% if parish_settings.email %} na <a href="mailto:{{ parish_settings.email }}">{{ parish_settings.email }}</a>{% endif %}.</p>
+{% endblock %}

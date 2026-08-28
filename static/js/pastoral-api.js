@@ -35,7 +35,13 @@
       err.details = body;
       throw err;
     }
-    if (body.data) cache = body.data;
+    if (body.data) {
+      if (body.dataPartial) {
+        if (cache) cache = { ...cache, ...body.data };
+      } else {
+        cache = body.data;
+      }
+    }
     return body;
   }
 

@@ -13,7 +13,7 @@ SECRET_KEY = environment.str(
     default='django-insecure-dev-only-change-in-production',
 )
 
-DEBUG = True
+DEBUG = False
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
@@ -26,10 +26,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
+    'django_celery_beat',
     'pastoral',
-    'users',
-    'control_plane.apps.ControlPlaneConfig',
-    'debug_toolbar',
+    'pregled.apps.PregledConfig',
+    'zupa_vjernici.apps.ZupaVjerniciConfig',
+    'liturgija.apps.LiturgijaConfig',
+    'sakramenti.apps.SakramentiConfig',
+    'financije.apps.FinancijeConfig',
+    'isprave.apps.IspraveConfig',
+    'ured.apps.UredConfig',
 ]
 
 AUTHENTICATION_BACKENDS = (
@@ -38,14 +43,12 @@ AUTHENTICATION_BACKENDS = (
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'control_plane.middleware.TenantContextMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -96,7 +99,6 @@ LANGUAGES = (
 )
 TIME_ZONE = 'Europe/Zagreb'
 USE_I18N = True
-USE_L10N = True
 USE_TZ = True
 
 STATIC_URL = '/static/'
@@ -107,7 +109,7 @@ MEDIA_ROOT = BASE_DIR / 'static' / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-AUTH_USER_MODEL = "users.User"
+AUTH_USER_MODEL = "pastoral.User"
 
 LOGIN_URL = 'pastoral:login'
 LOGOUT_REDIRECT_URL = 'pastoral:login'
@@ -179,8 +181,12 @@ LICENSE_ENFORCEMENT_ENABLED = False
 PASTORAL_PRODUCT_PHASE = environment.int('PASTORAL_PRODUCT_PHASE', default=1)
 
 if PASTORAL_PRODUCT_PHASE >= 2:
-    TEMPLATES[0]['DIRS'].append(BASE_DIR / 'phase_two' / 'templates')
-    STATICFILES_DIRS.append(BASE_DIR / 'phase_two' / 'static')
+    phase_two_templates = BASE_DIR / 'phase_two' / 'templates'
+    phase_two_static = BASE_DIR / 'phase_two' / 'static'
+    if phase_two_templates.is_dir():
+        TEMPLATES[0]['DIRS'].append(phase_two_templates)
+    if phase_two_static.is_dir():
+        STATICFILES_DIRS.append(phase_two_static)
 
 # Romcal se najprije može testirati usporednim API-jem. Postojeći LitCal ostaje
 # oba izvora rade paralelno; vrijednosti litcal i romcal ostaju za dijagnostiku.

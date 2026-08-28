@@ -1,8 +1,8 @@
 # API action handleri
 
-Ovaj paket sadrži poslovne mutacije koje se pozivaju kroz `/api/action/`.
+Ovaj paket sadrži dijeljene pomoćne funkcije za `/api/action/`.
 `pastoral.services.api_actions` ostaje kompatibilna fasada i središnji registar
-naziva akcija.
+naziva akcija; domenske mutacije žive u Django appovima.
 
 ## Tok zahtjeva
 
@@ -15,24 +15,22 @@ naziva akcija.
 ## Moduli
 
 - `shared.py` — identifikatori, datumi, normalizacija i pronalaženje zapisa.
-- `intentions.py` — misne nakane i njihov status plaćanja.
-- `families.py` — obitelji, članovi, doprinosi, supružnici i rodbina.
-- `streets.py` — ulice i kvartovi.
 
-Preostale domene privremeno su u kompatibilnoj fasadi i izdvajaju se postupno.
+Domenske akcije:
+
+- `pregled.api_actions` — analitika
+- `zupa_vjernici.api_actions` — obitelji, ulice, posjete
+- `liturgija.api_actions` — nakane, mise, listić
+- `sakramenti.api_actions` — sakramenti i priprava
+- `financije.api_actions` — dugovanja, blagajna, računi
+- `isprave.api_actions` — potvrde, matica
+- `ured.api_actions` — zadaci, podsjetnici, prijave, korisnici, poruke
 
 ## Dodavanje nove akcije
 
-1. Odaberi postojeći domenski modul ili napravi novi modul jasnog naziva.
+1. Odaberi domenski Django app.
 2. Koristi potpis `handler(parish_data: dict, action_payload: dict) -> dict`.
-3. Koristi pune domenske nazive; nemoj uvoditi kratice ili jednoslovne varijable.
-4. Sačuvaj postojeće camelCase ključeve spremljenih podataka i JSON odgovora.
-5. Dodaj handler u `ACTION_HANDLERS` u `api_actions.py`.
-6. Ako akcija ne smije spremati podatke, dodaj njezin naziv u
-   `READ_ONLY_ACTION_NAMES`.
-7. Ako prima postavke župe, dodaj naziv u `SETTINGS_AWARE_ACTION_NAMES` i koristi
-   potpis s trećim parametrom `parish_settings`.
-8. Dodaj ciljani regresijski test i pokreni cijeli Django testni paket.
-
-Handler treba imati jednu odgovornost. Orkestracija ostaje u dispatcheru, a
-domenska pravila i izmjene podataka ostaju u odgovarajućem modulu.
+3. Registriraj u `ACTION_HANDLERS` tog app-a (pastoral fasada ih spaja).
+4. Ako akcija ne smije spremati podatke, dodaj naziv u
+   `READ_ONLY_ACTION_NAMES` u pastoral fasadi.
+5. Dodaj ciljani regresijski test.

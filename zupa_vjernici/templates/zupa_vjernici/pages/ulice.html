@@ -1,0 +1,147 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+{% load static %}
+
+{% block content %}
+<section class="kpi-row street-summary" aria-label="Sažetak ulica">
+  <article class="card kpi-card"><p class="card-label">Ulice</p><p class="card-value">{{ streets|length }}</p><p class="card-sub">u teritoriju župe</p></article>
+  <article class="card kpi-card"><p class="card-label">Povezane obitelji</p><p class="card-value">{{ assigned_families_count }}</p><p class="card-sub">imaju dodijeljenu ulicu</p></article>
+</section>
+
+<section class="card family-list-card">
+  <header class="family-list-header">
+    <div>
+      <p class="card-label">Teritorij župe</p>
+      <h2 class="section-title">Ulice</h2>
+    </div>
+    <div class="family-list-actions">
+      <span class="badge">{{ streets|length }}</span>
+      <button type="button" class="btn btn-primary btn-sm" data-record-dialog="new-street-dialog">Nova ulica</button>
+    </div>
+  </header>
+  <div class="table-wrap">
+    <table class="data-table family-list-table">
+      <thead>
+        <tr><th>Ulica</th><th>Kvart</th><th>Obitelji</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for street in streets %}
+        <tr>
+          <td>
+            <strong>{{ street.name }}</strong>
+            {% if street.notes %}<small>{{ street.notes|truncatechars:70 }}</small>{% endif %}
+          </td>
+          <td>{{ street.zone|default:"—" }}</td>
+          <td>{{ family_counts|get_item:street.id|default:0 }}</td>
+          <td><a href="?street={{ street.id }}" class="btn btn-ghost btn-sm">Detalji</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="empty-state">Još nema upisanih ulica.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<dialog id="new-street-dialog" class="family-record-dialog" data-record-dialog-root{% if show_new_street_dialog %} data-record-dialog-open{% endif %}>
+  <form method="post" class="family-record-dialog__form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upsert_street">
+    <header>
+      <div><p class="card-label">Novi zapis</p><h2>Dodaj ulicu</h2></div>
+      <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
+    </header>
+    <div class="family-record-form-grid">{{ street_create_form.as_p }}</div>
+    <footer>
+      <button type="button" class="btn btn-ghost" data-record-dialog-close>Odustani</button>
+      <button type="submit" class="btn btn-primary">Dodaj ulicu</button>
+    </footer>
+  </form>
+</dialog>
+
+{% if selected_street %}
+<dialog id="street-detail-dialog" class="family-record-dialog family-record-dialog--detail" data-record-dialog-root data-record-dialog-open data-family-wizard>
+  <div class="family-detail-dialog__content">
+    <header class="family-card-hero">
+      <h2>{{ selected_street.name }}</h2>
+      <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
+    </header>
+    {% if selected_street.zone %}
+    <div class="family-card-summary">
+      <p class="family-card-summary__meta"><span class="badge">{{ selected_street.zone }}</span></p>
+    </div>
+    {% endif %}
+    <nav class="family-wizard-tabs" aria-label="Koraci kartona ulice">
+      <button type="button" class="family-wizard-tab{% if street_card_tab == 'ulica' %} is-active{% endif %}" data-family-tab="ulica"{% if street_card_tab == 'ulica' %} aria-current="page"{% endif %}>Ulica</button>
+      <button type="button" class="family-wizard-tab{% if street_card_tab == 'obitelji' %} is-active{% endif %}" data-family-tab="obitelji"{% if street_card_tab == 'obitelji' %} aria-current="page"{% endif %}>Obitelji</button>
+    </nav>
+
+    <div class="family-detail-dialog__body family-wizard-panel">
+      <section class="family-card-block family-card-block--pane" data-family-pane="ulica"{% if street_card_tab != 'ulica' %} hidden{% endif %}>
+        <form id="street-edit-form" method="post" class="family-record-form-grid" data-family-form>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="upsert_street">
+          <input type="hidden" name="street_id" value="{{ selected_street.id }}">
+          {{ street_form.as_p }}
+          <div class="family-reveal-form__actions">
+            <button type="submit" class="btn btn-primary btn-sm">Spremi ulicu</button>
+          </div>
+        </form>
+        <section class="street-map" aria-label="Položaj ulice {{ selected_street.name }}">
+          <iframe title="Karta — {{ street_map_query }}" src="{{ street_map_embed_url }}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+          <div class="street-map__footer">
+            <span>{{ street_map_query }}</span>
+            <a href="{{ street_map_external_url }}" target="_blank" rel="noopener noreferrer">Otvori veću kartu ↗</a>
+          </div>
+        </section>
+      </section>
+
+      <section class="family-card-block family-card-block--pane" data-family-pane="obitelji"{% if street_card_tab != 'obitelji' %} hidden{% endif %}>
+        <header class="family-card-block__head">
+          <h3>Obitelji u ulici <span>{{ street_families|length }}</span></h3>
+          {% if street_families %}
+          <a href="{% page_url 'obitelji' %}?street={{ selected_street.id }}" class="btn btn-ghost btn-sm">Otvori u Obiteljima</a>
+          {% endif %}
+        </header>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>Obitelj</th><th>Adresa</th><th>Članovi</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for family in street_families %}
+              <tr>
+                <td><strong>{{ family.surname }}</strong></td>
+                <td>{{ family.address|default:"—" }}</td>
+                <td>{{ family.members|length }}</td>
+                <td>{{ family.status|default:"aktivna" }}</td>
+                <td><a href="{% page_url 'obitelji' %}?family={{ family.id }}" class="btn btn-ghost btn-sm">Otvori</a></td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="empty-state">Na ovoj ulici još nema povezanih obitelji.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+    <footer class="family-wizard-foot street-detail-foot">
+      <form method="post" onsubmit="return confirm('Obrisati ulicu {{ selected_street.name|escapejs }}?')">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_street">
+        <input type="hidden" name="street_id" value="{{ selected_street.id }}">
+        <button type="submit" class="btn btn-ghost">Obriši ulicu</button>
+      </form>
+      <div class="street-detail-foot__nav">
+        <button type="button" class="btn btn-secondary" data-family-wizard="prev"{% if street_card_tab == 'ulica' %} hidden{% endif %}>Prethodno</button>
+        <button type="button" class="btn btn-primary" data-family-wizard="next"{% if street_card_tab == 'obitelji' %} hidden{% endif %}>Sljedeće</button>
+      </div>
+    </footer>
+  </div>
+</dialog>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/record-dialog.js' %}"></script>
+{% endblock %}

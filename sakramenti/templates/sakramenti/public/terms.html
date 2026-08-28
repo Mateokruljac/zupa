@@ -1,0 +1,32 @@
+{% extends "sakramenti/public/legal.html" %}
+
+{% block legal_body %}
+<p>Ovi uvjeti uređuju korištenje javnih obrazaca župe {{ parish_settings.name }} u informacijskom sustavu Pastoral. Slanjem prijave prihvaćate ove uvjete.</p>
+
+<h2>1. Svrha obrazaca</h2>
+<p>Javni obrasci služe za prijavu pastoralnih i sakramentalnih potreba (npr. krštenje, prva pričest, krizma, vjenčanje, ukop). Prijava nije automatski upis u maticu niti jamstvo termina. Župni ured razmatra prijavu i kontaktira vas.</p>
+
+<h2>2. Točnost podataka</h2>
+<p>Podnositelj odgovara za istinitost unesenih podataka, uključujući točan unos imena s dijakritičkim znakovima. Netočan unos može se prenijeti u službene isprave i evidencije.</p>
+
+<h2>3. Maloljetnici i treće osobe</h2>
+<p>Za maloljetnika prijavu podnosi roditelj ili skrbnik. Ako unosite podatke o drugom roditelju, kumu ili kontakt osobi, izjavljujete da ste ovlašteni te podatke dostaviti župi u svrhu prijave.</p>
+
+<h2>4. Adresa u župi</h2>
+<p>Za krštenje, pričest i krizmu prijava putem obrasca moguća je samo za adrese s popisa župe. Ako vaše adrese nema na popisu, obratite se župnom uredu. Obrazac za vjenčanje prima i adrese izvan ove župe, a slavlje može biti u ovoj ili drugoj župi.</p>
+
+<h2>5. Obrada i komunikacija</h2>
+<p>Župa koristi navedeni telefon i e-poštu za dogovor, obavijesti o pripremi i, po potrebi, potvrdu prijave. Podaci se ne koriste za oglašavanje trećih osoba.</p>
+
+<h2>6. Odgovornost župe</h2>
+<p>Župa nastoji da obrasci rade uredno, ali ne jamči neprekidnu dostupnost internetske stranice. U hitnim slučajevima (npr. ukop) nazovite župni ured{% if parish_settings.phone %} ({{ parish_settings.phone }}){% endif %}.</p>
+
+<h2>7. Odbijanje i prestanak</h2>
+<p>Župa može odbiti nepotpunu, netočnu ili zlonamjernu prijavu te zatražiti dopunu u uredu. Zlouporaba obrazaca nije dopuštena.</p>
+
+<h2>8. Privatnost</h2>
+<p>Obrada osobnih podataka opisana je u <a href="{% url 'pastoral:public_privacy' %}">Politici privatnosti</a>, koja je sastavni dio ovih uvjeta.</p>
+
+<h2>9. Mjerodavno pravo</h2>
+<p>Primjenjuje se pravo Republike Hrvatske te, u dijelu koji se odnosi na matice i sakramente, kanonsko pravo. Za sporove nadležan je stvarno i mjesno nadležni sud prema sjedištu župe{% if parish_settings.city %} ({{ parish_settings.city }}){% endif %}.</p>
+{% endblock %}

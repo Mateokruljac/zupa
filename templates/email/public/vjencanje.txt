@@ -1,0 +1,13 @@
+Nova prijava — Vjenčanje
+
+Župa: {{ parish_name }}
+Primljeno: {{ submitted_at }}
+
+{% for row in fields %}{{ row.label }}: {{ row.value }}
+{% endfor %}
+
+Kontakt telefon: {{ phone }}
+{% if email and email != '—' %}E-mail: {{ email }}{% endif %}
+
+---
+Pastoral · župna administracija

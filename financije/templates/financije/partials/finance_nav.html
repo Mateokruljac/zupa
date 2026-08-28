@@ -1,0 +1,11 @@
+{% load pastoral_tags %}
+<nav class="plan-tabs finance-navigation" aria-label="Financije">
+  {% can_access 'financijska-izvjestaja' as show_pregled %}
+  {% can_access 'blagajna' as show_blagajna %}
+  {% can_access 'racuni' as show_racuni %}
+  {% can_access 'dugovanja' as show_dugovanja %}
+  {% if show_pregled %}<a href="{% page_url 'financijska-izvjestaja' %}" class="plan-tab-btn {% if page_slug == 'financijska-izvjestaja' %}active{% endif %}">Pregled</a>{% endif %}
+  {% if show_blagajna %}<a href="{% page_url 'blagajna' %}" class="plan-tab-btn {% if page_slug == 'blagajna' %}active{% endif %}">Blagajna</a>{% endif %}
+  {% if show_racuni %}<a href="{% page_url 'racuni' %}" class="plan-tab-btn {% if page_slug == 'racuni' %}active{% endif %}">Ulazni računi</a>{% endif %}
+  {% if show_dugovanja %}<a href="{% page_url 'dugovanja' %}" class="plan-tab-btn {% if page_slug == 'dugovanja' %}active{% endif %}">Dugovanja</a>{% endif %}
+</nav>

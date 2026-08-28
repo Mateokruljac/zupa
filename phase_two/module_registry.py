@@ -1,4 +1,6 @@
-"""Registar funkcionalnosti planiranih nakon MVP izdanja."""
+"""Privremeni stub — phase_two paket je uklonjen iz MVP treea."""
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from django.conf import settings
@@ -10,9 +12,9 @@ class ProductModule:
     label: str
     release_phase: int
     pages: frozenset[str]
-    icon: str
-    summary: str
-    planned_features: tuple[str, ...]
+    icon: str = ''
+    summary: str = ''
+    planned_features: tuple[str, ...] = ()
 
     @property
     def is_available(self) -> bool:
@@ -24,16 +26,6 @@ INTERPARISH_COLLABORATION_MODULE = ProductModule(
     label='Međužupna suradnja',
     release_phase=2,
     pages=frozenset({'dekanat'}),
-    icon='⇄',
-    summary=(
-        'Modul će se aktivirati kada platformu koristi dovoljan broj '
-        'povezanih župa i budu definirana pravila razmjene podataka.'
-    ),
-    planned_features=(
-        'Sigurna razmjena službenih zahtjeva i potvrda između župa.',
-        'Jasan status predmeta i trag svih postupanja.',
-        'Posebne ovlasti i odgovornosti za razmjenu podataka.',
-    ),
 )
 
 OPERATIONS_CENTER_MODULE = ProductModule(
@@ -41,18 +33,7 @@ OPERATIONS_CENTER_MODULE = ProductModule(
     label='Operativno središte',
     release_phase=2,
     pages=frozenset({'operativno-srediste'}),
-    icon='⌘',
-    summary=(
-        'Modul je namijenjen većim župama s tajništvom, više svećenika '
-        'ili zaposlenika koji dijele zajednički radni red.'
-    ),
-    planned_features=(
-        'Evidentiranje uredskih kontakata i službene pošte.',
-        'Praćenje održavanja, odgovornih osoba i rokova.',
-        'Zajednički radni red s punim tragom promjena.',
-    ),
 )
-
 
 PRODUCT_MODULES = (
     INTERPARISH_COLLABORATION_MODULE,

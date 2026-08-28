@@ -15,6 +15,17 @@ admin.site.index_title = 'Kontrola sustava i podatkovne jezgre'
 admin.site.site_url = '/app/'
 
 urlpatterns = [
+    # Pregled — nadzorna ploča na /app/ (ispred pastoral shella).
+    path('', include('pregled.urls')),
+    # Domenske aplikacije — vlastiti namespace (financije:, liturgija:, …).
+    # Moraju biti ispred pastoral catch-alla za /pages/<slug>/.
+    path('pages/', include('zupa_vjernici.urls')),
+    path('pages/', include('liturgija.urls')),
+    path('pages/', include('sakramenti.urls')),
+    path('pages/', include('financije.urls')),
+    path('pages/', include('isprave.urls')),
+    path('pages/', include('ured.urls')),
+    # Pastoral shell: auth, API, catch-all pages, javni obrasci.
     path('', include('pastoral.urls')),
     path('i18n/', include('django.conf.urls.i18n')),
     path(

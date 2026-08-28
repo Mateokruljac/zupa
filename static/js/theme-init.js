@@ -34,7 +34,8 @@
     root.dataset.colorScheme = resolve(pref);
   }
 
-  applyEarly(readPref());
+  const publicSite = document.documentElement.hasAttribute("data-public-site");
+  applyEarly(publicSite ? "light" : readPref());
 
   global.PastoralThemeInit = { STORAGE_KEY, readPref, resolve, applyEarly };
 })(typeof window !== "undefined" ? window : global);

@@ -1,0 +1,13 @@
+{% extends "pastoral/base.html" %}
+{% load static pastoral_tags %}
+
+{% block content %}
+{{ mise_bootstrap|json_script:"mise-bootstrap-data" }}
+<div id="mise-root"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/liturgical-api.js' %}"></script>
+<script src="{% static 'js/modal-kit.js' %}"></script>
+<script src="{% static 'liturgija/js/mise-engine.js' %}"></script>
+{% endblock %}

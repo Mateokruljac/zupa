@@ -159,7 +159,7 @@
     zupa: true,
     liturgija: true,
     sakramenti: false,
-    financije: false,
+    financije: true,
     isprave: false,
     suradnja: true,
     ured: true,

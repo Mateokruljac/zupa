@@ -1,15 +1,13 @@
+"""Orm-only ParishDataService — Parish.data više nije izvor istine."""
 
 import copy
-import json
 from datetime import date, timedelta
-from pathlib import Path
 
 from django.conf import settings
 from django.db import transaction
 
 from pastoral.models import Parish
-
-FIXTURE_PATH = Path(__file__).resolve().parent.parent / 'fixtures' / 'demo_data.json'
+from pastoral.fixtures.demo_data import DEMO_PARISH_DATA
 
 DEFAULT_SETTINGS = {
     '_parishId': 'bdm-slavonski-brod',
@@ -29,18 +27,21 @@ DEFAULT_SETTINGS = {
 
 
 def _load_fixture():
-    with FIXTURE_PATH.open(encoding='utf-8') as fixture_file:
-        return json.load(fixture_file)
+    return copy.deepcopy(DEMO_PARISH_DATA)
 
 
 class ParishDataService:
     def __init__(self, parish: Parish | None = None):
-        if parish is None:
-            from control_plane.tenant_context import get_current_tenant_context
-            context = get_current_tenant_context()
-            if context is not None:
-                parish = Parish.objects.get(pk=context.parish_pk)
         self.parish = parish or self.get_or_create_parish()
+
+    @classmethod
+    def for_request(cls, request) -> 'ParishDataService':
+        """Koristi parish s requesta ako ga middleware/view već razriješi."""
+        return cls(getattr(request, 'tenant', None) or getattr(request, 'parish', None))
+
+    def lock_for_update(self) -> None:
+        """Zaključaj tenant red unutar aktivne transakcije prije read-modify-writea."""
+        self.parish = Parish.objects.select_for_update().get(pk=self.parish.pk)
 
     @classmethod
     def get_or_create_parish(cls) -> Parish:
@@ -48,8 +49,11 @@ class ParishDataService:
             slug=settings.PARISH_DEFAULT_SLUG,
             defaults={'settings': DEFAULT_SETTINGS, 'data': {}},
         )
-        if created or not parish.data:
-            from pastoral.services.baptism_records import (
+        if created or (
+            not parish.data
+            and not cls(parish)._has_operational_rows()
+        ):
+            from sakramenti.services.baptism_records import (
                 reconcile_baptism_records,
             )
 
@@ -66,31 +70,41 @@ class ParishDataService:
             parish.save(update_fields=['settings'])
         return parish
 
+    def _has_operational_rows(self) -> bool:
+        from zupa_vjernici.models import Household, Street
+        return (
+            Street.objects.filter(parish=self.parish).exists()
+            or Household.objects.filter(parish=self.parish).exists()
+            or bool(self.parish.data)
+        )
+
     def load(self) -> dict:
         from pastoral.services.api_actions import normalize_parish_data
-        from pastoral.services.baptism_records import (
+        from pastoral.services.operational_store import load_operational_collections
+        from sakramenti.services.baptism_records import (
             relational_baptisms_as_legacy_dictionaries,
         )
-        from pastoral.services.formation_records import (
+        from sakramenti.services.formation_records import (
             relational_formation_programs_as_dictionaries,
         )
-        from pastoral.services.marriage_records import (
+        from sakramenti.services.marriage_records import (
             relational_weddings_as_dictionaries,
         )
-        from pastoral.services.funeral_records import (
+        from sakramenti.services.funeral_records import (
             relational_funerals_as_dictionaries,
         )
-        from pastoral.services.anointing_records import (
+        from sakramenti.services.anointing_records import (
             relational_anointings_as_dictionaries,
         )
-        from pastoral.services.register_book_records import (
+        from isprave.services.register_book_records import (
             relational_register_books_as_dictionaries,
         )
-        from pastoral.services.general_register_records import (
+        from isprave.services.general_register_records import (
             relational_general_entries_as_dictionaries,
         )
 
-        parish_data = copy.deepcopy(self.parish.data or {})
+        parish_data = load_operational_collections(self.parish)
+
         parish_data['baptisms'] = relational_baptisms_as_legacy_dictionaries(
             self.parish
         )
@@ -116,27 +130,20 @@ class ParishDataService:
         return parish_data
 
     def save(self, parish_data: dict) -> None:
-        from pastoral.services.formation_records import (
+        from pastoral.services.operational_store import save_operational_collections
+        from sakramenti.services.formation_records import (
             reconcile_formation_programs,
         )
-        from pastoral.services.marriage_records import reconcile_wedding_records
-        from pastoral.services.funeral_records import reconcile_funeral_records
-        from pastoral.services.anointing_records import reconcile_anointing_records
-        from pastoral.services.register_book_records import reconcile_register_books
-        from pastoral.services.general_register_records import (
+        from sakramenti.services.marriage_records import reconcile_wedding_records
+        from sakramenti.services.funeral_records import reconcile_funeral_records
+        from sakramenti.services.anointing_records import reconcile_anointing_records
+        from isprave.services.register_book_records import reconcile_register_books
+        from isprave.services.general_register_records import (
             reconcile_general_register_entries,
         )
 
-        persisted_parish_data = copy.deepcopy(parish_data)
-        persisted_parish_data.pop('baptisms', None)
-        persisted_parish_data.pop('firstCommunion', None)
-        persisted_parish_data.pop('confirmations', None)
-        persisted_parish_data.pop('weddings', None)
-        persisted_parish_data.pop('funerals', None)
-        persisted_parish_data.pop('anointing', None)
-        persisted_parish_data.pop('registryBooks', None)
-        persisted_parish_data.pop('registryEntries', None)
         with transaction.atomic():
+            save_operational_collections(self.parish, parish_data)
             reconcile_formation_programs(self.parish, parish_data)
             reconcile_wedding_records(
                 self.parish,
@@ -158,8 +165,23 @@ class ParishDataService:
                 self.parish,
                 list(parish_data.get('registryEntries') or []),
             )
-            self.parish.data = persisted_parish_data
+            # Parish.data više nije izvor istine.
+            self.parish.data = {}
             self.parish.save(update_fields=['data', 'updated_at'])
+
+    def save_liturgical(self, parish_data: dict) -> None:
+        from pastoral.services.operational_store import (
+            save_liturgical_collections,
+        )
+
+        save_liturgical_collections(self.parish, parish_data)
+
+    def save_financial(self, parish_data: dict) -> None:
+        from pastoral.services.operational_store import (
+            save_financial_collections,
+        )
+
+        save_financial_collections(self.parish, parish_data)
 
     def load_settings(self) -> dict:
         merged = {**DEFAULT_SETTINGS, **(self.parish.settings or {})}
@@ -171,14 +193,16 @@ class ParishDataService:
         self.parish.save(update_fields=['settings', 'updated_at'])
 
     def reset_demo(self) -> list[dict]:
-        from pastoral.services.formation_records import (
+        from pastoral.services.operational_store import save_operational_collections
+        from sakramenti.services.baptism_records import reconcile_baptism_records
+        from sakramenti.services.formation_records import (
             reconcile_formation_programs,
         )
-        from pastoral.services.marriage_records import reconcile_wedding_records
-        from pastoral.services.funeral_records import reconcile_funeral_records
-        from pastoral.services.anointing_records import reconcile_anointing_records
-        from pastoral.services.register_book_records import reconcile_register_books
-        from pastoral.services.general_register_records import (
+        from sakramenti.services.marriage_records import reconcile_wedding_records
+        from sakramenti.services.funeral_records import reconcile_funeral_records
+        from sakramenti.services.anointing_records import reconcile_anointing_records
+        from isprave.services.register_book_records import reconcile_register_books
+        from isprave.services.general_register_records import (
             reconcile_general_register_entries,
         )
 
@@ -203,7 +227,9 @@ class ParishDataService:
                 self.parish,
                 general_register_entries,
             )
-            self.parish.data = demo_data
+            reconcile_baptism_records(self.parish, baptism_records)
+            save_operational_collections(self.parish, demo_data)
+            self.parish.data = {}
             self.parish.settings = DEFAULT_SETTINGS.copy()
             self.parish.save()
         return baptism_records
@@ -217,7 +243,8 @@ class ParishDataService:
         return (date.today() + timedelta(days=number_of_days)).isoformat()
 
     def office_statistics(self, parish_data: dict | None = None) -> dict:
-        parish_data = parish_data or self.load()
+        if parish_data is None:
+            parish_data = self.load()
         today = self.today_iso()
         current_year = date.today().year
         intentions = parish_data.get('intentions', [])
@@ -275,11 +302,14 @@ class ParishDataService:
 
         operations_attention = 0
         if OPERATIONS_CENTER_MODULE.is_available:
-            from phase_two.operations_center.services import (
-                operations_attention_count,
-            )
-
-            operations_attention = operations_attention_count(parish_data)
+            try:
+                from phase_two.operations_center.services import (
+                    operations_attention_count,
+                )
+            except ModuleNotFoundError:
+                operations_attention = 0
+            else:
+                operations_attention = operations_attention_count(parish_data)
         return {
             'unpaid_nakane': unpaid_intention_count,
             'today_nakane': sum(
@@ -310,6 +340,7 @@ class ParishDataService:
         }
 
     def collect_reminders(self, parish_data: dict | None = None) -> list:
-        from pastoral.services.reminders import collect_reminders
-        parish_data = parish_data or self.load()
+        from ured.services.reminders import collect_reminders
+        if parish_data is None:
+            parish_data = self.load()
         return collect_reminders(parish_data)

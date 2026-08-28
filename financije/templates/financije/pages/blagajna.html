@@ -1,0 +1,109 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+{% load static %}
+
+{% block content %}
+{% include "financije/partials/finance_nav.html" %}
+
+<div class="finance-page-heading">
+  <div>
+    <p class="command-eyebrow">Financije</p>
+    <h2>{{ cashbook_book.label }}</h2>
+    <p>{{ cashbook_book.hint }}</p>
+  </div>
+</div>
+
+<nav class="plan-tabs finance-navigation" aria-label="Knjige računa">
+  {% for book in cashbook_books %}
+  <a href="?year={{ cashbook_year }}&ledger={{ book.id }}" class="plan-tab-btn {% if cashbook_ledger == book.id %}active{% endif %}">{{ book.short_label }}</a>
+  {% endfor %}
+</nav>
+
+<form method="get" class="card report-period-toolbar finance-filter-card">
+  <input type="hidden" name="ledger" value="{{ cashbook_ledger }}">
+  <div class="form-group">
+    <label>Godina</label>
+    <select name="year" onchange="this.form.submit()">
+      {% for year in cashbook_years %}<option value="{{ year }}" {% if year == cashbook_year %}selected{% endif %}>{{ year }}</option>{% endfor %}
+    </select>
+  </div>
+  <span class="report-toolbar-note">{{ cashbook_rows|length }} stavki u ovoj knjizi</span>
+</form>
+
+<section class="kpi-row finance-kpi-row" aria-label="Sažetak knjige">
+  <article class="card kpi-card"><p class="card-label">Ulaz</p><p class="card-value amount-positive">{{ cashbook_summary.in_sum|money_eur }}</p><p class="card-sub">{{ cashbook_year }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Izlaz</p><p class="card-value amount-negative">{{ cashbook_summary.out_sum|money_eur }}</p><p class="card-sub">{{ cashbook_year }}</p></article>
+  <article class="card kpi-card"><p class="card-label">Saldo</p><p class="card-value">{{ cashbook_summary.balance|money_eur }}</p><p class="card-sub">{{ cashbook_summary.count }} knjiženja</p></article>
+</section>
+
+<section class="card page-table-section cashbook-ledger-table">
+  <div class="pro-section-head">
+    <div><p class="card-label">Evidencija</p><h2 class="section-title">Knjiženja · {{ cashbook_year }}</h2></div>
+    <div class="family-list-actions">
+      <button type="button" class="btn btn-ghost btn-sm" data-record-dialog="nova-donacija">+ Donacija</button>
+      <button type="button" class="btn btn-primary btn-sm" data-record-dialog="novo-knjizenje">+ Novo knjiženje</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Datum</th><th>Vrsta</th><th>Kategorija</th><th>Opis</th><th>Način plaćanja</th><th>Iznos</th></tr></thead>
+      <tbody>
+        {% for entry in cashbook_rows %}
+        <tr>
+          <td>{{ entry.date|hr_date }}</td>
+          <td>{% if entry.type == 'ulaz' %}<span class="badge badge-done">ulaz</span>{% else %}<span class="badge badge-urgent">izlaz</span>{% endif %}</td>
+          <td>{{ entry.category|cashbook_category_label }}</td>
+          <td><strong>{{ entry.description|default:"—" }}</strong></td>
+          <td>{{ entry.paymentMethod|default:"—" }}</td>
+          <td class="{% if entry.type == 'ulaz' %}amount-positive{% else %}amount-negative{% endif %}">{% if entry.type == 'ulaz' %}+{% else %}−{% endif %}{{ entry.amount|money_eur }}</td>
+        </tr>
+        {% empty %}<tr><td colspan="6" class="empty-state">Nema unosa za odabranu godinu i knjigu.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<dialog id="novo-knjizenje" class="family-record-dialog" data-record-dialog-root{% if cashbook_form.errors %} data-record-dialog-open{% endif %}>
+  <form method="post" class="family-record-dialog__form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_cashbook_entry">
+    <header>
+      <div>
+        <p class="card-label">{{ cashbook_book.short_label }}</p>
+        <h2>Novo knjiženje</h2>
+      </div>
+      <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
+    </header>
+    <p class="family-record-dialog__intro">{{ cashbook_book.hint }} Misni prilozi ne ulaze u župni saldo.</p>
+    <div class="family-record-form-grid">{{ cashbook_form.as_p }}</div>
+    <footer>
+      <button type="button" class="btn btn-ghost" data-record-dialog-close>Odustani</button>
+      <button type="submit" class="btn btn-primary">Spremi knjiženje</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="nova-donacija" class="family-record-dialog" data-record-dialog-root{% if donation_form.errors or open_donation_dialog %} data-record-dialog-open{% endif %}>
+  <form method="post" class="family-record-dialog__form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_donation">
+    <header>
+      <div>
+        <p class="card-label">Blagajna</p>
+        <h2>Nova donacija</h2>
+      </div>
+      <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
+    </header>
+    <p class="family-record-dialog__intro">Donacija za župu ide u knjigu crkvenih računa. Namjenski dar za obnovu ili dijecezansku kolektu ide u odgovarajuću knjigu.</p>
+    <div class="family-record-form-grid">{{ donation_form.as_p }}</div>
+    <footer>
+      <button type="button" class="btn btn-ghost" data-record-dialog-close>Odustani</button>
+      <button type="submit" class="btn btn-primary">Spremi donaciju</button>
+    </footer>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/record-dialog.js' %}"></script>
+{% endblock %}

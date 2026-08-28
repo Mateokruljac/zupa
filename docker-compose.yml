@@ -17,7 +17,7 @@ services:
       interval: 2s
       timeout: 5s
       retries: 5
-    command: [ "postgres", "-c", "log_statement=${POSTGRES_LOG_LEVEL:-all}" ]
+    command: [ "postgres", "-c", "log_statement=${POSTGRES_LOG_LEVEL:-none}" ]
     networks:
       - zupa
     restart: unless-stopped
@@ -56,21 +56,6 @@ services:
     networks:
       - zupa
     restart: unless-stopped
-
-  celery_beat:
-    build: .
-    image: zupa-web
-    command: celery -A zupa beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
-    volumes:
-      - .:/code
-    depends_on:
-      - db
-      - cache
-      - web
-    env_file:
-      - .env
-    networks:
-      - zupa
 
   web:
     build: .

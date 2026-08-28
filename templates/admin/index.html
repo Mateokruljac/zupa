@@ -1,15 +1,19 @@
 {% extends "admin/base_site.html" %}
 {% load i18n static %}
 
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'admin/css/pastoral-admin.css' %}?v=20260820-2">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'admin/css/pastoral-admin.css' %}?v=20260821-1">{% endblock %}
 
 {% block content %}
 <div id="content-main">
   <div class="pastoral-admin-intro">
     <div>
-      <p class="pastoral-admin-eyebrow">Tehnička administracija</p>
-      <h1>Kontrola sustava i podatkovne jezgre</h1>
-      <p>Ovaj prostor služi administratorima za korisnike, ovlasti, kontrolirane importe i tehnički nadzor. Svakodnevni pastoralni rad ostaje u glavnoj aplikaciji.</p>
+      <p class="pastoral-admin-eyebrow">Tehnička administracija župe</p>
+      <h1>Periodična konfiguracija</h1>
+      <p>
+        Ovdje se postavljaju korisnici, šifrarnici, predlošci i uvoz liturgijskog kalendara —
+        stvari koje se definiraju povremeno. Svakodnevni rad (nakane, obitelji, matica, blagajna)
+        ostaje u Pastoralu. Licence i tenanti nisu dio administracije župe.
+      </p>
     </div>
     <a href="{% url 'pastoral:app' %}" class="button">Otvori Pastoral →</a>
   </div>
@@ -27,7 +31,7 @@
     {% if not admin_log %}
       <p>{% translate 'None available' %}</p>
     {% else %}
-      <ul class="actionlist">
+    <ul class="actionlist">
       {% for entry in admin_log %}
         <li class="{% if entry.is_addition %}addlink{% elif entry.is_change %}changelink{% elif entry.is_deletion %}deletelink{% endif %}">
           {% if entry.is_deletion or not entry.get_admin_url %}{{ entry.object_repr }}{% else %}<a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>{% endif %}

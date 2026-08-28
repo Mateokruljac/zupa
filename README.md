@@ -1,19 +1,29 @@
 # Pastoral — župna administracija
 
-Django aplikacija za župnu administraciju. Podaci se čuvaju u bazi (model `Parish`), logika je u Pythonu — **bez REST API-ja** i bez localStorage demo baze.
+Django aplikacija za vođenje župnog ureda: vjernici, liturgija, sakramenti,
+financije, isprave i uredski poslovi. Stranice se pretežno renderiraju na
+serveru, a mali interni JSON API podržava OTP prijavu, liturgijski kalendar i
+interaktivne liturgijske akcije.
 
-Zadano: **Župa Blažene Djevice Marije**, Slavonski Brod.
+Zadani razvojni tenant je **Župa Blažene Djevice Marije**, Slavonski Brod.
 
-## Pokretanje
+## Lokalno pokretanje
+
+Za razvoj je dovoljan Python; lokalne postavke koriste SQLite, lokalnu
+memoriju za cache i izvršavaju Celery zadatke sinkrono.
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install Django whitenoise django-debug-toolbar django-admin-interface django-colorfield pillow
-python manage.py migrate --settings=config.settings.local
-python manage.py seed_pastoral --settings=config.settings.local
-python manage.py runserver --settings=config.settings.local
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py seed_pastoral
+python manage.py runserver
 ```
+
+`manage.py`, WSGI i ASGI u razvoju zadano koriste `zupa.settings.local`.
+Mailhog i Redis potrebni su samo ako lokalnim varijablama uključite stvarni
+SMTP, Redis cache ili asinkroni Celery.
 
 | Što | URL |
 |-----|-----|
@@ -25,37 +35,38 @@ python manage.py runserver --settings=config.settings.local
 
 ### Prijava (OTP)
 
-1. Unesite e-mail i ulogu → **Prikaži kod za prijavu**
-2. Server generira 6-znamenkasti kod (prikazuje se na ekranu u demu)
-3. Unesite kod → ulaz u aplikaciju
+1. Unesite e-mail i ulogu te zatražite kod.
+2. U razvojnom načinu server prikazuje generirani šesteroznamenkasti kod.
+3. Unesite kod za ulaz u aplikaciju.
 
-Uloge: župnik, vikar, upravitelj — svaka ima pristup različitim modulima (vidi `pastoral/services/permissions.py`).
+Uloge župnik, vikar i upravitelj imaju različite dozvole definirane u
+`pastoral/services/permissions.py`.
 
 ## Arhitektura
 
-```
-pastoral/
-  models.py          Parish (JSON podaci župe), OtpChallenge
-  services/
-    data.py          Učitavanje/spremanje podataka, KPI, podsjetnici
-    api_actions.py   Sve CRUD mutacije (/api/action/ — za župni listić)
-    streets.py       Ulice i obitelji po adresi
-    cashbook.py      Blagajna — agregacija i kontekst
-    invoices_page.py Ulazni računi
-    finance_reports.py Financijska izvješća
-    permissions.py   Navigacija i dozvole po ulozi
-  page_handlers.py   Kontekst za svaku stranicu (server-side)
-  actions.py         POST akcije na stranicama (forme)
-  views.py           Django viewovi
-templates/pastoral/  Server-side HTML (base, dashboard, stranice)
-static/js/           Samo UI: tema, liturgijski kalendar, župni listić editor
+Projekt je podijeljen po poslovnim domenama:
+
+```text
+pregled/         nadzorna ploča
+zupa_vjernici/  osobe, obitelji, ulice i zajednice
+liturgija/       misne nakane, raspored misa i župni listić
+sakramenti/      sakramentalne evidencije
+financije/       blagajna, računi i izvještaji
+isprave/         dokumenti i predlošci
+ured/            postavke i uredski procesi
+pastoral/        zajednički shell, autentikacija, API i kompatibilni servisni sloj
+control_plane/   tenant i licencni kontekst
+users/           korisnički model
+zupa/            URL i settings konfiguracija projekta
 ```
 
-Podaci župe u bazi (JSON u modelu `Parish`). Stranice se renderiraju u Pythonu; POST forme za CRUD. JavaScript ostaje samo za temu, liturgijski widget i interaktivni sastavljač župnog listića (`PastoralApi.action` → Python).
+Domenski zapisi spremaju se u tipizirane ORM modele. Model `Parish` i
+`ParishDataService` ostaju agregacijska i kompatibilna granica za dijelove
+sučelja koji rade nad jedinstvenim snapshotom župe.
 
 ## Demo korisnici
 
-Nakon `seed_pastoral`:
+Naredba `seed_pastoral` ponovno učitava demo podatke i postavlja ove račune:
 
 | E-mail | Uloga |
 |--------|-------|
@@ -63,54 +74,58 @@ Nakon `seed_pastoral`:
 | vikar@zupa-bdm-sb.hr | vikar |
 | upravitelj@zupa-bdm-sb.hr | upravitelj |
 
-Lozinka (za Django admin): `pastoral-demo`
+Lozinka za Django admin je `pastoral-demo`.
 
-## SQLite / PostgreSQL
+> `seed_pastoral` je destruktivna demo naredba: postojeće podatke zadanog
+> tenanta zamjenjuje početnim skupom.
 
-Bez `DB_NAME` u `.env` koristi se SQLite. Za produkciju postavite PostgreSQL varijable i pokrenite `docker compose up`.
+## Docker razvojno okruženje
 
-## Romcal — probni hrvatski liturgijski kalendar
-
-Romcal 4.0.0b6 radi lokalno i koristi ugrađeni kalendar `croatia`; za njegov
-osnovni rezultat nije potrebna mreža. Zadani način rada je `hybrid`: Romcal
-određuje glavno slavlje i rang, a LitCal/HILP dopunjava liturgijski vremenski
-dan i čitanja.
-
-Nakon ponovne izgradnje projektnog Docker servisa pokrenite testove:
+`docker-compose.yml` pokreće web, PostgreSQL, Redis, Celery i Mailhog. Prije
+pokretanja izradite lokalni `.env` te odaberite settings modul i vjerodajnice
+za bazu. Za PostgreSQL koristite `DJANGO_SETTINGS_MODULE=zupa.settings.production`
+i obavezno postavite barem `SECRET_KEY`, `ALLOWED_HOSTS`, `DB_NAME`, `DB_USER`
+i `DB_PASS`.
 
 ```bash
-docker compose up -d --build web
-docker compose exec -T web python manage.py test pastoral.tests.test_liturgical_romcal
+docker compose up -d --build
+docker compose exec -T web python manage.py migrate
+docker compose exec -T web python manage.py seed_pastoral
 ```
 
-Nakon prijave u aplikaciju mogu se ručno otvoriti:
+Mailhog sučelje dostupno je na http://localhost:8025/.
 
-- Romcal dan: http://localhost:8000/api/liturgical/romcal/day/2026-08-03/
-- usporedba s postojećim LitCalom: http://localhost:8000/api/liturgical/compare/2026-08-03/
-- Uskrs 2026.: http://localhost:8000/api/liturgical/compare/2026-04-05/
-- stabilni v1 API: http://localhost:8000/api/liturgical/v1/day/2026-08-03/
-
-Projektna varijabla `LITURGICAL_PRIMARY_PROVIDER` podržava `hybrid` (zadano),
-`romcal` i `litcal`. HILP čitanja i dalje se nadograđuju istim postojećim
-servisom, neovisno o izvoru kalendara.
-
-Projektna naredba, bez globalne instalacije alata:
+## Provjere
 
 ```bash
-docker compose exec -T web python manage.py liturgical_day 2026-08-03
-docker compose exec -T web python manage.py liturgical_day 2026-08-03 --provider romcal --json
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test
 ```
 
-Opcija `--with-hilp` dodatno dohvaća hrvatska čitanja i zato može zahtijevati
-mrežu. Bez te opcije Romcal provjera radi potpuno lokalno.
+## Liturgijski kalendar
 
-Mjesečna kontrola kvalitete između Romcala i LitCala:
+Romcal `croatia` radi lokalno. Zadani provider `hybrid` koristi Romcal za
+glavno slavlje i rang, a postojeći LitCal/HILP sloj za dopunu liturgijskog
+vremena i čitanja. `LITURGICAL_PRIMARY_PROVIDER` podržava vrijednosti
+`hybrid`, `romcal` i `litcal`.
 
 ```bash
-docker compose exec -T web python manage.py liturgical_audit 2026 --month 8
-docker compose exec -T web python manage.py liturgical_audit 2026 --month 8 --json
+python manage.py test liturgija.tests.test_liturgical_romcal
+python manage.py liturgical_day 2026-08-03
+python manage.py liturgical_day 2026-08-03 --provider romcal --json
+python manage.py liturgical_audit 2026 --month 8
 ```
 
-Razlika između izvora nije automatski pogreška: izvještaj posebno izdvaja dane
-s više dopuštenih slavlja, razlike u naslovu/rangu/boji, neprevedene zapise i
-datume za koje jedan provider nema podatke.
+Opcija `liturgical_day --with-hilp` dohvaća hrvatska čitanja i može
+zahtijevati mrežu. Bez nje Romcal provjera radi lokalno.
+
+Dijagnostički endpointi nakon prijave:
+
+- `/api/liturgical/romcal/day/2026-08-03/`
+- `/api/liturgical/compare/2026-08-03/`
+- `/api/liturgical/v1/day/2026-08-03/`
+
+Razlika između providera nije nužno pogreška: mjesečni audit posebno izdvaja
+razlike u naslovu, rangu i boji, neprevedene zapise, više dopuštenih slavlja
+te datume za koje jedan izvor nema podatke.

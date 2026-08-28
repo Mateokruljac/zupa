@@ -1,0 +1,34 @@
+{% load pastoral_tags %}
+<section class="card parish-overview-card" aria-labelledby="parish-overview-title">
+  <div class="pro-section-head">
+    <div>
+      <p class="card-label">Župa u brojkama</p>
+      <h2 class="section-title" id="parish-overview-title">Osnovni pregled zajednice</h2>
+    </div>
+  </div>
+  <div class="population-stat-grid">
+    <a href="{% page_url 'ulice' %}" class="population-stat"><span>Ulice</span><strong>{{ population_stats.streets }}</strong><small>u teritorijalnoj evidenciji</small></a>
+    <a href="{% page_url 'obitelji' %}" class="population-stat"><span>Kućanstva</span><strong>{{ population_stats.households }}</strong><small>{{ population_stats.active_households }} aktivnih</small></a>
+    <a href="{% page_url 'obitelji' %}" class="population-stat"><span>Župljani</span><strong>{{ population_stats.parishioners }}</strong><small>u aktivnim kućanstvima</small></a>
+    <a href="{% page_url 'dugovanja' %}" class="population-stat"><span>Lukno {{ population_stats.previous_year }}</span><strong>{{ population_stats.previous_year_lukno_unpaid }}</strong><small>aktivnih kućanstava nije platilo</small></a>
+    <a href="{% page_url 'obitelji' %}" class="population-stat"><span>Nove obitelji</span><strong>{{ population_stats.households_added_this_year }}</strong><small>upisane u {{ population_stats.current_year }}.</small></a>
+  </div>
+</section>
+
+<section class="card household-composition-card">
+  <div class="pro-section-head">
+    <div><p class="card-label">Pastoralna statistika</p><h2 class="section-title">Sastav kućanstava</h2></div>
+    {% if current_page != 'obitelji' %}
+    <a href="{% page_url 'obitelji' %}" class="text-link">Sve obitelji →</a>
+    {% endif %}
+  </div>
+  <div class="household-stat-list">
+    <span><small>Samačka kućanstva</small><strong>{{ population_stats.single_person_households }}</strong></span>
+    <span><small>Bez djece</small><strong>{{ population_stats.households_without_children }}</strong></span>
+    <span><small>S jednim djetetom</small><strong>{{ population_stats.households_with_one_child }}</strong></span>
+    <span><small>S dvoje djece</small><strong>{{ population_stats.households_with_two_children }}</strong></span>
+    <span><small>S troje djece</small><strong>{{ population_stats.households_with_three_children }}</strong></span>
+    <span><small>S više djece</small><strong>{{ population_stats.households_with_more_children }}</strong></span>
+  </div>
+  <p class="dashboard-method-note">Djeca se broje prema upisanom odnosu (sin, kći, dijete). Samačka kućanstva nisu uključena u ostale kategorije.</p>
+</section>

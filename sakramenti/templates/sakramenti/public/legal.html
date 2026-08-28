@@ -1,0 +1,16 @@
+{% extends "sakramenti/public/base_public.html" %}
+
+{% block title %}{{ legal_title }}{% endblock %}
+{% block body_class %}public-page--form{% endblock %}
+
+{% block content %}
+<header class="public-header public-header--form">
+  <a class="public-back" href="{% url 'pastoral:public_index' %}">← Javni obrasci</a>
+  <p class="card-label">{{ parish_settings.name }}</p>
+  <h1>{{ legal_title }}</h1>
+  <p class="card-sub">Zadnje ažuriranje: {{ legal_updated }}</p>
+</header>
+<article class="card public-legal">
+  {% block legal_body %}{% endblock %}
+</article>
+{% endblock %}

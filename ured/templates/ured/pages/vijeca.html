@@ -1,0 +1,151 @@
+{% extends "pastoral/base.html" %}
+{% load static pastoral_tags %}
+
+{% block content %}
+<div class="councils-page">
+  <section class="card councils-intro">
+    <div>
+      <p class="card-label">Upravljanje župom</p>
+      <h2 class="section-title">Župna vijeća</h2>
+      <p class="card-sub">Članovi i sljedeći termini Župnog pastoralnog i Župnog ekonomskog vijeća.</p>
+    </div>
+    <div class="councils-intro__summary">
+      <span><strong>{{ pastoral_council.members|length }}</strong> ŽPV članova</span>
+      <span><strong>{{ economic_council.members|length }}</strong> ŽEV članova</span>
+    </div>
+  </section>
+
+  <div class="councils-grid">
+    <section class="card council-card">
+      <header class="council-card__header">
+        <div><p class="card-label">ŽPV</p><h2 class="section-title">Pastoralno vijeće</h2></div>
+        <a href="?council=pastoral&member=new" class="btn btn-primary btn-sm">+ Dodaj člana</a>
+      </header>
+      <div class="council-meeting-strip">
+        <span><small>Sljedeći sastanak</small><strong>{% if pastoral_council.nextMeeting %}{{ pastoral_council.nextMeeting|hr_date }}{% else %}Nije određen{% endif %}</strong></span>
+        <a href="?council=pastoral&meeting=1" class="text-link">Promijeni termin</a>
+      </div>
+      <div class="council-member-list">
+        {% for council_member in pastoral_council.members %}
+        <a href="?council=pastoral&member={{ council_member.id|urlencode }}" class="council-member-row">
+          <span class="council-member-avatar" aria-hidden="true">{{ council_member.name|first|upper }}</span>
+          <span>
+            <strong>{{ council_member.name }}</strong>
+            <small>{{ council_member.role|default:"Član vijeća" }}{% if council_member.phone %} · {{ council_member.phone }}{% endif %}</small>
+          </span>
+          {% if council_member.confirmed %}<span class="badge badge-done">Potvrđen</span>{% else %}<span class="badge">Nije potvrđen</span>{% endif %}
+          <span class="council-member-arrow" aria-hidden="true">›</span>
+        </a>
+        {% empty %}<p class="empty-state">Nema upisanih članova pastoralnog vijeća.</p>{% endfor %}
+      </div>
+      <footer class="council-card__footer">{{ pastoral_confirmed_member_count }} od {{ pastoral_council.members|length }} članova ima potvrđen status.</footer>
+    </section>
+
+    <section class="card council-card">
+      <header class="council-card__header">
+        <div><p class="card-label">ŽEV</p><h2 class="section-title">Ekonomsko vijeće</h2></div>
+        <a href="?council=economic&member=new" class="btn btn-primary btn-sm">+ Dodaj člana</a>
+      </header>
+      <div class="council-meeting-strip">
+        <span><small>Sljedeći pregled</small><strong>{% if economic_council.nextReview %}{{ economic_council.nextReview|hr_date }}{% else %}Nije određen{% endif %}</strong></span>
+        <a href="?council=economic&meeting=1" class="text-link">Promijeni termin</a>
+      </div>
+      <div class="council-member-list">
+        {% for council_member in economic_council.members %}
+        <a href="?council=economic&member={{ council_member.id|urlencode }}" class="council-member-row">
+          <span class="council-member-avatar" aria-hidden="true">{{ council_member.name|first|upper }}</span>
+          <span>
+            <strong>{{ council_member.name }}</strong>
+            <small>{{ council_member.role|default:"Član vijeća" }}{% if council_member.phone %} · {{ council_member.phone }}{% endif %}</small>
+          </span>
+          {% if council_member.confirmed %}<span class="badge badge-done">Potvrđen</span>{% else %}<span class="badge">Nije potvrđen</span>{% endif %}
+          <span class="council-member-arrow" aria-hidden="true">›</span>
+        </a>
+        {% empty %}<p class="empty-state">Nema upisanih članova ekonomskog vijeća.</p>{% endfor %}
+      </div>
+      <footer class="council-card__footer">{{ economic_confirmed_member_count }} od {{ economic_council.members|length }} članova ima potvrđen status.</footer>
+    </section>
+  </div>
+</div>
+
+<dialog class="family-record-dialog council-dialog" data-record-dialog-root {% if council_member_form_mode %}data-record-dialog-open{% endif %}>
+  <form method="post" class="family-record-dialog__form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="{% if council_member_form_mode == 'edit' %}update_council_member{% else %}add_council_member{% endif %}">
+    {% if selected_council_member %}
+    <input type="hidden" name="member_id" value="{{ selected_council_member.id }}">
+    <input type="hidden" name="original_council_type" value="{{ selected_council_type }}">
+    {% endif %}
+    <header>
+      <div>
+        <p class="card-label">{% if selected_council_type == 'economic' %}ŽEV{% else %}ŽPV{% endif %}</p>
+        <h2>{% if council_member_form_mode == 'edit' %}Uredi člana{% else %}Dodaj člana vijeća{% endif %}</h2>
+      </div>
+      <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
+    </header>
+    <div class="council-dialog__fields">
+      <div class="settings-form__field settings-form__field--wide">
+        {{ council_member_form.council_type.label_tag }}
+        {{ council_member_form.council_type }}
+        {{ council_member_form.council_type.errors }}
+      </div>
+      <div class="settings-form__field settings-form__field--wide">
+        {{ council_member_form.name.label_tag }}
+        {{ council_member_form.name }}
+        {{ council_member_form.name.errors }}
+      </div>
+      <div class="settings-form__field">
+        {{ council_member_form.phone.label_tag }}
+        {{ council_member_form.phone }}
+        {{ council_member_form.phone.errors }}
+      </div>
+      <div class="settings-form__field">
+        {{ council_member_form.role.label_tag }}
+        {{ council_member_form.role }}
+        {{ council_member_form.role.errors }}
+      </div>
+      <div class="settings-form__field settings-form__field--wide">
+        <label class="council-dialog__confirm">
+          {{ council_member_form.confirmed }}
+          <span>{{ council_member_form.confirmed.label }}</span>
+        </label>
+        {{ council_member_form.confirmed.errors }}
+      </div>
+    </div>
+    <footer>
+      {% if selected_council_member %}
+      <button type="submit" name="action" value="delete_council_member" class="btn btn-danger" formnovalidate onclick="return confirm('Ukloniti ovog člana iz vijeća?')">Ukloni člana</button>
+      {% endif %}
+      <button type="button" class="btn btn-ghost" data-record-dialog-close>Odustani</button>
+      <button type="submit" class="btn btn-primary">Spremi</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog class="family-record-dialog council-dialog council-meeting-dialog" data-record-dialog-root {% if council_meeting_dialog_open %}data-record-dialog-open{% endif %}>
+  <form method="post" class="family-record-dialog__form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="schedule_council_meeting">
+    <header>
+      <div>
+        <p class="card-label">{% if selected_council_type == 'economic' %}ŽEV{% else %}ŽPV{% endif %}</p>
+        <h2>Sljedeći termin vijeća</h2>
+      </div>
+      <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
+    </header>
+    <div class="council-dialog__fields">
+      {% for form_field in council_meeting_form %}
+      <div class="settings-form__field settings-form__field--wide">
+        {{ form_field.label_tag }}{{ form_field }}{% if form_field.errors %}{{ form_field.errors }}{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <footer>
+      <button type="button" class="btn btn-ghost" data-record-dialog-close>Odustani</button>
+      <button type="submit" class="btn btn-primary">Spremi termin</button>
+    </footer>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/record-dialog.js' %}"></script>{% endblock %}

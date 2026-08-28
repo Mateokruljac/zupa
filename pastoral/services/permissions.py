@@ -38,10 +38,22 @@ for module_identifier, module_configuration in MODULES.items():
         PAGE_TO_MODULE[page] = module_identifier
 
 LOCKED_FINANCE_PAGES = frozenset(MODULES['financije-zakljucano']['pages'])
+FINANCE_PAGES = frozenset({'dugovanja', *LOCKED_FINANCE_PAGES})
+FINANCE_SIDEBAR_CANDIDATES = ('financijska-izvjestaja', 'dugovanja')
 
 
 def is_locked_finance_page(page: str) -> bool:
     return page in LOCKED_FINANCE_PAGES
+
+
+def finance_sidebar_page(role: str) -> str | None:
+    """Jedna sidebar stavka: pregled ako smije, inače dugovanja."""
+    allowed_modules = set(role_permissions(role))
+    for page in FINANCE_SIDEBAR_CANDIDATES:
+        module = PAGE_TO_MODULE.get(page, 'pregled')
+        if module in allowed_modules and is_page_available(page):
+            return page
+    return None
 
 ROLE_PERMISSIONS = {
     'zupnik': list(MODULES.keys()),
@@ -82,10 +94,7 @@ NAV = [
     {'type': 'link', 'page': 'pogrebi', 'icon': '✝', 'label': 'Pogrebi'},
     {'type': 'link', 'page': 'pomazanje', 'icon': '🕯', 'label': 'Pomazanje'},
     {'type': 'label', 'text': 'Financije'},
-    {'type': 'link', 'page': 'dugovanja', 'icon': '€', 'label': 'Dugovanja'},
-    {'type': 'link', 'page': 'racuni', 'icon': '🧾', 'label': 'Ulazni računi'},
-    {'type': 'link', 'page': 'blagajna', 'icon': '📒', 'label': 'Blagajna'},
-    {'type': 'link', 'page': 'financijska-izvjestaja', 'icon': '📊', 'label': 'Fin. izvješća'},
+    {'type': 'link', 'page': 'financijska-izvjestaja', 'icon': '€', 'label': 'Financije'},
     {'type': 'label', 'text': 'Isprave'},
     {'type': 'link', 'page': 'potvrde', 'icon': '📜', 'label': 'Dokumenti i potvrde'},
     {'type': 'link', 'page': 'maticne-knjige', 'icon': '📖', 'label': 'Matične knjige'},
@@ -99,6 +108,33 @@ NAV = [
     {'type': 'link', 'page': 'javne-prijave', 'icon': '📝', 'label': 'Javne prijave'},
     {'type': 'link', 'page': 'postavke', 'icon': '⚙', 'label': 'Postavke'},
 ]
+
+NAV_PAGES = {
+    item['page']
+    for item in NAV
+    if item.get('type') == 'link'
+}
+KNOWN_NAV_PAGES = NAV_PAGES | FINANCE_PAGES
+
+
+def current_nav_page(request) -> str:
+    """Stranica za aktivnu stavku izbornika, i kad URL nema kwargs ``page``."""
+    match = getattr(request, 'resolver_match', None)
+    if not match:
+        return 'dashboard'
+    page = match.kwargs.get('page')
+    if page in KNOWN_NAV_PAGES:
+        return page
+    if match.url_name in {'app', 'dashboard'}:
+        return 'dashboard'
+    if match.url_name in KNOWN_NAV_PAGES:
+        return match.url_name
+    path = (request.path or '').rstrip('/')
+    if '/pages/' in path:
+        slug = path.rsplit('/pages/', 1)[-1].split('/')[0]
+        if slug in KNOWN_NAV_PAGES:
+            return slug
+    return 'dashboard'
 
 
 SECTION_IDS = {
@@ -145,7 +181,9 @@ def nav_badges_from_stats(stats: dict) -> dict:
     if stats.get('unpaid_nakane'):
         badges['nakane'] = stats['unpaid_nakane']
     if stats.get('debts_unpaid'):
-        badges['dugovanja'] = stats['debts_unpaid']
+        unpaid = stats['debts_unpaid']
+        badges['dugovanja'] = unpaid
+        badges['financijska-izvjestaja'] = unpaid
     if stats.get('reminders_count'):
         badges['podsjetnici'] = stats['reminders_count']
     task_badge = stats.get('overdue_tasks', 0) + stats.get('due_today_tasks', 0)
@@ -171,23 +209,32 @@ def filter_nav(role: str, current_page: str) -> list:
                 'section_id': SECTION_IDS.get(item['text'], item['text'].lower()[:12]),
             })
             continue
-        module = PAGE_TO_MODULE.get(item['page'], 'pregled')
-        if (
-            module not in allowed_modules
-            or not is_page_available(item['page'])
-        ):
-            continue
+        if item['page'] == 'financijska-izvjestaja':
+            resolved_page = finance_sidebar_page(role)
+            if not resolved_page:
+                continue
+            nav_item = {**item, 'page': resolved_page}
+        else:
+            module = PAGE_TO_MODULE.get(item['page'], 'pregled')
+            if (
+                module not in allowed_modules
+                or not is_page_available(item['page'])
+            ):
+                continue
+            nav_item = item
         if (
             visible_navigation_items
             and visible_navigation_items[-1]['type'] == 'label'
             and visible_navigation_items[-1].get('hidden')
         ):
             visible_navigation_items[-1]['hidden'] = False
+        finance_active = (
+            nav_item['page'] in FINANCE_PAGES
+            and current_page in FINANCE_PAGES
+        )
         visible_navigation_items.append({
-            **item,
-            'active': item['page'] == current_page or (
-                current_page == 'dashboard' and item['page'] == 'dashboard'
-            ),
+            **nav_item,
+            'active': nav_item['page'] == current_page or finance_active,
         })
     return [
         navigation_item

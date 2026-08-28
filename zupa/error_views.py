@@ -5,9 +5,7 @@ from django.urls import reverse
 
 
 def _safe_home_url(request) -> str:
-    if getattr(request.user, 'is_authenticated', False):
-        return reverse('pastoral:app')
-    return reverse('pastoral:login')
+    return reverse('pastoral:app') if getattr(request.user, 'is_authenticated', False) else reverse('pastoral:login')
 
 
 def _render_error_page(*, status_code: int, context: dict) -> HttpResponse:

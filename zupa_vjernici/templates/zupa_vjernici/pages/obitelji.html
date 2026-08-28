@@ -1,0 +1,374 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+{% load static %}
+
+{% block content %}
+<section class="kpi-row family-summary" aria-label="Sažetak obitelji">
+  <article class="card kpi-card">
+    <p class="card-label">Obitelji</p>
+    <p class="card-value">{{ family_stats.total }}</p>
+    <p class="card-sub">ukupno u evidenciji</p>
+  </article>
+  <article class="card kpi-card">
+    <p class="card-label">Članovi kućanstva</p>
+    <p class="card-value">{{ family_stats.members }}</p>
+    <p class="card-sub">u svim kartonima</p>
+  </article>
+  <article class="card kpi-card">
+    <p class="card-label">Prosječno po obitelji</p>
+    <p class="card-value">{{ family_stats.members_average }}</p>
+    <p class="card-sub">članova u kartonu</p>
+  </article>
+  <article class="card kpi-card">
+    <p class="card-label">Ulice</p>
+    <p class="card-value">{{ family_stats.streets_count }}</p>
+    <p class="card-sub">u teritoriju župe</p>
+  </article>
+  <article class="card kpi-card">
+    <p class="card-label">Lukno {{ family_stats.previous_year }}.</p>
+    <p class="card-value">{{ family_stats.previous_year_lukno_unpaid }}</p>
+    <p class="card-sub">nije plaćeno</p>
+  </article>
+  <article class="card kpi-card">
+    <p class="card-label">Prihod od lukna {{ family_stats.previous_year }}.</p>
+    <p class="card-value family-summary-money">{{ family_stats.previous_year_lukno_income|money_eur }}</p>
+    <p class="card-sub">uplaćeno u evidenciji</p>
+  </article>
+</section>
+
+<section class="card family-composition-card" aria-labelledby="family-composition-title">
+  <div class="family-composition-head">
+    <p class="card-label">Sastav kućanstava</p>
+    <h2 class="section-title" id="family-composition-title">Kako su obitelji sastavljene</h2>
+  </div>
+  <div class="family-composition-grid">
+    {% for item in family_composition %}
+    <article class="family-composition-item">
+      <strong>{{ item.count }}</strong>
+      <span>{{ item.label }}</span>
+      <small>{{ item.detail }}</small>
+      <span class="family-composition-bar" aria-hidden="true"><i style="width: {{ item.share }}%"></i></span>
+      <em>{{ item.share }}%</em>
+    </article>
+    {% endfor %}
+  </div>
+  <p class="dashboard-method-note">Djeca se broje prema upisanom odnosu (sin, kći, dijete). Samačka kućanstva nisu uključena u ostale kategorije.</p>
+</section>
+
+<section class="card family-list-card">
+  <header class="family-list-header">
+    <div>
+      <p class="card-label">Evidencija</p>
+      <h2 class="section-title">Obitelji u župi</h2>
+    </div>
+    <div class="family-list-actions">
+      <span class="badge">{{ family_stats.shown }} u prikazu</span>
+      <a href="{% page_url 'ulice' %}" class="btn btn-ghost btn-sm">Ulice</a>
+      <a href="{% page_url 'obitelji' %}?export=xlsx{% if family_query %}&amp;{{ family_query }}{% endif %}" class="btn btn-ghost btn-sm">Izvoz u Excel</a>
+      <button type="button" class="btn btn-primary btn-sm" data-record-dialog="new-family-dialog">+ Nova obitelj</button>
+    </div>
+  </header>
+
+  <form method="get" class="family-filters">
+    <div class="form-group family-filter-search">
+      <label for="family-search">Pretraži</label>
+      <input id="family-search" type="search" name="q" value="{{ family_filters.q }}" class="form-control" placeholder="Prezime, adresa ili član obitelji">
+    </div>
+    <div class="form-group">
+      <label for="family-street">Ulica</label>
+      <select id="family-street" name="street">
+        <option value="">Sve ulice</option>
+        {% for street in street_list %}
+        <option value="{{ street.id }}" {% if family_filters.street == street.id %}selected{% endif %}>{{ street.name }}{% if street.zone %} ({{ street.zone }}){% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="family-lukno">Lukno {{ family_stats.previous_year }}.</label>
+      <select id="family-lukno" name="lukno">
+        <option value="">Sve</option>
+        <option value="paid" {% if family_filters.lukno == 'paid' %}selected{% endif %}>Plaćeno</option>
+        <option value="unpaid" {% if family_filters.lukno == 'unpaid' %}selected{% endif %}>Nije plaćeno</option>
+      </select>
+    </div>
+    <div class="form-group family-filters-actions">
+      <span class="family-filters-actions-spacer" aria-hidden="true">Prikaži</span>
+      <div class="family-filters-actions-row">
+        <button type="submit" class="btn btn-primary btn-sm">Prikaži</button>
+        {% if family_filters.q or family_filters.street or family_filters.lukno %}<a href="{% page_url 'obitelji' %}" class="btn btn-ghost btn-sm">Poništi</a>{% endif %}
+      </div>
+    </div>
+  </form>
+
+  <div class="table-wrap">
+    <table class="data-table family-list-table">
+      <thead>
+        <tr><th>Obitelj</th><th>Adresa</th><th>Članovi</th><th>Zadnji posjet</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for family in families %}
+        <tr class="family-table-row">
+          <td>
+            <strong>{{ family.surname }}</strong>
+            {% if family.phone or family.email %}<small>{{ family.phone|default:family.email }}</small>{% endif %}
+          </td>
+          <td>{{ family.address|default:"—" }}{% with street=streets|get_item:family.streetId %}{% if street %}, {{ street.name }}{% endif %}{% endwith %}</td>
+          <td>{{ family.members|length }}</td>
+          <td>{{ family.lastVisit|hr_date }}</td>
+          <td>
+            {% if family.status == 'neaktivna' %}
+            <span class="badge">neaktivna</span>
+            {% elif family.needs_pastoral_followup %}
+            <span class="badge badge-urgent">provjeriti</span>
+            {% else %}
+            <span class="badge badge-done">uredno</span>
+            {% endif %}
+          </td>
+          <td><a href="?family={{ family.id }}{% if family_list_query %}&{{ family_list_query }}{% endif %}" class="btn btn-ghost btn-sm">Otvori</a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="empty-state">Nema obitelji koje odgovaraju odabranom filtru.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if family_pagination.total %}
+  <nav class="family-pagination" aria-label="Stranice popisa obitelji">
+    <p class="family-pagination-meta">Prikaz {{ family_pagination.start }}–{{ family_pagination.end }} od {{ family_pagination.total }}</p>
+    {% if family_pagination.page_count > 1 %}
+    <div class="family-pagination-pages">
+      {% if family_pagination.has_previous %}
+      <a class="btn btn-ghost btn-sm" href="?page={{ family_pagination.previous_page }}{% if family_query %}&amp;{{ family_query }}{% endif %}">Prethodna</a>
+      {% endif %}
+      {% for page_number in family_pagination.pages %}
+        {% if page_number is None %}
+        <span class="family-pagination-gap" aria-hidden="true">…</span>
+        {% elif page_number == family_pagination.page %}
+        <span class="family-pagination-current" aria-current="page">{{ page_number }}</span>
+        {% else %}
+        <a class="btn btn-ghost btn-sm" href="?page={{ page_number }}{% if family_query %}&amp;{{ family_query }}{% endif %}">{{ page_number }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if family_pagination.has_next %}
+      <a class="btn btn-ghost btn-sm" href="?page={{ family_pagination.next_page }}{% if family_query %}&amp;{{ family_query }}{% endif %}">Sljedeća</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </nav>
+  {% endif %}
+</section>
+
+<dialog id="new-family-dialog" class="family-record-dialog" data-record-dialog-root{% if family_form.errors %} data-record-dialog-open{% endif %}>
+  <form method="post" class="family-record-dialog__form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add_family">
+    <header>
+      <div><p class="card-label">Novi karton</p><h2>Dodaj obitelj</h2></div>
+      <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
+    </header>
+    <p class="family-record-dialog__intro">Za početak su dovoljni prezime i adresa. Ostale podatke možete dopuniti kasnije.</p>
+    <div class="family-record-form-grid">
+      <p>{{ family_form.surname.label_tag }}{{ family_form.surname }}{{ family_form.surname.errors }}</p>
+      <p>{{ family_form.street_id.label_tag }}{{ family_form.street_id }}{{ family_form.street_id.errors }}</p>
+      <p>{{ family_form.address.label_tag }}{{ family_form.address }}{{ family_form.address.errors }}</p>
+      <p>{{ family_form.phone.label_tag }}{{ family_form.phone }}{{ family_form.phone.errors }}</p>
+      <p>{{ family_form.email.label_tag }}{{ family_form.email }}{{ family_form.email.errors }}</p>
+      <p>{{ family_form.origin_place.label_tag }}{{ family_form.origin_place }}{{ family_form.origin_place.errors }}</p>
+      <p>{{ family_form.status.label_tag }}{{ family_form.status }}{{ family_form.status.errors }}</p>
+      <p>{{ family_form.pastoral_notes.label_tag }}{{ family_form.pastoral_notes }}{{ family_form.pastoral_notes.errors }}</p>
+    </div>
+    <footer>
+      <button type="button" class="btn btn-ghost" data-record-dialog-close>Odustani</button>
+      <button type="submit" class="btn btn-primary">Dodaj obitelj</button>
+    </footer>
+  </form>
+</dialog>
+
+{% if selected_family %}
+<dialog id="family-detail-dialog" class="family-record-dialog family-record-dialog--detail" data-record-dialog-root data-record-dialog-open data-family-wizard>
+  <div class="family-detail-dialog__content">
+    <header class="family-card-hero">
+      <h2>Obitelj {{ selected_family.surname }}</h2>
+      <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
+    </header>
+
+    <div class="family-card-summary">
+      <div>
+        <p class="family-card-summary__address">{{ selected_family.address|default:"—" }}</p>
+        <p class="family-card-summary__meta">
+          {% with street=streets|get_item:selected_family.streetId %}
+          {% if street %}<span class="badge">{{ street.name }}</span>{% endif %}
+          {% endwith %}
+          {% if selected_family.phone %}<span>{{ selected_family.phone }}</span>{% endif %}
+          <span>Lukno {{ current_year }}:
+            {% if selected_family_profile.current_contribution.luknoPaid %}
+            <span class="badge badge-done">plaćeno</span>
+            {% elif selected_family_profile.current_contribution %}
+            <span class="badge badge-urgent">nije plaćeno</span>
+            {% else %}
+            <span class="badge">nema zapisa</span>
+            {% endif %}
+          </span>
+        </p>
+      </div>
+    </div>
+
+    <nav class="family-wizard-tabs" aria-label="Koraci kartona obitelji">
+      {% for tab in family_card_tabs %}
+      <button type="button" class="family-wizard-tab{% if tab.active %} is-active{% endif %}" data-family-tab="{{ tab.id }}" {% if tab.active %}aria-current="page"{% endif %}>{{ tab.label }}</button>
+      {% endfor %}
+    </nav>
+
+    <div class="family-detail-dialog__body family-wizard-panel">
+      <section class="family-card-block family-card-block--pane" data-family-pane="osnovno" aria-labelledby="family-basics-title"{% if family_card_tab != 'osnovno' %} hidden{% endif %}>
+        <header class="family-card-block__head">
+          <h3 id="family-basics-title">Osnovni podaci</h3>
+        </header>
+        {% if selected_family_profile.data_gaps %}
+        <aside class="operational-warning"><strong>Karton treba dopuniti:</strong><span>{{ selected_family_profile.data_gaps|join:", " }}</span></aside>
+        {% endif %}
+        <dl class="family-card-dl family-card-dl--rows">
+          <div><dt>Prezime</dt><dd>{{ selected_family.surname }}</dd></div>
+          <div><dt>Adresa</dt><dd>{{ selected_family.address|default:"—" }}</dd></div>
+          <div><dt>Ulica</dt><dd>{% with street=streets|get_item:selected_family.streetId %}{{ street.name|default:"—" }}{% endwith %}</dd></div>
+          <div><dt>Telefon</dt><dd>{{ selected_family.phone|default:"—" }}</dd></div>
+          <div><dt>E-mail</dt><dd>{% if selected_family.email %}<a href="mailto:{{ selected_family.email }}">{{ selected_family.email }}</a>{% else %}—{% endif %}</dd></div>
+          <div><dt>Podrijetlo</dt><dd>{{ selected_family.originPlace|default:"—" }}</dd></div>
+          <div><dt>Status</dt><dd><span class="badge">{{ selected_family.status|default:"aktivna" }}</span></dd></div>
+          <div><dt>Broj članova</dt><dd>{{ selected_family.members|length }}</dd></div>
+        </dl>
+        <form id="family-basics-form" method="post" class="family-record-form-grid family-reveal-form" data-family-form{% if not family_card_edit %} hidden{% endif %}>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="update_family">
+          <input type="hidden" name="family_id" value="{{ selected_family.id }}">
+          <p>{{ family_form.surname.label_tag }}{{ family_form.surname }}{{ family_form.surname.errors }}</p>
+          <p>{{ family_form.status.label_tag }}{{ family_form.status }}{{ family_form.status.errors }}</p>
+          <p>{{ family_form.street_id.label_tag }}{{ family_form.street_id }}{{ family_form.street_id.errors }}</p>
+          <p>{{ family_form.address.label_tag }}{{ family_form.address }}{{ family_form.address.errors }}</p>
+          <p>{{ family_form.phone.label_tag }}{{ family_form.phone }}{{ family_form.phone.errors }}</p>
+          <p>{{ family_form.email.label_tag }}{{ family_form.email }}{{ family_form.email.errors }}</p>
+          <p>{{ family_form.origin_place.label_tag }}{{ family_form.origin_place }}{{ family_form.origin_place.errors }}</p>
+          <div class="family-reveal-form__actions">
+            <button type="button" class="btn btn-ghost btn-sm" data-reveal-hide="family-basics-form">Odustani</button>
+            <button type="submit" class="btn btn-primary btn-sm">Spremi podatke</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="family-card-block family-card-block--pane" data-family-pane="clanovi" aria-labelledby="family-members-title"{% if family_card_tab != 'clanovi' %} hidden{% endif %}>
+        <header class="family-card-block__head">
+          <h3 id="family-members-title">Članovi <span>{{ selected_family.members|length }}</span></h3>
+        </header>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Ime i prezime</th><th>Odnos</th><th>Godina rođenja</th><th></th></tr></thead>
+            <tbody>
+              {% for family_member in selected_family.members %}
+              <tr>
+                <td><strong>{{ family_member.name }}</strong></td>
+                <td>{{ family_member.relation|default:"—" }}</td>
+                <td>{{ family_member.birthYear|default:"—" }}</td>
+                <td>
+                  <button type="button" class="btn btn-ghost btn-sm" data-reveal="family-member-form" data-reveal-submit-label="Spremi člana" data-fill-name="{{ family_member.name }}" data-fill-relation="{{ family_member.relation }}" data-fill-birth-year="{{ family_member.birthYear }}" data-fill-member-id="{{ family_member.id }}">Uredi</button>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="empty-state">Još nema upisanih članova.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <form id="family-member-form" method="post" class="family-member-form family-reveal-form" data-family-form hidden>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_family_member">
+          <input type="hidden" name="family_id" value="{{ selected_family.id }}">
+          <input type="hidden" name="member_id" value="" data-fill-target="member_id">
+          <p>{{ family_member_form.name.label_tag }}{{ family_member_form.name }}{{ family_member_form.name.errors }}</p>
+          <p>{{ family_member_form.relation.label_tag }}{{ family_member_form.relation }}{{ family_member_form.relation.errors }}</p>
+          <p>{{ family_member_form.birth_year.label_tag }}{{ family_member_form.birth_year }}{{ family_member_form.birth_year.errors }}</p>
+          <div class="family-reveal-form__actions">
+            <button type="button" class="btn btn-ghost btn-sm" data-reveal-hide="family-member-form">Odustani</button>
+            <button type="submit" class="btn btn-primary btn-sm" data-reveal-submit>Dodaj člana</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="family-card-block family-card-block--pane" data-family-pane="lukno" aria-labelledby="family-finance-title"{% if family_card_tab != 'lukno' %} hidden{% endif %}>
+        <header class="family-card-block__head">
+          <h3 id="family-finance-title">Lukno i darovi <span>{{ selected_family.contributions|length }}</span></h3>
+          <button type="button" class="btn btn-primary btn-sm" data-reveal="family-contribution-form" data-reveal-reset data-reveal-submit-label="Spremi lukno / dar">Dodaj zapis</button>
+        </header>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Godina</th><th>Lukno</th><th>Dar za crkvu</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {% for annual_contribution in selected_family.contributions %}
+              <tr>
+                <td>{{ annual_contribution.year }}</td>
+                <td>{{ annual_contribution.luknoAmount|money_eur }}{% if annual_contribution.luknoPaidAt %}<small>{{ annual_contribution.luknoPaidAt|hr_date }}</small>{% endif %}</td>
+                <td>{{ annual_contribution.churchDonation|money_eur }}{% if annual_contribution.donationDate %}<small>{{ annual_contribution.donationDate|hr_date }}</small>{% endif %}</td>
+                <td>{% if annual_contribution.luknoPaid %}<span class="badge badge-done">plaćeno</span>{% else %}<span class="badge badge-urgent">nije plaćeno</span>{% endif %}</td>
+                <td>
+                  <button type="button" class="btn btn-ghost btn-sm" data-reveal="family-contribution-form" data-reveal-submit-label="Spremi lukno / dar" data-fill-year="{{ annual_contribution.year }}" data-fill-lukno-amount="{{ annual_contribution.luknoAmount }}" data-fill-lukno-paid="{% if annual_contribution.luknoPaid %}1{% endif %}" data-fill-lukno-paid-at="{{ annual_contribution.luknoPaidAt }}" data-fill-church-donation="{{ annual_contribution.churchDonation }}" data-fill-donation-date="{{ annual_contribution.donationDate }}" data-fill-notes="{{ annual_contribution.notes }}">Uredi</button>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="5" class="empty-state">Nema financijskih zapisa.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <form id="family-contribution-form" method="post" class="family-contribution-form family-reveal-form" data-family-form hidden>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_family_contribution">
+          <input type="hidden" name="family_id" value="{{ selected_family.id }}">
+          <div class="family-contribution-form__grid">
+            <p>{{ family_contribution_form.year.label_tag }}{{ family_contribution_form.year }}{{ family_contribution_form.year.errors }}</p>
+            <p>{{ family_contribution_form.lukno_amount.label_tag }}{{ family_contribution_form.lukno_amount }}{{ family_contribution_form.lukno_amount.errors }}</p>
+            <p class="family-contribution-form__checkbox"><label>{{ family_contribution_form.lukno_paid }}<span>{{ family_contribution_form.lukno_paid.label }}</span></label>{{ family_contribution_form.lukno_paid.errors }}</p>
+            <p>{{ family_contribution_form.lukno_paid_at.label_tag }}{{ family_contribution_form.lukno_paid_at }}{{ family_contribution_form.lukno_paid_at.errors }}</p>
+            <p>{{ family_contribution_form.church_donation.label_tag }}{{ family_contribution_form.church_donation }}{{ family_contribution_form.church_donation.errors }}</p>
+            <p>{{ family_contribution_form.donation_date.label_tag }}{{ family_contribution_form.donation_date }}{{ family_contribution_form.donation_date.errors }}</p>
+            <p class="family-contribution-form__wide">{{ family_contribution_form.notes.label_tag }}{{ family_contribution_form.notes }}{{ family_contribution_form.notes.errors }}</p>
+          </div>
+          <div class="family-reveal-form__actions">
+            <button type="button" class="btn btn-ghost btn-sm" data-reveal-hide="family-contribution-form">Odustani</button>
+            <button type="submit" class="btn btn-primary btn-sm" data-reveal-submit>Spremi lukno / dar</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="family-card-block family-card-block--pane" data-family-pane="biljeske" aria-labelledby="family-notes-title"{% if family_card_tab != 'biljeske' %} hidden{% endif %}>
+        <header class="family-card-block__head">
+          <h3 id="family-notes-title">Bilješke</h3>
+          <button type="button" class="btn btn-ghost btn-sm" data-reveal="family-notes-form">Uredi</button>
+        </header>
+        {% if selected_family_profile.notes %}
+        <aside class="pastoral-note"><p>{{ selected_family_profile.notes }}</p></aside>
+        {% else %}
+        <p class="empty-state">Nema upisane pastoralne bilješke.</p>
+        {% endif %}
+        <form id="family-notes-form" method="post" class="family-reveal-form" data-family-form hidden>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="update_family_notes">
+          <input type="hidden" name="family_id" value="{{ selected_family.id }}">
+          <p>{{ family_notes_form.pastoral_notes.label_tag }}{{ family_notes_form.pastoral_notes }}{{ family_notes_form.pastoral_notes.errors }}</p>
+          <div class="family-reveal-form__actions">
+            <button type="button" class="btn btn-ghost btn-sm" data-reveal-hide="family-notes-form">Odustani</button>
+            <button type="submit" class="btn btn-primary btn-sm">Spremi bilješku</button>
+          </div>
+        </form>
+      </section>
+    </div>
+    <footer class="family-wizard-foot">
+      <button type="button" class="btn btn-secondary" data-family-wizard="prev"{% if not family_card_previous_tab %} hidden{% endif %}>Prethodno</button>
+      <button type="button" class="btn btn-primary" data-family-wizard="next"{% if not family_card_next_tab %} hidden{% endif %}>Sljedeće</button>
+    </footer>
+  </div>
+</dialog>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/record-dialog.js' %}"></script>
+{% endblock %}

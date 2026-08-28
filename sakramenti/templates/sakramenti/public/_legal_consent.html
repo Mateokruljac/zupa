@@ -1,0 +1,26 @@
+<div class="gdpr-public-consent">
+  <label class="gdpr-consent-label">
+    {{ form.privacy_consent }}
+    <span>Pročitao/la sam i prihvaćam <a href="{% url 'pastoral:public_privacy' %}" target="_blank" rel="noopener">Politiku privatnosti</a>.</span>
+  </label>
+  {% if form.privacy_consent.errors %}
+    {% for error in form.privacy_consent.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+  {% endif %}
+
+  <label class="gdpr-consent-label">
+    {{ form.terms_consent }}
+    <span>Pročitao/la sam i prihvaćam <a href="{% url 'pastoral:public_terms' %}" target="_blank" rel="noopener">Opće uvjete korištenja</a>.</span>
+  </label>
+  {% if form.terms_consent.errors %}
+    {% for error in form.terms_consent.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+  {% endif %}
+
+  <label class="gdpr-consent-label">
+    {{ form.gdpr_consent }}
+    <span>{{ form.gdpr_consent.label }}</span>
+  </label>
+  {% if form.gdpr_consent.errors %}
+    {% for error in form.gdpr_consent.errors %}<p class="form-error">{{ error }}</p>{% endfor %}
+  {% endif %}
+  <p class="gdpr-mini-note">Za maloljetnika prijavu podnosi roditelj ili skrbnik. Privolu možete povući obratom župnom uredu, osim ako postoji zakonska ili kanonska obveza čuvanja podataka (npr. matica).</p>
+</div>

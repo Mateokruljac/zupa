@@ -1,0 +1,108 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+
+{% block page_heading %}{% if request.user.name %}Dobrodošli, {{ request.user.name }}{% else %}Dobrodošli{% endif %}{% endblock %}
+
+{% block content %}
+<div class="command-center">
+  <nav class="command-actions" aria-label="Najčešće radnje">
+    <a href="{% page_url 'nakane' %}" class="command-action"><span aria-hidden="true">✦</span><strong>Nova nakana</strong><small>Upis i raspored</small></a>
+    <a href="{% page_url 'obitelji' %}" class="command-action"><span aria-hidden="true">⌂</span><strong>Osoba ili obitelj</strong><small>Pronađi karton</small></a>
+    <a href="{% page_url 'kalendar' %}" class="command-action"><span aria-hidden="true">□</span><strong>Kalendar</strong><small>Događaji i zadaci</small></a>
+    <a href="{% page_url 'potvrde' %}" class="command-action"><span aria-hidden="true">▤</span><strong>Izdaj potvrdu</strong><small>Predlošci isprava</small></a>
+    <a href="{% page_url 'javne-prijave' %}" class="command-action"><span aria-hidden="true">↧</span><strong>Prijave</strong><small>Pregled i uparivanje</small></a>
+  </nav>
+
+  <div class="dashboard-day-grid">
+    {% include "liturgija/partials/liturgical_day.html" with lit_day=liturgical_day %}
+    <section class="card day-agenda-card">
+      <div class="pro-section-head">
+        <div>
+          <p class="card-label">Danas</p>
+          <h2 class="section-title">Mise i službe</h2>
+          {% if next_mass %}
+          <p class="day-agenda-status">Sljedeća u <strong>{{ next_mass.time }}</strong> · {{ next_mass.location|default:"Župna crkva" }}</p>
+          {% elif today_masses %}
+          <p class="day-agenda-status">Današnje mise iz rasporeda su završile.</p>
+          {% endif %}
+        </div>
+        <a href="{% page_url 'mise' %}" class="text-link">Cijeli raspored →</a>
+      </div>
+      <div class="day-mass-list">
+        {% for mass in today_masses %}
+        <article class="day-mass-entry{% if mass.is_next %} day-mass-entry--next{% elif mass.is_past and next_mass %} day-mass-entry--past{% endif %}">
+          <a href="{% page_url 'nakane' %}?date={{ today }}" class="day-mass-row">
+            <time>{{ mass.time }}</time>
+            <span><strong>{{ mass.location|default:"Župna crkva" }}</strong><small>{{ mass.celebrant|default:"Celebrant nije dodijeljen" }}</small></span>
+            <span class="day-mass-meta">
+              {% if mass.is_next %}<span class="day-mass-badge">Sljedeća</span>{% endif %}
+              {% if mass.celebrant %}<span class="status-dot status-dot--ok" title="Celebrant dodijeljen"></span>{% else %}<span class="status-dot status-dot--warn" title="Celebrant nije dodijeljen"></span>{% endif %}
+            </span>
+          </a>
+          <ul class="day-mass-intentions">
+            {% for intention in mass.intentions %}
+            <li>
+              <a href="{% page_url 'nakane' %}?date={{ today }}">{{ intention.intentionFor }}{% if intention.requestedBy %}<small> · {{ intention.requestedBy }}</small>{% endif %}</a>
+            </li>
+            {% empty %}
+            <li class="day-mass-intentions-empty">Nema upisanih nakana</li>
+            {% endfor %}
+          </ul>
+        </article>
+        {% empty %}
+        <p class="empty-state">Nema mise u redovnom rasporedu za današnji dan.</p>
+        {% endfor %}
+      </div>
+      <div class="agenda-foot">
+        <span><strong>{{ intentions_today|length }}</strong> nakana danas</span>
+        {% if unassigned_masses %}<span class="agenda-warning"><strong>{{ unassigned_masses }}</strong> bez dodijeljenog celebranta</span>{% endif %}
+      </div>
+    </section>
+  </div>
+
+  <section class="card work-queue-card">
+    <div class="pro-section-head">
+      <div><p class="card-label">Radni red</p><h2 class="section-title">Što je sljedeće</h2></div>
+      <a href="{% page_url 'podsjetnici' %}" class="btn btn-ghost btn-sm">Otvori sve</a>
+    </div>
+    <div class="queue-list">
+      {% for item in work_queue %}
+      <a href="{% reminder_link item.href %}" class="queue-row">
+        <span class="queue-priority queue-priority--{{ item.priority }}" aria-hidden="true"></span>
+        <span class="queue-main"><small>{{ item.category }}</small><strong>{{ item.title }}</strong><em>{{ item.sub }}</em></span>
+        <span class="badge {% if item.priority == 'visoka' %}badge-urgent{% endif %}">{{ item.due|hr_date }}</span>
+      </a>
+      {% empty %}
+      <div class="empty-state-pro"><span>✓</span><strong>Radni red je čist</strong><small>Nema otvorenih stavki koje traže postupanje.</small></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% include "pregled/partials/parish_community_stats.html" %}
+
+  <section class="card">
+    <div class="pro-section-head">
+      <div><p class="card-label">Sakramenti i priprava</p><h2 class="section-title">Stanje predmeta</h2></div>
+      <span class="badge">{{ today|slice:":4" }}</span>
+    </div>
+    <div class="pipeline-grid pipeline-grid--summary">
+      {% for item in sacrament_pipeline %}
+      <a href="{% page_url item.page %}" class="pipeline-item pipeline-item--{{ item.tone }}">
+        <span class="pipeline-top"><strong>{{ item.label }}</strong><em>{{ item.count }} zapisa</em></span>
+        <span class="pipeline-foot">
+          {% if item.missing %}<small>{{ item.missing }} traži dopunu</small><strong>Provjeri →</strong>{% else %}<small>Nema označenih nedostataka</small><strong>Otvori →</strong>{% endif %}
+        </span>
+      </a>
+      {% endfor %}
+    </div>
+    <div class="upcoming-list">
+      <h3>Sljedeći termini</h3>
+      {% for sacrament in sacraments_upcoming %}
+      <a href="{% page_url sacrament.page %}" class="mini-event-row"><time>{{ sacrament.date|hr_date }}</time><span><strong>{{ sacrament.name }}</strong><small>{{ sacrament.type }} · {{ sacrament.status }}</small></span><span>→</span></a>
+      {% empty %}
+      <p class="empty-state">Nema budućih sakramentalnih termina u evidenciji.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -5,12 +5,12 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
-from pastoral.forms import (
+from pastoral.services.data import ParishDataService
+from sakramenti.forms_public import (
     PUBLIC_FORM_CLASSES,
     PUBLIC_FORM_INTROS,
 )
-from pastoral.services.data import ParishDataService
-from pastoral.services.public_forms import (
+from sakramenti.services.public_forms import (
     build_submission_payload,
     dispatch_public_submission_email,
 )
@@ -21,14 +21,15 @@ PUBLIC_FORM_LABELS = {
     'prijava-krsenje': 'Prijava za krštenje',
     'prijava-pricest': 'Prijava za prvu pričest',
     'prijava-ukop': 'Prijava za ukop',
+    'prijava-vjencanje': 'Prijava za vjenčanje',
 }
 PUBLIC_FORMS = set(PUBLIC_FORM_LABELS)
 
 
 def public_index_view(request):
-    parish_data_service = ParishDataService()
+    parish_data_service = ParishDataService.for_request(request)
     parish_settings = parish_data_service.load_settings()
-    return render(request, 'pastoral/public/index.html', {
+    return render(request, 'sakramenti/public/index.html', {
         'parish_settings': parish_settings,
     })
 
@@ -38,7 +39,7 @@ def public_form_view(request, form: str):
     if form not in PUBLIC_FORMS:
         raise Http404()
 
-    parish_data_service = ParishDataService()
+    parish_data_service = ParishDataService.for_request(request)
     parish_settings = parish_data_service.load_settings()
     parish_data = parish_data_service.load()
     streets = parish_data.get('streets', [])
@@ -86,11 +87,51 @@ def public_form_view(request, form: str):
     else:
         public_form = form_class(**form_kwargs)
 
-    return render(request, 'pastoral/public/form.html', {
+    template_name = 'sakramenti/public/form.html'
+    wizard_steps = []
+    if getattr(public_form, 'STEPS', None):
+        template_name = 'sakramenti/public/wizard.html'
+        wizard_steps = [
+            {
+                'id': step_id,
+                'label': step_label,
+                'intro': public_form.STEP_INTROS.get(step_id, ''),
+                'fields': public_form.fields_for_step(step_id),
+            }
+            for step_id, step_label in public_form.STEPS
+        ]
+
+    return render(request, template_name, {
         'form_slug': form,
         'form_title': PUBLIC_FORM_LABELS.get(form, form),
         'form_intro': PUBLIC_FORM_INTROS.get(form, ''),
         'form': public_form,
         'parish_settings': parish_settings,
         'street_not_listed': '__other__',
+        'wizard_steps': wizard_steps,
     })
+
+
+def _legal_page_context(request, title):
+    parish_settings = ParishDataService.for_request(request).load_settings()
+    return {
+        'parish_settings': parish_settings,
+        'legal_title': title,
+        'legal_updated': '28. 8. 2026.',
+    }
+
+
+def public_privacy_view(request):
+    return render(
+        request,
+        'sakramenti/public/privacy.html',
+        _legal_page_context(request, 'Politika privatnosti'),
+    )
+
+
+def public_terms_view(request):
+    return render(
+        request,
+        'sakramenti/public/terms.html',
+        _legal_page_context(request, 'Opći uvjeti korištenja'),
+    )
