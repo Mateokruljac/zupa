@@ -9,7 +9,6 @@ from ured.models import (
     OfficeTask,
     ParishCalendarEvent,
     PublicSubmission,
-    StaffMessage,
 )
 
 
@@ -83,34 +82,6 @@ def announcement_field_defaults_from_legacy(record: dict) -> dict:
         'title': str(record.get('title') or ''),
         'body': str(record.get('body') or ''),
         'announced_at': str(record.get('at') or ''),
-        'payload': {},
-    }
-
-
-def staff_message_as_legacy_record(message: StaffMessage) -> dict:
-    return {
-        'id': message.public_identifier,
-        'from': message.from_name or '',
-        'fromRole': message.from_role or '',
-        'to': message.to_name or '',
-        'toRole': message.to_role or '',
-        'subject': message.subject or '',
-        'body': message.body or '',
-        'at': message.sent_at or '',
-        'read': bool(message.is_read),
-    }
-
-
-def staff_message_field_defaults_from_legacy(record: dict) -> dict:
-    return {
-        'from_name': str(record.get('from') or ''),
-        'from_role': str(record.get('fromRole') or ''),
-        'to_name': str(record.get('to') or ''),
-        'to_role': str(record.get('toRole') or ''),
-        'subject': str(record.get('subject') or ''),
-        'body': str(record.get('body') or ''),
-        'sent_at': str(record.get('at') or ''),
-        'is_read': bool(record.get('read')),
         'payload': {},
     }
 

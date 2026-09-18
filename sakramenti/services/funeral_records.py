@@ -12,6 +12,7 @@ from sakramenti.models import (
     FuneralDetails,
     SacramentalEvent,
 )
+from sakramenti.services.family_card_sacraments import exclude_family_card_events
 from pastoral.models import Parish
 
 
@@ -53,10 +54,11 @@ def _parse_amount(raw_value) -> Decimal:
 
 
 def relational_funerals_as_dictionaries(parish: Parish) -> list[dict]:
-    funeral_events = (
+    funeral_events = exclude_family_card_events(
         SacramentalEvent.objects.filter(
             parish=parish,
             event_type=SacramentalEvent.EventType.FUNERAL,
+            funeral_details__isnull=False,
         )
         .exclude(status=SacramentalEvent.Status.CANCELLED)
         .select_related('funeral_details', 'register_entry')

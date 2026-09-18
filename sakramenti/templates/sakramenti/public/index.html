@@ -1,0 +1,46 @@
+{% extends "sakramenti/public/base_public.html" %}
+
+{% block title %}Javni obrasci{% endblock %}
+
+{% block content %}
+<header class="public-header">
+  {% if parish_settings.logoUrl %}
+  <img src="{{ parish_settings.logoUrl }}" alt="" class="tenant-logo tenant-logo-lg tenant-logo-img">
+  {% else %}
+  <span class="tenant-logo tenant-logo-lg" style="color:var(--tenant-primary)">
+    <svg viewBox="0 0 48 48" class="tenant-logo-svg" aria-hidden="true"><rect width="48" height="48" rx="10" fill="currentColor" opacity="0.12"/><path d="M24 10v28M16 20h16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+  </span>
+  {% endif %}
+  {% if parish_settings.diocese %}<p class="card-label">{{ parish_settings.diocese }}</p>{% endif %}
+  <h1>{{ parish_settings.name }}</h1>
+  <p>{{ parish_settings.city }} · javne prijave za sakramente i ukop</p>
+</header>
+
+<div class="public-form-grid">
+  <a class="public-form-card" href="{% url 'pastoral:public_form' 'prijava-krizma' %}">
+    <p class="card-label">Sakrament</p>
+    <h2>Krizma</h2>
+    <p>Prijava za svetu Potvrdu</p>
+  </a>
+  <a class="public-form-card" href="{% url 'pastoral:public_form' 'prijava-krsenje' %}">
+    <p class="card-label">Sakrament</p>
+    <h2>Krštenje</h2>
+    <p>Prijava djeteta za krštenje</p>
+  </a>
+  <a class="public-form-card" href="{% url 'pastoral:public_form' 'prijava-pricest' %}">
+    <p class="card-label">Sakrament</p>
+    <h2>Prva pričest</h2>
+    <p>Prijava prvopričesnika</p>
+  </a>
+  <a class="public-form-card" href="{% url 'pastoral:public_form' 'prijava-vjencanje' %}">
+    <p class="card-label">Sakrament</p>
+    <h2>Vjenčanje</h2>
+    <p>Prijava za sakrament ženidbe</p>
+  </a>
+  <a class="public-form-card" href="{% url 'pastoral:public_form' 'prijava-ukop' %}">
+    <p class="card-label">Pastoral</p>
+    <h2>Ukop</h2>
+    <p>Dogovor pogreba i ukopa</p>
+  </a>
+</div>
+{% endblock %}

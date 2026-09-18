@@ -1,17 +1,23 @@
-"""Pretvorba Household / PastoralVisit ORM ↔ legacy API dict."""
+"""Pretvorba Household ORM ↔ legacy API dict (članovi su Person)."""
 from __future__ import annotations
 
-import copy
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from sakramenti.models import EventParticipant, SacramentalEvent
+from sakramenti.services.family_card_sacraments import (
+    sacrament_labels_by_person_id,
+    sync_family_card_sacraments,
+)
 from zupa_vjernici.models import (
     Household,
     HouseholdContribution,
-    HouseholdMember,
     HouseholdMembership,
-    HouseholdRelative,
     PastoralVisit,
+)
+from zupa_vjernici.services.person_identity import (
+    birth_year_as_text,
+    find_or_create_person,
 )
 
 
@@ -42,20 +48,87 @@ def _string_or_empty(value) -> str:
     return str(value)
 
 
-def member_as_legacy_record(member: HouseholdMember) -> dict:
-    birth_year = member.birth_year
-    if birth_year.isdigit():
-        birth_year_value: int | str = int(birth_year)
-    else:
-        birth_year_value = birth_year
+def _display_name(membership: HouseholdMembership) -> str:
+    if membership.person_id:
+        return str(membership.person)
+    return membership.historical_name or ''
+
+
+def _birth_year_value(membership: HouseholdMembership):
+    raw = membership.recorded_birth_year
+    if not raw and membership.person_id and membership.person.date_of_birth:
+        raw = str(membership.person.date_of_birth.year)
+    if raw.isdigit():
+        return int(raw)
+    return raw
+
+
+def membership_as_member_record(membership: HouseholdMembership, sacraments) -> dict:
     return {
-        'id': member.public_identifier,
-        'name': member.name or '',
-        'birthYear': birth_year_value,
-        'relation': member.relation or '',
-        'sacraments': list(member.sacraments or []),
-        'roles': list(member.roles or []),
-        'notes': member.notes or '',
+        'id': membership.public_identifier,
+        'name': _display_name(membership),
+        'birthYear': _birth_year_value(membership),
+        'relation': membership.role or '',
+        'sacraments': list(sacraments or []),
+        'roles': list(membership.pastoral_roles or []),
+        'notes': membership.notes or '',
+    }
+
+
+def membership_as_relative_record(membership: HouseholdMembership) -> dict:
+    return {
+        'id': membership.public_identifier,
+        'name': _display_name(membership),
+        'relation': membership.role or '',
+        'birthYear': membership.recorded_birth_year or '',
+        'notes': membership.notes or '',
+    }
+
+
+def _event_field_for_person(person, event_type: str, field_name: str) -> str:
+    if person is None:
+        return ''
+    participant = (
+        EventParticipant.objects.filter(
+            person=person,
+            role=EventParticipant.Role.RECIPIENT,
+            event__event_type=event_type,
+        )
+        .exclude(event__status=SacramentalEvent.Status.CANCELLED)
+        .select_related('event')
+        .first()
+    )
+    if not participant:
+        return ''
+    event = participant.event
+    if field_name == 'date':
+        return _iso_or_empty(event.event_date)
+    if field_name == 'place':
+        return event.place_name or ''
+    return ''
+
+
+def spouse_as_legacy_record(membership: HouseholdMembership | None) -> dict | None:
+    if membership is None:
+        return None
+    person = membership.person if membership.person_id else None
+    birth_year = membership.recorded_birth_year
+    if not birth_year and person and person.date_of_birth:
+        birth_year = str(person.date_of_birth.year)
+    return {
+        'name': _display_name(membership),
+        'birthYear': birth_year,
+        'birthPlace': (person.place_of_birth if person else '') or '',
+        'baptismDate': _event_field_for_person(
+            person, SacramentalEvent.EventType.BAPTISM, 'date',
+        ),
+        'baptismPlace': _event_field_for_person(
+            person, SacramentalEvent.EventType.BAPTISM, 'place',
+        ),
+        'weddingChurch': _event_field_for_person(
+            person, SacramentalEvent.EventType.MARRIAGE, 'place',
+        ),
+        'notes': membership.notes or '',
     }
 
 
@@ -72,17 +145,40 @@ def contribution_as_legacy_record(contribution: HouseholdContribution) -> dict:
     }
 
 
-def relative_as_legacy_record(relative: HouseholdRelative) -> dict:
-    return {
-        'id': relative.public_identifier,
-        'name': relative.name or '',
-        'relation': relative.relation or '',
-        'birthYear': relative.birth_year or '',
-        'notes': relative.notes or '',
-    }
-
-
 def household_as_legacy_record(household: Household) -> dict:
+    memberships = list(household.memberships.all())
+    person_ids = [
+        membership.person_id
+        for membership in memberships
+        if membership.person_id
+    ]
+    sacraments_by_person = sacrament_labels_by_person_id(person_ids)
+    residents = [
+        membership
+        for membership in memberships
+        if membership.lives_in_household
+    ]
+    relatives = [
+        membership
+        for membership in memberships
+        if not membership.lives_in_household
+    ]
+    husband = next(
+        (
+            membership
+            for membership in residents
+            if membership.spouse_side == HouseholdMembership.SpouseSide.HUSBAND
+        ),
+        None,
+    )
+    wife = next(
+        (
+            membership
+            for membership in residents
+            if membership.spouse_side == HouseholdMembership.SpouseSide.WIFE
+        ),
+        None,
+    )
     return {
         'id': household.public_identifier,
         'surname': household.surname or '',
@@ -96,19 +192,23 @@ def household_as_legacy_record(household: Household) -> dict:
         'originPlace': household.origin_place or '',
         'lastVisit': _iso_or_empty(household.last_visit_on),
         'tags': list(household.tags or []),
-        'husband': copy.deepcopy(household.husband or {}),
-        'wife': copy.deepcopy(household.wife or {}),
+        'husband': spouse_as_legacy_record(husband),
+        'wife': spouse_as_legacy_record(wife),
         'members': [
-            member_as_legacy_record(member)
-            for member in household.members.all()
+            membership_as_member_record(
+                membership,
+                sacraments_by_person.get(membership.person_id, []),
+            )
+            for membership in residents
+            if not membership.public_identifier.startswith('spouse-')
         ],
         'contributions': [
             contribution_as_legacy_record(contribution)
             for contribution in household.contributions.all()
         ],
         'relatives': [
-            relative_as_legacy_record(relative)
-            for relative in household.relatives.all()
+            membership_as_relative_record(membership)
+            for membership in relatives
         ],
     }
 
@@ -129,55 +229,213 @@ def household_field_defaults_from_legacy(record: dict, street=None) -> dict:
         'tags': list(record.get('tags') or [])
         if isinstance(record.get('tags'), list)
         else [],
-        'husband': copy.deepcopy(record.get('husband') or {})
-        if isinstance(record.get('husband'), dict)
-        else {},
-        'wife': copy.deepcopy(record.get('wife') or {})
-        if isinstance(record.get('wife'), dict)
-        else {},
         'payload': {},
     }
 
 
+def _upsert_membership(
+    household: Household,
+    *,
+    public_identifier: str,
+    full_name: str,
+    relation: str,
+    birth_year,
+    notes: str,
+    sort_order: int,
+    lives_in_household: bool,
+    pastoral_roles=None,
+    spouse_side: str = '',
+    place_of_birth: str = '',
+    sacrament_labels=None,
+    is_head: bool = False,
+) -> HouseholdMembership:
+    person = find_or_create_person(
+        household.parish,
+        full_name=full_name,
+        fallback_surname=household.surname,
+        relation=relation or spouse_side,
+        birth_year=birth_year_as_text(birth_year),
+        place_of_birth=place_of_birth,
+    )
+    membership, _created = HouseholdMembership.objects.update_or_create(
+        household=household,
+        public_identifier=public_identifier,
+        defaults={
+            'person': person,
+            'historical_name': str(full_name or ''),
+            'role': str(relation or ''),
+            'spouse_side': spouse_side or '',
+            'lives_in_household': lives_in_household,
+            'is_head': is_head,
+            'recorded_birth_year': birth_year_as_text(birth_year),
+            'pastoral_roles': list(pastoral_roles or [])
+            if isinstance(pastoral_roles, list)
+            else [],
+            'notes': str(notes or ''),
+            'sort_order': sort_order,
+        },
+    )
+    if sacrament_labels is not None:
+        sync_family_card_sacraments(person, household.parish, sacrament_labels)
+    return membership
+
+
+def _apply_spouse_record(
+    household: Household,
+    spouse_record,
+    spouse_side: str,
+    keep_identifiers: set,
+) -> None:
+    if not isinstance(spouse_record, dict):
+        return
+    full_name = str(spouse_record.get('name') or '').strip()
+    if not full_name:
+        return
+    matching = None
+    for membership in household.memberships.select_related('person'):
+        display = _display_name(membership).casefold()
+        if full_name.casefold() in {display, display.split()[0] if display else ''}:
+            matching = membership
+            break
+        if membership.person_id:
+            given = membership.person.given_names.casefold()
+            if full_name.casefold() == given or full_name.casefold().startswith(given):
+                matching = membership
+                break
+    public_identifier = (
+        matching.public_identifier if matching else f'spouse-{spouse_side}'
+    )
+    keep_identifiers.add(public_identifier)
+    relation = matching.role if matching else (
+        'muž' if spouse_side == HouseholdMembership.SpouseSide.HUSBAND else 'žena'
+    )
+    baptism_labels = ['krštenje'] if spouse_record.get('baptismDate') else None
+    extra_labels = []
+    if spouse_record.get('weddingChurch') or spouse_record.get('weddingCivil'):
+        extra_labels.append('vjenčanje')
+    sacrament_labels = None
+    if baptism_labels or extra_labels:
+        sacrament_labels = [*(baptism_labels or []), *extra_labels]
+    membership = _upsert_membership(
+        household,
+        public_identifier=public_identifier,
+        full_name=full_name,
+        relation=relation,
+        birth_year=spouse_record.get('birthYear'),
+        notes=str(spouse_record.get('notes') or ''),
+        sort_order=matching.sort_order if matching else 0,
+        lives_in_household=True,
+        pastoral_roles=matching.pastoral_roles if matching else [],
+        spouse_side=spouse_side,
+        place_of_birth=str(spouse_record.get('birthPlace') or ''),
+        sacrament_labels=sacrament_labels,
+        is_head=spouse_side == HouseholdMembership.SpouseSide.HUSBAND,
+    )
+    person = membership.person
+    if person and spouse_record.get('baptismDate'):
+        from sakramenti.services.family_card_sacraments import (
+            family_card_public_identifier,
+        )
+        event = (
+            SacramentalEvent.objects.filter(
+                parish=household.parish,
+                event_type=SacramentalEvent.EventType.BAPTISM,
+                public_identifier=family_card_public_identifier(
+                    person.pk, SacramentalEvent.EventType.BAPTISM,
+                ),
+            ).first()
+        )
+        if event:
+            event.event_date = _parse_iso_date(spouse_record.get('baptismDate'))
+            event.place_name = str(spouse_record.get('baptismPlace') or '')[:200]
+            event.save(update_fields=['event_date', 'place_name', 'updated_at'])
+    if person and (spouse_record.get('weddingChurch') or spouse_record.get('weddingCivil')):
+        from sakramenti.services.family_card_sacraments import (
+            family_card_public_identifier,
+        )
+        event = (
+            SacramentalEvent.objects.filter(
+                parish=household.parish,
+                event_type=SacramentalEvent.EventType.MARRIAGE,
+                public_identifier=family_card_public_identifier(
+                    person.pk, SacramentalEvent.EventType.MARRIAGE,
+                ),
+            ).first()
+        )
+        if event:
+            event.place_name = str(
+                spouse_record.get('weddingChurch')
+                or spouse_record.get('weddingCivil')
+                or ''
+            )[:200]
+            event.save(update_fields=['place_name', 'updated_at'])
+
+
 def sync_household_nested_records(household: Household, record: dict) -> None:
+    keep_identifiers = set()
     members = record.get('members') if isinstance(record.get('members'), list) else []
-    keep_members = set()
     for index, member_record in enumerate(members):
         if not isinstance(member_record, dict):
             continue
         public_identifier = str(
             member_record.get('id') or f'm-{household.public_identifier}-{index + 1}'
         )
-        keep_members.add(public_identifier)
-        HouseholdMember.objects.update_or_create(
-            household=household,
+        keep_identifiers.add(public_identifier)
+        _upsert_membership(
+            household,
             public_identifier=public_identifier,
-            defaults={
-                'name': str(member_record.get('name') or ''),
-                'birth_year': _string_or_empty(member_record.get('birthYear')),
-                'relation': str(member_record.get('relation') or ''),
-                'sacraments': list(member_record.get('sacraments') or [])
-                if isinstance(member_record.get('sacraments'), list)
-                else [],
-                'roles': list(member_record.get('roles') or [])
-                if isinstance(member_record.get('roles'), list)
-                else [],
-                'notes': str(member_record.get('notes') or ''),
-                'sort_order': index,
-            },
+            full_name=str(member_record.get('name') or ''),
+            relation=str(member_record.get('relation') or ''),
+            birth_year=member_record.get('birthYear'),
+            notes=str(member_record.get('notes') or ''),
+            sort_order=index,
+            lives_in_household=True,
+            pastoral_roles=member_record.get('roles')
+            if isinstance(member_record.get('roles'), list)
+            else [],
+            sacrament_labels=member_record.get('sacraments')
+            if isinstance(member_record.get('sacraments'), list)
+            else [],
         )
-        HouseholdMembership.objects.update_or_create(
-            household=household,
+
+    relatives = (
+        record.get('relatives')
+        if isinstance(record.get('relatives'), list)
+        else []
+    )
+    for index, relative_record in enumerate(relatives):
+        if not isinstance(relative_record, dict):
+            continue
+        public_identifier = str(
+            relative_record.get('id')
+            or f'rel-{household.public_identifier}-{index + 1}'
+        )
+        keep_identifiers.add(public_identifier)
+        _upsert_membership(
+            household,
             public_identifier=public_identifier,
-            defaults={
-                'historical_name': str(member_record.get('name') or ''),
-                'role': str(member_record.get('relation') or ''),
-                'notes': str(member_record.get('notes') or ''),
-                'sort_order': index,
-            },
+            full_name=str(relative_record.get('name') or ''),
+            relation=str(relative_record.get('relation') or ''),
+            birth_year=relative_record.get('birthYear'),
+            notes=str(relative_record.get('notes') or ''),
+            sort_order=1000 + index,
+            lives_in_household=False,
         )
-    household.members.exclude(public_identifier__in=keep_members).delete()
-    household.memberships.exclude(public_identifier__in=keep_members).delete()
+
+    _apply_spouse_record(
+        household,
+        record.get('husband'),
+        HouseholdMembership.SpouseSide.HUSBAND,
+        keep_identifiers,
+    )
+    _apply_spouse_record(
+        household,
+        record.get('wife'),
+        HouseholdMembership.SpouseSide.WIFE,
+        keep_identifiers,
+    )
+
+    household.memberships.exclude(public_identifier__in=keep_identifiers).delete()
 
     contributions = (
         record.get('contributions')
@@ -222,33 +480,6 @@ def sync_household_nested_records(household: Household, record: dict) -> None:
     household.contributions.exclude(
         public_identifier__in=keep_contributions,
     ).delete()
-
-    relatives = (
-        record.get('relatives')
-        if isinstance(record.get('relatives'), list)
-        else []
-    )
-    keep_relatives = set()
-    for index, relative_record in enumerate(relatives):
-        if not isinstance(relative_record, dict):
-            continue
-        public_identifier = str(
-            relative_record.get('id')
-            or f'rel-{household.public_identifier}-{index + 1}'
-        )
-        keep_relatives.add(public_identifier)
-        HouseholdRelative.objects.update_or_create(
-            household=household,
-            public_identifier=public_identifier,
-            defaults={
-                'name': str(relative_record.get('name') or ''),
-                'relation': str(relative_record.get('relation') or ''),
-                'birth_year': _string_or_empty(relative_record.get('birthYear')),
-                'notes': str(relative_record.get('notes') or ''),
-                'sort_order': index,
-            },
-        )
-    household.relatives.exclude(public_identifier__in=keep_relatives).delete()
 
 
 def visit_as_legacy_record(visit: PastoralVisit) -> dict:

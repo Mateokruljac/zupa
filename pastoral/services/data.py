@@ -282,34 +282,6 @@ class ParishDataService:
             if submission.get('status') == 'nova'
         )
         reminder_count = len(self.collect_reminders(parish_data))
-        from phase_two.module_registry import (
-            INTERPARISH_COLLABORATION_MODULE,
-            OPERATIONS_CENTER_MODULE,
-        )
-
-        interparish_pending = 0
-        if INTERPARISH_COLLABORATION_MODULE.is_available:
-            interparish_pending = sum(
-                1
-                for interparish_request in parish_data.get(
-                    'interparishRequests',
-                    [],
-                )
-                if interparish_request.get('targetParishId') == self.parish.slug
-                and interparish_request.get('status')
-                in {'received', 'needs_info'}
-            )
-
-        operations_attention = 0
-        if OPERATIONS_CENTER_MODULE.is_available:
-            try:
-                from phase_two.operations_center.services import (
-                    operations_attention_count,
-                )
-            except ModuleNotFoundError:
-                operations_attention = 0
-            else:
-                operations_attention = operations_attention_count(parish_data)
         return {
             'unpaid_nakane': unpaid_intention_count,
             'today_nakane': sum(
@@ -335,8 +307,6 @@ class ParishDataService:
             ),
             'reminders_count': reminder_count,
             'nova_prijave': new_submission_count,
-            'interparish_pending': interparish_pending,
-            'operations_attention': operations_attention,
         }
 
     def collect_reminders(self, parish_data: dict | None = None) -> list:

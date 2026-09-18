@@ -3,7 +3,6 @@
 Ovdje ostaje samo **zajednički shell**:
 
 - `pastoral/base.html`, login
-- `pastoral/pages/product_phase.html`
 - greške (`errors/`)
 - admin overridei
 

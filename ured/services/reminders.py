@@ -4,10 +4,6 @@ from __future__ import annotations
 from datetime import date
 
 from pastoral.services.dates import add_days_iso, days_since, today_iso
-from phase_two.module_registry import (
-    INTERPARISH_COLLABORATION_MODULE,
-    OPERATIONS_CENTER_MODULE,
-)
 
 
 def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[dict]:
@@ -15,79 +11,6 @@ def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[di
     today = today_iso()
     year = date.today().year
     items: list[dict] = []
-
-    if OPERATIONS_CENTER_MODULE.is_available:
-        try:
-            from phase_two.operations_center.services import build_work_queue
-        except ModuleNotFoundError:
-            build_work_queue = None
-        if build_work_queue is not None:
-            for operation in build_work_queue(data):
-                if not operation['isOpen']:
-                    continue
-                needs_attention = (
-                    operation['isOverdue'] or operation['isDueToday']
-                    or operation.get('priority') in {'urgent', 'high'}
-                    or operation['category'] in {'approval', 'rota', 'room'}
-                )
-                if not needs_attention:
-                    continue
-                items.append({
-                    'id': f"ops_{operation.get('itemId')}",
-                    'priority': (
-                        'visoka'
-                        if operation['isOverdue']
-                        or operation.get('priority') in {'urgent', 'high'}
-                        else 'srednja'
-                    ),
-                    'category': 'operativa',
-                    'title': (
-                        operation.get('title')
-                        or operation['categoryMeta']['label']
-                    ),
-                    'sub': (
-                        operation.get('nextAction')
-                        or operation.get('meta', '')
-                    ),
-                    'href': (
-                        'operativno-srediste?item='
-                        f"{operation.get('itemId', '')}"
-                    ),
-                    'due': operation.get('due') or today,
-                })
-
-    if INTERPARISH_COLLABORATION_MODULE.is_available:
-        for interparish_request in data.get('interparishRequests') or []:
-            if (
-                interparish_request.get('direction') != 'incoming'
-                or interparish_request.get('status')
-                not in {'received', 'needs_info'}
-            ):
-                continue
-            due_date = interparish_request.get('dueAt') or today
-            items.append({
-                'id': f"dekanat_{interparish_request.get('id')}",
-                'priority': (
-                    'visoka'
-                    if interparish_request.get('priority') in {'urgent', 'high'}
-                    or due_date < today
-                    else 'srednja'
-                ),
-                'category': 'dekanat',
-                'title': (
-                    interparish_request.get('subject')
-                    or 'Novi međužupni zahtjev'
-                ),
-                'sub': (
-                    f"{interparish_request.get('reference', '')} · rok "
-                    f'{due_date}'
-                ),
-                'href': (
-                    'dekanat?request='
-                    f"{interparish_request.get('id', '')}"
-                ),
-                'due': due_date,
-            })
 
     for s in data.get('publicSubmissions') or []:
         if s.get('status') != 'nova':

@@ -152,24 +152,6 @@ class OtpChallenge(ContentHashedModel):
         return ('email', 'role', 'used', 'failed_attempts', 'locked_at')
 
 
-class PhaseTwoRecord(FCTA):
-    """ORM spremište za kolekcije faze 2 (legacy payload po ključu)."""
-
-    parish = models.ForeignKey(
-        Parish,
-        on_delete=models.CASCADE,
-        related_name='phase_two_records',
-    )
-    collection_key = models.CharField(max_length=80, db_index=True)
-    public_identifier = models.CharField(max_length=120, blank=True, db_index=True)
-    payload = models.JSONField(default=dict, blank=True)
-
-    class Meta:
-        unique_together = [('parish', 'collection_key', 'public_identifier')]
-        indexes = [
-            models.Index(fields=['parish', 'collection_key']),
-        ]
-
 class UserManager(BaseUserManager):
     """Manager for users."""
 

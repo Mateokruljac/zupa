@@ -11,6 +11,7 @@ from sakramenti.models import (
     EventParticipant,
     SacramentalEvent,
 )
+from sakramenti.services.family_card_sacraments import exclude_family_card_events
 from pastoral.models import Parish
 from zupa_vjernici.models import Person
 from isprave.models import (
@@ -533,10 +534,11 @@ def apply_legacy_baptism_backfill(parish: Parish) -> BaptismBackfillReport:
 
 
 def relational_baptisms_as_legacy_dictionaries(parish: Parish) -> list[dict]:
-    baptism_events = (
+    baptism_events = exclude_family_card_events(
         SacramentalEvent.objects.filter(
             parish=parish,
             event_type=SacramentalEvent.EventType.BAPTISM,
+            baptism_details__isnull=False,
         )
         .exclude(status=SacramentalEvent.Status.CANCELLED)
         .select_related(

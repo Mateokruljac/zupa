@@ -10,8 +10,9 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
+from django.db.models import Prefetch
 
-from pastoral.models import Parish, PhaseTwoRecord
+from pastoral.models import Parish
 from financije.models import (
     CashbookEntry,
     FinanceSettings,
@@ -46,20 +47,24 @@ from ured.services.office_records import (
     office_task_field_defaults_from_legacy,
     public_submission_as_legacy_record,
     public_submission_field_defaults_from_legacy,
-    staff_message_as_legacy_record,
-    staff_message_field_defaults_from_legacy,
 )
 from ured.models import (
     Announcement,
-    CouncilBundle,
+    Council,
+    CouncilMembership,
     DocumentBinding,
-    OfficeDirectoryRecord,
     OfficeTask,
     ParishCalendarEvent,
+    ParishFoundingDecree,
     PublicSubmission,
-    StaffMessage,
 )
-from zupa_vjernici.models import Household, PastoralVisit, Street
+from ured.services.council_records import (
+    council_as_legacy_record,
+    decree_as_legacy_record,
+    sync_council_from_legacy,
+    sync_founding_decree_from_legacy,
+)
+from zupa_vjernici.models import Household, HouseholdMembership, PastoralVisit, Street
 from zupa_vjernici.services.street_records import (
     street_as_legacy_record,
     street_field_defaults_from_legacy,
@@ -81,22 +86,6 @@ from financije.services.finance_records import (
 )
 
 
-PHASE_TWO_COLLECTION_KEYS = frozenset({
-    'deanery',
-    'parishDirectory',
-    'interparishRequests',
-    'officeCorrespondence',
-    'officeApprovals',
-    'communications',
-    'facilityTasks',
-    'officeAppointments',
-    'roomBookings',
-    'serviceRota',
-    'complianceControls',
-    'parishContracts',
-    'handoverChecklist',
-})
-
 # Kolekcije koje više ne smiju ostati u Parish.data nakon cutovera.
 ORM_BACKED_COLLECTION_KEYS = frozenset({
     'streets',
@@ -105,12 +94,8 @@ ORM_BACKED_COLLECTION_KEYS = frozenset({
     'parishioners',  # derived — never persist
     'tasks',
     'events',
-    'staffMessages',
     'publicSubmissions',
     'announcements',
-    'appGroups',
-    'appUsers',
-    'parishPriests',
     'pastoralCouncil',
     'economicCouncil',
     'parishDecree',
@@ -126,7 +111,6 @@ ORM_BACKED_COLLECTION_KEYS = frozenset({
     'zupniListicLayout',
     'zupniListicIssues',
     'zupniListicTemplate',
-    *PHASE_TWO_COLLECTION_KEYS,
 })
 
 
@@ -299,7 +283,15 @@ def load_operational_collections(parish: Parish) -> dict:
     parish_data['families'] = [
         household_as_legacy_record(household)
         for household in Household.objects.filter(parish=parish)
-        .prefetch_related('members', 'contributions', 'relatives')
+        .prefetch_related(
+            Prefetch(
+                'memberships',
+                queryset=HouseholdMembership.objects.select_related(
+                    'person',
+                ).order_by('sort_order', 'historical_name'),
+            ),
+            'contributions',
+        )
         .order_by('surname', 'public_identifier')
     ]
     parish_data['visits'] = [
@@ -317,10 +309,6 @@ def load_operational_collections(parish: Parish) -> dict:
         calendar_event_as_legacy_record(event)
         for event in ParishCalendarEvent.objects.filter(parish=parish)
     ]
-    parish_data['staffMessages'] = [
-        staff_message_as_legacy_record(message)
-        for message in StaffMessage.objects.filter(parish=parish)
-    ]
     parish_data['publicSubmissions'] = [
         public_submission_as_legacy_record(submission)
         for submission in PublicSubmission.objects.filter(parish=parish)
@@ -333,29 +321,25 @@ def load_operational_collections(parish: Parish) -> dict:
         DocumentBinding.objects.filter(parish=parish)
     )
 
-    directory_key_by_kind = dict((
-        (OfficeDirectoryRecord.RecordKind.GROUP, 'appGroups'),
-        (OfficeDirectoryRecord.RecordKind.USER, 'appUsers'),
-        (OfficeDirectoryRecord.RecordKind.PRIEST, 'parishPriests'),
-    ))
-    for key in directory_key_by_kind.values():
-        parish_data[key] = []
-    for directory_record in OfficeDirectoryRecord.objects.filter(parish=parish):
-        key = directory_key_by_kind.get(directory_record.kind)
-        if key:
-            parish_data[key].append(copy.deepcopy(directory_record.payload or {}))
-
-    council_key_by_kind = dict((
-        (CouncilBundle.BundleKind.PASTORAL, 'pastoralCouncil'),
-        (CouncilBundle.BundleKind.ECONOMIC, 'economicCouncil'),
-        (CouncilBundle.BundleKind.DECREE, 'parishDecree'),
-    ))
-    for key in council_key_by_kind.values():
-        parish_data[key] = {}
-    for council_bundle in CouncilBundle.objects.filter(parish=parish).order_by('pk'):
-        key = council_key_by_kind.get(council_bundle.kind)
-        if key and not parish_data[key]:
-            parish_data[key] = copy.deepcopy(council_bundle.payload or {})
+    parish_data['pastoralCouncil'] = {}
+    parish_data['economicCouncil'] = {}
+    councils = (
+        Council.objects.filter(parish=parish)
+        .prefetch_related(
+            Prefetch(
+                'memberships',
+                queryset=CouncilMembership.objects.select_related('person'),
+            ),
+        )
+    )
+    for council in councils:
+        payload = council_as_legacy_record(council)
+        if council.council_type == Council.CouncilType.PASTORAL:
+            parish_data['pastoralCouncil'] = payload
+        elif council.council_type == Council.CouncilType.ECONOMIC:
+            parish_data['economicCouncil'] = payload
+    founding_decree = ParishFoundingDecree.objects.filter(parish=parish).first()
+    parish_data['parishDecree'] = decree_as_legacy_record(founding_decree)
 
     parish_data['parishDebts'] = [
         parish_debt_as_legacy_record(debt)
@@ -430,31 +414,6 @@ def load_operational_collections(parish: Parish) -> dict:
                 ),
                 'roles': family_member.get('roles') or [],
             })
-
-    phase_two_rows_by_collection = {
-        collection_key: [] for collection_key in PHASE_TWO_COLLECTION_KEYS
-    }
-    for phase_two_record in PhaseTwoRecord.objects.filter(parish=parish):
-        if phase_two_record.collection_key in phase_two_rows_by_collection:
-            phase_two_rows_by_collection[phase_two_record.collection_key].append(
-                phase_two_record
-            )
-    for collection_key, rows in phase_two_rows_by_collection.items():
-        if not rows:
-            # Prazne kolekcije faze 2: page_contexts mogu ubaciti demo prikaz.
-            if collection_key in {
-                'deanery',
-            }:
-                parish_data[collection_key] = {}
-            else:
-                parish_data[collection_key] = []
-            continue
-        if len(rows) == 1 and rows[0].public_identifier == '':
-            parish_data[collection_key] = copy.deepcopy(rows[0].payload or {})
-        else:
-            parish_data[collection_key] = [
-                copy.deepcopy(row.payload or {}) for row in rows
-            ]
 
     return parish_data
 
@@ -573,24 +532,6 @@ def save_operational_collections(parish: Parish, parish_data: dict) -> None:
             public_identifier__in=keep_events,
         ).delete()
 
-        message_rows = list(parish_data.get('staffMessages') or [])
-        keep_messages = set()
-        for index, record in enumerate(message_rows):
-            if not isinstance(record, dict):
-                continue
-            public_identifier = _record_identifier(record, 'msg', index)
-            payload = copy.deepcopy(record)
-            payload.setdefault('id', public_identifier)
-            keep_messages.add(public_identifier)
-            StaffMessage.objects.update_or_create(
-                parish=parish,
-                public_identifier=public_identifier,
-                defaults=staff_message_field_defaults_from_legacy(payload),
-            )
-        StaffMessage.objects.filter(parish=parish).exclude(
-            public_identifier__in=keep_messages,
-        ).delete()
-
         submission_rows = list(parish_data.get('publicSubmissions') or [])
         keep_submissions = set()
         for index, record in enumerate(submission_rows):
@@ -634,82 +575,24 @@ def save_operational_collections(parish: Parish, parish_data: dict) -> None:
             id_prefix='db',
         )
 
-        for kind, key, prefix in (
-            (OfficeDirectoryRecord.RecordKind.GROUP, 'appGroups', 'grp'),
-            (OfficeDirectoryRecord.RecordKind.USER, 'appUsers', 'usr'),
-            (OfficeDirectoryRecord.RecordKind.PRIEST, 'parishPriests', 'pr'),
-        ):
-            records = list(parish_data.get(key) or [])
-            keep_ids = set()
-            for index, record in enumerate(records):
-                if not isinstance(record, dict):
-                    continue
-                public_identifier = _record_identifier(record, prefix, index)
-                payload = copy.deepcopy(record)
-                payload.setdefault('id', public_identifier)
-                keep_ids.add(public_identifier)
-                OfficeDirectoryRecord.objects.update_or_create(
-                    parish=parish,
-                    kind=kind,
-                    public_identifier=public_identifier,
-                    defaults={'payload': payload},
-                )
-            OfficeDirectoryRecord.objects.filter(
-                parish=parish,
-                kind=kind,
-            ).exclude(public_identifier__in=keep_ids).delete()
-
-        for kind, key in (
-            (CouncilBundle.BundleKind.PASTORAL, 'pastoralCouncil'),
-            (CouncilBundle.BundleKind.ECONOMIC, 'economicCouncil'),
-            (CouncilBundle.BundleKind.DECREE, 'parishDecree'),
-        ):
-            payload = parish_data.get(key)
-            if payload is None:
-                CouncilBundle.objects.filter(parish=parish, kind=kind).delete()
-                continue
-            CouncilBundle.objects.update_or_create(
-                parish=parish,
-                kind=kind,
-                defaults={'payload': copy.deepcopy(payload)},
-            )
+        sync_council_from_legacy(
+            parish,
+            Council.CouncilType.PASTORAL,
+            parish_data.get('pastoralCouncil'),
+        )
+        sync_council_from_legacy(
+            parish,
+            Council.CouncilType.ECONOMIC,
+            parish_data.get('economicCouncil'),
+        )
+        sync_founding_decree_from_legacy(
+            parish,
+            parish_data.get('parishDecree'),
+        )
 
         _save_financial_collections(parish, parish_data)
 
         _save_liturgical_collections(parish, parish_data)
-
-        for collection_key in PHASE_TWO_COLLECTION_KEYS:
-            value = parish_data.get(collection_key)
-            PhaseTwoRecord.objects.filter(
-                parish=parish,
-                collection_key=collection_key,
-            ).delete()
-            if value is None:
-                continue
-            if isinstance(value, list):
-                for index, record in enumerate(value):
-                    if not isinstance(record, dict):
-                        continue
-                    public_identifier = _record_identifier(
-                        record,
-                        collection_key[:8],
-                        index,
-                    )
-                    payload = copy.deepcopy(record)
-                    payload.setdefault('id', public_identifier)
-                    PhaseTwoRecord.objects.create(
-                        parish=parish,
-                        collection_key=collection_key,
-                        public_identifier=public_identifier,
-                        payload=payload,
-                    )
-            elif isinstance(value, dict):
-                PhaseTwoRecord.objects.create(
-                    parish=parish,
-                    collection_key=collection_key,
-                    public_identifier='',
-                    payload=copy.deepcopy(value),
-                )
 
 
 def strip_orm_backed_keys(parish_data: dict) -> dict:

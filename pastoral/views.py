@@ -36,15 +36,13 @@ from .view_modules.public_forms import (  # noqa: F401
     public_privacy_view,
     public_terms_view,
 )
-from phase_two.module_registry import module_for_page
 
 ADMIN_PAGES = {
      'blagajna', 'dugovanja', 'financijska-izvjestaja',
     'javne-prijave', 'kalendar', 'krizma',
     'krsenja', 'maticne-knjige', 'mise', 'nakane', 'obitelji', 'pogrebi', 'pomazanje',
     'posjete', 'postavke', 'potvrde', 'prva-pricest', 'racuni',
-     'ulice', 'vijeca', 'vjencanja', 'zupni-listic', 'podsjetnici', 'dekanat',
-    'operativno-srediste',
+     'ulice', 'vijeca', 'vjencanja', 'zupni-listic', 'podsjetnici',
 }
 
 THEME_COLOR_PATTERN = re.compile(r'^#[0-9a-fA-F]{6}$')
@@ -55,12 +53,14 @@ THEME_COLOR_KEYS = frozenset({
 
 REMOVED_PAGE_REDIRECTS = {
     'zadaci': 'kalendar',
-    'poruke': 'operativno-srediste',
+    'poruke': 'dashboard',
     'korisnici': 'dashboard',
-    'sigurnost': 'operativno-srediste',
-    'komunikacija': 'operativno-srediste',
+    'sigurnost': 'dashboard',
+    'komunikacija': 'dashboard',
     'dokumenti': 'potvrde',
     'formulari': 'potvrde',
+    'dekanat': 'dashboard',
+    'operativno-srediste': 'dashboard',
 }
 
 PAGE_TEMPLATE_NAMES = {
@@ -87,8 +87,6 @@ PAGE_TEMPLATE_NAMES = {
     'potvrde': 'isprave/pages/potvrde.html',
     'maticne-knjige': 'isprave/pages/maticne-knjige.html',
     'posjete': 'zupa_vjernici/pages/posjete.html',
-    'dekanat': 'pastoral/pages/dekanat.html',
-    'operativno-srediste': 'pastoral/pages/operativno-srediste.html',
 }
 
 
@@ -122,49 +120,6 @@ def _add_standard_forms_to_page_context(
         page_context['invoice_form'] = InvoiceForm()
 
 
-def _add_operations_forms_to_page_context(
-    request,
-    page: str,
-    parish_data_service: ParishDataService,
-    page_context: dict,
-) -> None:
-    try:
-        from phase_two.forms import (
-            FacilityIssueForm,
-            InterparishRequestForm,
-            OfficeEntryForm,
-        )
-    except ModuleNotFoundError:
-        return
-
-    if page == 'dekanat':
-        active_parish_id = parish_data_service.load_settings().get('_parishId', '')
-        page_context['interparish_form'] = InterparishRequestForm(
-            parishes=page_context.get('parish_directory', []),
-            active_parish_id=active_parish_id,
-            initial={
-                'request_type': 'marriage_certificate',
-                'due_date': parish_data_service.add_days(3),
-                'priority': 'normal',
-                'confidentiality': 'povjerljivo',
-            },
-        )
-    elif page == 'operativno-srediste':
-        page_context['office_entry_form'] = OfficeEntryForm(initial={
-            'direction': 'incoming',
-            'channel': 'in_person',
-            'due_date': parish_data_service.add_days(3),
-            'priority': 'normal',
-            'confidentiality': 'službeno',
-            'owner': getattr(request.user, 'name', '') or 'Župni ured',
-        })
-        page_context['facility_issue_form'] = FacilityIssueForm(initial={
-            'risk': 'medium',
-            'due_date': parish_data_service.add_days(7),
-            'owner': 'Župni ured',
-        })
-
-
 def _build_admin_page_context(
     request,
     page: str,
@@ -187,13 +142,6 @@ def _build_admin_page_context(
     )
     if not forms_attached:
         _add_standard_forms_to_page_context(
-            page,
-            parish_data_service,
-            page_context,
-        )
-    if page in {'dekanat', 'operativno-srediste'}:
-        _add_operations_forms_to_page_context(
-            request,
             page,
             parish_data_service,
             page_context,
@@ -225,15 +173,6 @@ def admin_page_view(request, page: str):
     if page not in ADMIN_PAGES:
         from django.http import Http404
         raise Http404()
-
-    product_module = module_for_page(page)
-    if product_module and not product_module.is_available:
-        return render(request, 'pastoral/pages/product_phase.html', {
-            'page_title': product_module.label,
-            'page_subtitle': f'Planirano za fazu {product_module.release_phase}',
-            'current_page': page,
-            'product_module': product_module,
-        })
 
     parish_data_service = ParishDataService.for_request(request)
 

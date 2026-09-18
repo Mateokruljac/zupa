@@ -11,6 +11,7 @@ from sakramenti.models import (
     EventParticipant,
     SacramentalEvent,
 )
+from sakramenti.services.family_card_sacraments import exclude_family_card_events
 from pastoral.models import Parish
 
 
@@ -45,10 +46,11 @@ def _parse_optional_time(raw_value) -> time | None:
 
 
 def relational_anointings_as_dictionaries(parish: Parish) -> list[dict]:
-    anointing_events = (
+    anointing_events = exclude_family_card_events(
         SacramentalEvent.objects.filter(
             parish=parish,
             event_type=SacramentalEvent.EventType.ANOINTING,
+            anointing_details__isnull=False,
         )
         .exclude(status=SacramentalEvent.Status.CANCELLED)
         .select_related('anointing_details')

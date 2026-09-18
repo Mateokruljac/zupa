@@ -18,7 +18,6 @@ PAGE_META: dict[str, tuple[str, str]] = {}
 PAGE_CONTEXT_BUILDERS: dict[str, PageContextBuilder] = {}
 
 _MVP_LOADED = False
-_PHASE_TWO_LOADED = False
 
 
 def register_page(
@@ -50,8 +49,8 @@ def get_page_context_builder(slug: str) -> PageContextBuilder | None:
 
 
 def ensure_page_contexts_loaded() -> None:
-    """Učitava MVP buildere jednom; faza 2 samo kada je modul dostupan."""
-    global _MVP_LOADED, _PHASE_TWO_LOADED
+    """Učitava kontekst-buildere admin stranica jednom."""
+    global _MVP_LOADED
     if not _MVP_LOADED:
         # Side-effect uvozi: @register_page u domain modulima.
         import financije.page_contexts  # noqa: F401
@@ -62,17 +61,3 @@ def ensure_page_contexts_loaded() -> None:
         import zupa_vjernici.page_contexts  # noqa: F401
 
         _MVP_LOADED = True
-
-    if _PHASE_TWO_LOADED:
-        return
-
-    from phase_two.module_registry import PRODUCT_MODULES
-
-    if not any(product_module.is_available for product_module in PRODUCT_MODULES):
-        return
-
-    try:
-        import phase_two.page_contexts  # noqa: F401
-    except ModuleNotFoundError:
-        pass
-    _PHASE_TWO_LOADED = True

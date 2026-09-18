@@ -28,7 +28,7 @@ MVP_PAGE_ACTION_HANDLERS: tuple[PageActionHandler, ...] = (
 )
 
 # Javno ime ostaje stabilno za postojeće integracije koje nadomještaju skup
-# handlera, dok je faza 2 i dalje učitana tek kada je dostupna.
+# handlera.
 PAGE_ACTION_HANDLERS = MVP_PAGE_ACTION_HANDLERS
 
 

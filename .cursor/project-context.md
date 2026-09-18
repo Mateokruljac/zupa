@@ -12,7 +12,7 @@ Parish office application (Django 4.2+/5.x, PostgreSQL in production, SQLite loc
 | `isprave` | Register books/entries, templates, certificates |
 | `liturgija` | Mass schedule, intentions, bulletin, liturgical calendar |
 | `financije` | Cashbook, invoices, debts, lukno default |
-| `ured` | Calendar, tasks, councils, public submissions, office directory |
+| `ured` | Calendar, tasks, councils, public submissions |
 | `pregled` | Dashboard (no domain tables) |
 
 ## Persistence shape

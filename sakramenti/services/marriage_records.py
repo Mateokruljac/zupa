@@ -12,6 +12,7 @@ from sakramenti.models import (
     MarriageDetails,
     SacramentalEvent,
 )
+from sakramenti.services.family_card_sacraments import exclude_family_card_events
 from pastoral.models import Parish
 
 
@@ -62,10 +63,11 @@ def _witness_names(marriage_details: MarriageDetails) -> tuple[str, str]:
 
 
 def relational_weddings_as_dictionaries(parish: Parish) -> list[dict]:
-    wedding_events = (
+    wedding_events = exclude_family_card_events(
         SacramentalEvent.objects.filter(
             parish=parish,
             event_type=SacramentalEvent.EventType.MARRIAGE,
+            marriage_details__isnull=False,
         )
         .exclude(status=SacramentalEvent.Status.CANCELLED)
         .select_related('marriage_details', 'register_entry')

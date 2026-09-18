@@ -5,7 +5,6 @@ from django.shortcuts import redirect
 from django.contrib import messages
 
 from pastoral.services.permissions import can_access_page, is_locked_finance_page
-from phase_two.module_registry import module_for_page
 
 
 def pastoral_login_required(view_function):
@@ -17,9 +16,6 @@ def pastoral_login_required(view_function):
             page = 'dashboard'
         tenant_context = getattr(request, 'tenant_context', None)
         active_role = tenant_context.role if tenant_context else request.user.role
-        product_module = module_for_page(page)
-        if product_module and not product_module.is_available:
-            return view_function(request, *args, **kwargs)
         if not can_access_page(page, active_role):
             if is_locked_finance_page(page):
                 messages.error(request, 'Ovaj financijski modul je zaključan za vašu ulogu.')

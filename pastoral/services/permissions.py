@@ -1,6 +1,3 @@
-from phase_two.module_registry import is_page_available
-
-
 MODULES = {
     'pregled': {'label': 'Pregled', 'pages': ['dashboard']},
     'zupa': {'label': 'Župa i vjernici', 'pages': ['obitelji', 'ulice', 'posjete']},
@@ -21,13 +18,9 @@ MODULES = {
         'label': 'Isprave i matice',
         'pages': ['potvrde', 'maticne-knjige'],
     },
-    'suradnja': {
-        'label': 'Dekanat i suradnja',
-        'pages': ['dekanat'],
-    },
     'ured': {
         'label': 'Župni ured',
-        'pages': ['podsjetnici', 'operativno-srediste', 'vijeca', 'kalendar', 'javne-prijave'],
+        'pages': ['podsjetnici', 'vijeca', 'kalendar', 'javne-prijave'],
     },
     'postavke': {'label': 'Postavke', 'pages': ['postavke']},
 }
@@ -51,14 +44,14 @@ def finance_sidebar_page(role: str) -> str | None:
     allowed_modules = set(role_permissions(role))
     for page in FINANCE_SIDEBAR_CANDIDATES:
         module = PAGE_TO_MODULE.get(page, 'pregled')
-        if module in allowed_modules and is_page_available(page):
+        if module in allowed_modules:
             return page
     return None
 
 ROLE_PERMISSIONS = {
     'zupnik': list(MODULES.keys()),
     'vikar': list(MODULES.keys()),
-    'upravitelj': ['pregled', 'zupa', 'liturgija', 'financije', 'isprave', 'suradnja', 'ured', 'postavke'],
+    'upravitelj': ['pregled', 'zupa', 'liturgija', 'financije', 'isprave', 'ured', 'postavke'],
 }
 
 
@@ -72,7 +65,7 @@ def can_access_page(page: str, role: str) -> bool:
     module = PAGE_TO_MODULE.get(page)
     if not module:
         return True
-    return module in role_permissions(role) and is_page_available(page)
+    return module in role_permissions(role)
 
 
 NAV = [
@@ -98,11 +91,8 @@ NAV = [
     {'type': 'label', 'text': 'Isprave'},
     {'type': 'link', 'page': 'potvrde', 'icon': '📜', 'label': 'Dokumenti i potvrde'},
     {'type': 'link', 'page': 'maticne-knjige', 'icon': '📖', 'label': 'Matične knjige'},
-    {'type': 'label', 'text': 'Dekanat i suradnja'},
-    {'type': 'link', 'page': 'dekanat', 'icon': '⇄', 'label': 'Međužupni zahtjevi'},
     {'type': 'label', 'text': 'Župni ured'},
     {'type': 'link', 'page': 'podsjetnici', 'icon': '🔔', 'label': 'Podsjetnici'},
-    {'type': 'link', 'page': 'operativno-srediste', 'icon': '⌘', 'label': 'Operativno središte'},
     {'type': 'link', 'page': 'vijeca', 'icon': '👥', 'label': 'Vijeća ŽPV/ŽEV'},
     {'type': 'link', 'page': 'kalendar', 'icon': '📅', 'label': 'Događaji i zadaci'},
     {'type': 'link', 'page': 'javne-prijave', 'icon': '📝', 'label': 'Javne prijave'},
@@ -144,7 +134,6 @@ SECTION_IDS = {
     'Sakramenti': 'sakramenti',
     'Financije': 'financije',
     'Isprave': 'isprave',
-    'Dekanat i suradnja': 'suradnja',
     'Župni ured': 'ured',
 }
 
@@ -193,8 +182,6 @@ def nav_badges_from_stats(stats: dict) -> dict:
         badges['obitelji'] = stats['lukno_unpaid']
     if stats.get('visits_due'):
         badges['posjete'] = stats['visits_due']
-    if stats.get('interparish_pending'):
-        badges['dekanat'] = stats['interparish_pending']
     return badges
 
 
@@ -216,10 +203,7 @@ def filter_nav(role: str, current_page: str) -> list:
             nav_item = {**item, 'page': resolved_page}
         else:
             module = PAGE_TO_MODULE.get(item['page'], 'pregled')
-            if (
-                module not in allowed_modules
-                or not is_page_available(item['page'])
-            ):
+            if module not in allowed_modules:
                 continue
             nav_item = item
         if (
