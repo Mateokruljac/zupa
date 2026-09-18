@@ -1,4 +1,3 @@
-"""Privremeni stub — phase_two paket je uklonjen iz MVP treea."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,10 +14,6 @@ class ProductModule:
     icon: str = ''
     summary: str = ''
     planned_features: tuple[str, ...] = ()
-
-    @property
-    def is_available(self) -> bool:
-        return settings.PASTORAL_PRODUCT_PHASE >= self.release_phase
 
 
 INTERPARISH_COLLABORATION_MODULE = ProductModule(

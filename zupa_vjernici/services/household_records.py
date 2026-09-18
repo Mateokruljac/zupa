@@ -9,6 +9,7 @@ from zupa_vjernici.models import (
     Household,
     HouseholdContribution,
     HouseholdMember,
+    HouseholdMembership,
     HouseholdRelative,
     PastoralVisit,
 )
@@ -165,7 +166,18 @@ def sync_household_nested_records(household: Household, record: dict) -> None:
                 'sort_order': index,
             },
         )
+        HouseholdMembership.objects.update_or_create(
+            household=household,
+            public_identifier=public_identifier,
+            defaults={
+                'historical_name': str(member_record.get('name') or ''),
+                'role': str(member_record.get('relation') or ''),
+                'notes': str(member_record.get('notes') or ''),
+                'sort_order': index,
+            },
+        )
     household.members.exclude(public_identifier__in=keep_members).delete()
+    household.memberships.exclude(public_identifier__in=keep_members).delete()
 
     contributions = (
         record.get('contributions')

@@ -7,8 +7,10 @@ from django.db.models import Q, F
 from django.utils import timezone
 from django.contrib.auth.models import (AbstractBaseUser, BaseUserManager, PermissionsMixin)
 
-
 import uuid
+
+from core.models import FCTA, SCD1, SCD2, ContentHashedModel
+
 
 def otp_challenge_expiry():
     return timezone.now() + timedelta(
@@ -17,19 +19,18 @@ def otp_challenge_expiry():
 
 
 
-class UUIDTimestampedModel(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+class UUIDTimestampedModel(FCTA):
+    """Compatibility alias: UUID fact/dimension timestamps come from FCTA."""
 
     class Meta:
         abstract = True
 
 
-class Diocese(UUIDTimestampedModel):
+class Diocese(SCD1):
+    unified_key_origin_fields = ('code',)
+
     code = models.SlugField(unique=True)
     name = models.CharField(max_length=200)
-    active = models.BooleanField(default=True, db_index=True)
 
     class Meta:
         ordering = ('name',)
@@ -40,7 +41,7 @@ class Diocese(UUIDTimestampedModel):
         return self.name
 
 
-class Parish(models.Model):
+class Parish(ContentHashedModel):
     """Jedna župa — podaci i postavke (struktura kao bivši localStorage)."""
 
     class LifecycleStatus(models.TextChoices):
@@ -88,7 +89,17 @@ class Parish(models.Model):
     )
     settings = models.JSONField(default=dict, blank=True)
     data = models.JSONField(default=dict, blank=True)
+    unified_key = models.CharField(
+        'Jedinstveni ključ',
+        max_length=512,
+        blank=True,
+        db_index=True,
+    )
+    is_active = models.BooleanField('Aktivno', default=True, db_index=True)
+    created_at = models.DateTimeField('Kreirano', auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    unified_key_origin_fields = ('slug',)
 
     class Meta:
         verbose_name = 'Župa'
@@ -112,7 +123,14 @@ class Parish(models.Model):
             })
 
 
-class OtpChallenge(models.Model):
+    def save(self, *args, **kwargs):
+        if self.slug:
+            self.unified_key = self.slug
+        self.is_active = self.lifecycle_status == self.LifecycleStatus.ACTIVE
+        return super().save(*args, **kwargs)
+
+
+class OtpChallenge(ContentHashedModel):
     """Jednokratni, vremenski ograničen izazov za prijavu."""
 
     email = models.EmailField(db_index=True)
@@ -125,15 +143,18 @@ class OtpChallenge(models.Model):
     used = models.BooleanField(default=False)
     failed_attempts = models.PositiveSmallIntegerField(default=0)
     locked_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at']
 
+    def content_hash_field_names(self) -> tuple[str, ...]:
+        return ('email', 'role', 'used', 'failed_attempts', 'locked_at')
 
-class PhaseTwoRecord(models.Model):
+
+class PhaseTwoRecord(FCTA):
     """ORM spremište za kolekcije faze 2 (legacy payload po ključu)."""
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     parish = models.ForeignKey(
         Parish,
         on_delete=models.CASCADE,
@@ -142,7 +163,6 @@ class PhaseTwoRecord(models.Model):
     collection_key = models.CharField(max_length=80, db_index=True)
     public_identifier = models.CharField(max_length=120, blank=True, db_index=True)
     payload = models.JSONField(default=dict, blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = [('parish', 'collection_key', 'public_identifier')]
@@ -173,7 +193,7 @@ class UserManager(BaseUserManager):
         return user
 
 
-class User(AbstractBaseUser, PermissionsMixin):
+class User(ContentHashedModel, AbstractBaseUser, PermissionsMixin):
     objects = UserManager()
 
     ROLE_CHOICES = [
@@ -191,12 +211,24 @@ class User(AbstractBaseUser, PermissionsMixin):
     address = models.CharField(max_length=100, blank=True, default='')
     date_of_birth = models.DateField(null=True, blank=True)
     phone_number = models.CharField(max_length=20, blank=True, default='')
+    unified_key = models.CharField(
+        'Jedinstveni ključ',
+        max_length=512,
+        blank=True,
+        db_index=True,
+    )
+    created_at = models.DateTimeField('Kreirano', auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField('Ažurirano', auto_now=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
 
     class Meta:
         db_table = 'users_user'
+
+    def save(self, *args, **kwargs):
+        self.unified_key = self.email or self.unified_key
+        return super().save(*args, **kwargs)
 
     def __str__(self):
         return self.email
@@ -207,7 +239,8 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 
-class ParishMembership(UUIDTimestampedModel):
+class ParishMembership(SCD2):
+    unified_key_origin_fields = ('parish_id', 'user_id')
     class Role(models.TextChoices):
         PASTOR = 'zupnik', 'Župnik'
         ASSOCIATE = 'vikar', 'Župnik suradnik / vikar'

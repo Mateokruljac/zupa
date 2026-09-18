@@ -1,5 +1,11 @@
 # Pravila održavanja projekta e-Župa
 
+## Arhitektura podataka
+
+- Obvezujući dokument: `MDs/DB_ARCHITECTURE_PROPOSAL.md`.
+- Zajedničke osnove SCD/FACT: `core/models.py` (`SCD1`, `SCD2`, `SCD2A`, `FCTA`, `FCTB`, `SCDD`, `SCDR`).
+- Novi modeli nasljeđuju tu osnovu; ne duplicirati polja verzija ili hash.
+
 ## Opseg i sigurnost
 
 - Sve izmjene moraju ostati unutar ovog repozitorija.

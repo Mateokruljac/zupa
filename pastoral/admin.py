@@ -23,11 +23,11 @@ except admin.sites.NotRegistered:
 
 @admin.register(Diocese)
 class DioceseAdmin(ProtectedReferenceAdminMixin, admin.ModelAdmin):
-    list_display = ('name', 'code', 'active', 'updated_at')
-    list_filter = ('active',)
+    list_display = ('name', 'code', 'is_active', 'updated_at')
+    list_filter = ('is_active',)
     search_fields = ('name', 'code')
     readonly_fields = ('id', 'created_at', 'updated_at')
-    fields = ('id', 'name', 'code', 'active', 'created_at', 'updated_at')
+    fields = ('id', 'name', 'code', 'is_active', 'created_at', 'updated_at')
 
 
 @admin.register(Parish)

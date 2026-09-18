@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
     'django_celery_beat',
+    'core.apps.CoreConfig',
     'pastoral',
     'pregled.apps.PregledConfig',
     'zupa_vjernici.apps.ZupaVjerniciConfig',
@@ -176,20 +177,7 @@ SESSION_COOKIE_AGE = 8 * 60 * 60
 PARISH_DEFAULT_SLUG = 'bdm-slavonski-brod'
 TENANCY_LEGACY_FALLBACK_ENABLED = False
 LICENSE_ENFORCEMENT_ENABLED = False
-# Funkcionalnosti s višom fazom ostaju u kodu i podacima, ali nisu dostupne u
-# redovnom radu dok se planski ne aktivira sljedeća faza proizvoda.
-PASTORAL_PRODUCT_PHASE = environment.int('PASTORAL_PRODUCT_PHASE', default=1)
 
-if PASTORAL_PRODUCT_PHASE >= 2:
-    phase_two_templates = BASE_DIR / 'phase_two' / 'templates'
-    phase_two_static = BASE_DIR / 'phase_two' / 'static'
-    if phase_two_templates.is_dir():
-        TEMPLATES[0]['DIRS'].append(phase_two_templates)
-    if phase_two_static.is_dir():
-        STATICFILES_DIRS.append(phase_two_static)
-
-# Romcal se najprije može testirati usporednim API-jem. Postojeći LitCal ostaje
-# oba izvora rade paralelno; vrijednosti litcal i romcal ostaju za dijagnostiku.
 LITURGICAL_PRIMARY_PROVIDER = environment.str(
     'LITURGICAL_PRIMARY_PROVIDER',
     default='hybrid',
