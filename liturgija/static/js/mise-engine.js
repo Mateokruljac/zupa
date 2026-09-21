@@ -191,7 +191,6 @@
       ...entry,
       weekdays,
       day: entry.day || dayLabelFromWeekdays(weekdays),
-      celebrant: entry.celebrant || "",
       location: entry.location || "",
       notes: entry.notes || "",
       validFrom: entry.validFrom || "",
@@ -216,6 +215,7 @@
     });
   }
 
+  /** Termini tog datuma (raspored − otkazi). Mora pratiti Python. */
   function getMassesForDate(data, iso) {
     const exc = (data.massExceptions || []).find((e) => e.date === iso);
     const dow = new Date(iso + "T12:00:00").getDay();
@@ -232,7 +232,6 @@
         if ((exc?.cancelTimes || []).includes(entry.time)) return;
         slots.push({
           time: entry.time,
-          celebrant: entry.celebrant,
           location: entry.location,
           notes: entry.notes,
           scheduleId: entry.id,
@@ -240,16 +239,6 @@
         });
       });
     }
-
-    (exc?.addSlots || []).forEach((add) => {
-      slots.push({
-        time: add.time,
-        celebrant: add.celebrant || "",
-        location: add.location || "",
-        notes: add.note || exc?.note || "",
-        kind: "exception",
-      });
-    });
 
     slots.sort((a, b) => String(a.time).localeCompare(String(b.time)));
     return slots;
@@ -330,7 +319,6 @@
           (p, i) => `<button type="button" class="btn btn-ghost btn-sm" data-preset-wd="${i}">${p.label}</button>`
         ).join(" ")}</p>
       </div>
-      <div class="form-group" data-schedule-celebrant><label>Svećenik / služitelj</label><input name="celebrant" value="${esc(entry?.celebrant || "")}" placeholder="vlč. …" /></div>
       <div class="form-group" data-schedule-location><label>Mjesto</label><input name="location" value="${esc(entry?.location || "")}" placeholder="Crkva, kapela…" /></div>
       <div class="form-group"><label>Vrijedi od</label><input name="validFrom" type="date" value="${entry?.validFrom || ""}" /></div>
       <div class="form-group"><label>Vrijedi do</label><input name="validUntil" type="date" value="${entry?.validUntil || ""}" /></div>
@@ -361,7 +349,6 @@
       time: noMass ? "" : String(time).slice(0, 5),
       weekdays,
       day: dayLabelFromWeekdays(weekdays),
-      celebrant: noMass ? "" : fd.get("celebrant")?.trim() || "",
       location: noMass ? "" : fd.get("location")?.trim() || "",
       notes: fd.get("notes")?.trim() || "",
       validFrom,
@@ -375,7 +362,6 @@
     const updateNoMassFields = () => {
       const noMass = !!form.querySelector('[name="noMass"]')?.checked;
       form.querySelector("[data-schedule-time]")?.classList.toggle("hidden", noMass);
-      form.querySelector("[data-schedule-celebrant]")?.classList.toggle("hidden", noMass);
       form.querySelector("[data-schedule-location]")?.classList.toggle("hidden", noMass);
       const timeInput = form.querySelector('[name="time"]');
       if (timeInput) timeInput.required = !noMass;
@@ -397,6 +383,7 @@
     });
   }
 
+  /** Forma stalnog termina; upsert_mass_schedule. */
   function openScheduleForm(entry, onDone) {
     const M = global.PastoralModal;
     if (!M?.openForm) return;
@@ -550,7 +537,6 @@
       <div class="mise-slot-head">
         <div>
           <h3 class="mise-slot-time">${esc(slot.time)}</h3>
-          ${slot.celebrant ? `<p class="card-sub">${esc(slot.celebrant)}</p>` : ""}
           ${slot.location ? `<p class="card-sub">📍 ${esc(slot.location)}</p>` : ""}
           ${slot.notes ? `<p class="card-sub">${esc(slot.notes)}</p>` : ""}
           ${slot.kind === "exception" ? '<span class="badge">iznimka</span>' : ""}
@@ -602,8 +588,7 @@
                 const isToday = dow === todayDow;
                 return `<td class="mise-week-cell${isToday ? " mise-week-today-col" : ""}">
                   <span class="mise-week-dot" aria-hidden="true">●</span>
-                  ${entry.celebrant ? `<small>${esc(entry.celebrant)}</small>` : '<small>Termin</small>'}
-                  ${entry.location ? `<small class="card-sub">${esc(entry.location)}</small>` : ""}
+                  ${entry.location ? `<small class="card-sub">${esc(entry.location)}</small>` : "<small>Termin</small>"}
                 </td>`;
               }).join("")}</tr>`;
             })
@@ -627,7 +612,7 @@
       </div>
       <div class="table-wrap">
         <table class="data-table">
-          <thead><tr><th>Dan</th><th>Misa</th><th>Svećenik</th><th>Vrijedi</th><th>Napomena</th><th></th></tr></thead>
+          <thead><tr><th>Dan</th><th>Misa</th><th>Vrijedi</th><th>Napomena</th><th></th></tr></thead>
           <tbody>${scheduleRows.length
             ? scheduleRows
                 .map((e) => {
@@ -635,7 +620,6 @@
                   return `<tr>
                     <td>${esc(n.day)}</td>
                     <td>${n.noMass ? '<span class="badge badge-urgent">nema mise</span>' : `<strong>${esc(n.time)}</strong>`}</td>
-                    <td>${esc(n.celebrant || "—")}</td>
                     <td>${n.validFrom || n.validUntil ? `${esc(n.validFrom ? fmtDate(n.validFrom) : "oduvijek")} – ${esc(n.validUntil ? fmtDate(n.validUntil) : "trajno")}` : "Trajno"}</td>
                     <td>${esc(n.notes || n.location || "—")}</td>
                     <td class="mise-table-actions">
@@ -645,7 +629,7 @@
                   </tr>`;
                 })
                 .join("")
-            : `<tr><td colspan="6" class="empty-state">Nema termina — dodajte prvi.</td></tr>`}</tbody>
+            : `<tr><td colspan="5" class="empty-state">Nema termina — dodajte prvi.</td></tr>`}</tbody>
         </table>
       </div>
     </section>`;
@@ -744,6 +728,7 @@
     if (mode === "today") loadLiturgy(todayIso());
   }
 
+  /** Bootstrap + prvi render panela Danas/Tjedan/Uredi. */
   function init() {
     const root = document.getElementById("mise-root");
     if (!root) return;

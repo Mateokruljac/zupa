@@ -18,6 +18,7 @@ EVENT_TYPE_CHOICES = (
     ('anointing', 'Pomazanje'),
     ('funeral', 'Sprovod'),
 )
+from django_multitenant.schema import with_tenant_schema
 
 
 class RegistryAuditEvent(FCTA):
@@ -75,6 +76,7 @@ class RegistryAuditEvent(FCTA):
     def __str__(self):
         return f'{self.event_type} · {self.get_outcome_display()}'
 
+    @with_tenant_schema
     def save(self, *args, **kwargs):
         if self.pk and type(self).objects.filter(pk=self.pk).exists():
             raise ValidationError('Audit događaj je nepromjenjiv.')
@@ -180,6 +182,7 @@ class RegisterTemplateVersion(SCD1):
     def __str__(self):
         return f'{self.template} · v{self.version_number}'
 
+    @with_tenant_schema
     def _validate_published_version_is_unchanged(self):
         if self.pk:
             previous_version = type(self).objects.filter(pk=self.pk).first()
@@ -192,10 +195,12 @@ class RegisterTemplateVersion(SCD1):
         super().clean()
         self._validate_published_version_is_unchanged()
 
+    @with_tenant_schema
     def save(self, *args, **kwargs):
         self._validate_published_version_is_unchanged()
         return super().save(*args, **kwargs)
 
+    @with_tenant_schema
     def delete(self, *args, **kwargs):
         if self.status == self.Status.PUBLISHED:
             raise ValidationError(
@@ -427,6 +432,7 @@ class RegisterEntry(FCTA):
             raise ValidationError(validation_errors)
         self._validate_locked_entry_is_unchanged()
 
+    @with_tenant_schema
     def _validate_locked_entry_is_unchanged(self):
         if self.pk:
             previous_status = type(self).objects.filter(pk=self.pk).values_list(
@@ -437,10 +443,12 @@ class RegisterEntry(FCTA):
                     'Zaključani matični upis ne može se izravno mijenjati.'
                 )
 
+    @with_tenant_schema
     def save(self, *args, **kwargs):
         self._validate_locked_entry_is_unchanged()
         return super().save(*args, **kwargs)
 
+    @with_tenant_schema
     def delete(self, *args, **kwargs):
         if self.status == self.Status.LOCKED:
             raise ValidationError('Zaključani matični upis ne može se brisati.')

@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from sakramenti.models import EventParticipant, SacramentalEvent
+from django_multitenant.schema import with_tenant_schema
 
 FAMILY_CARD_EVENT_PREFIX = 'family-card'
 
@@ -79,6 +80,7 @@ def exclude_family_card_events(queryset):
     )
 
 
+@with_tenant_schema
 def sacrament_labels_by_person_id(person_ids) -> dict:
     """Za svaku osobu vraća UI oznake sakramenata u kojima je primatelj.
 
@@ -104,6 +106,7 @@ def sacrament_labels_by_person_id(person_ids) -> dict:
     }
 
 
+@with_tenant_schema
 def sync_family_card_sacraments(person, parish, labels) -> None:
     """Usklađuje stubove s checkboxima kartona; službene matice ne dira.
 

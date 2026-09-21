@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING
 
 from django.contrib import messages
 
+from django_multitenant.schema import with_tenant_schema
+
 from financije.ledgers import LEDGER_CRKVENI, LEDGER_GRADNJA, LEDGER_KOLEKTE, ledger_label, normalize_ledger
 from financije.api_actions import (
     create_cashbook_entry,
@@ -27,12 +29,13 @@ from financije.services.debt_mutations import (
     mark_debt_paid,
     parse_debt_source,
 )
-from pastoral.services.api_actions import normalize_parish_data
+from pastoral.services.api_action_handlers.shared import normalize_parish_data
 
 if TYPE_CHECKING:
     from pastoral.services.data import ParishDataService
 
 
+@with_tenant_schema
 def _save_debt_change(
     parish_data_service: ParishDataService,
     parish_data: dict,

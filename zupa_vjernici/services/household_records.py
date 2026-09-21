@@ -13,11 +13,13 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from core.models import OPEN_ENDED_VALID_TO, close_current_scd2_rows, upsert_current_scd2
+from core.utils import _decimal_amount
 from sakramenti.models import EventParticipant, SacramentalEvent
 from sakramenti.services.family_card_sacraments import (
     sacrament_labels_by_person_id,
     sync_family_card_sacraments,
 )
+from django_multitenant.schema import with_tenant_schema
 from zupa_vjernici.models import (
     Household,
     HouseholdContribution,
@@ -42,14 +44,6 @@ def _parse_iso_date(value) -> date | None:
 
 def _iso_or_empty(value: date | None) -> str:
     return value.isoformat() if value else ''
-
-
-def _decimal_amount(value) -> Decimal:
-    try:
-        return Decimal(str(value if value is not None else 0))
-    except (InvalidOperation, TypeError, ValueError):
-        return Decimal('0')
-
 
 def _string_or_empty(value) -> str:
     if value is None:
@@ -94,6 +88,7 @@ def membership_as_relative_record(membership: HouseholdMembership) -> dict:
     }
 
 
+@with_tenant_schema
 def _event_field_for_person(person, event_type: str, field_name: str) -> str:
     if person is None:
         return ''
@@ -250,6 +245,7 @@ def household_field_defaults_from_legacy(record: dict, street=None) -> dict:
     }
 
 
+@with_tenant_schema
 def upsert_current_household(parish, public_identifier: str, defaults: dict):
     """Verzira kućanstvo i preusmjeri djecu na novi otvoreni red.
 
@@ -336,6 +332,7 @@ def _upsert_membership(
     return membership
 
 
+@with_tenant_schema
 def _apply_spouse_record(
     household: Household,
     spouse_record,
@@ -429,6 +426,7 @@ def _apply_spouse_record(
             event.save(update_fields=['place_name', 'updated_at'])
 
 
+@with_tenant_schema
 def sync_household_nested_records(household: Household, record: dict) -> None:
     """Sinkronizira članove, rodbinu, bračni karton i lukno s UI dictom.
 

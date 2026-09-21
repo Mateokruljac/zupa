@@ -105,10 +105,9 @@ def intentions_table_html(data: dict, week_start: str) -> str:
             f'<tr><td>{escape(intention.get("date", ""))}</td>'
             f'<td>{escape(intention.get("massTime", ""))}</td>'
             f'<td>{escape(intention.get("intentionFor", ""))}</td>'
-            f'<td>{escape(intention.get("requestedBy", ""))}</td>'
             f'<td>{escape(intention.get("stipend", ""))}</td></tr>'
         )
-    return mark_safe(''.join(rows) or '<tr><td colspan="5">—</td></tr>')
+    return mark_safe(''.join(rows) or '<tr><td colspan="4">—</td></tr>')
 
 
 def documents_page_context(data: dict, settings: dict, request) -> dict:

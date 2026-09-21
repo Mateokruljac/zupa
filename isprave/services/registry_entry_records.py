@@ -11,6 +11,7 @@ from sakramenti.models import (
     FormationCandidate,
     SacramentalEvent,
 )
+from django_multitenant.schema import with_tenant_schema
 from pastoral.models import Parish
 from isprave.models import (
     RegisterBook,
@@ -36,6 +37,7 @@ def _entry_number_from_reference(entry_reference: str, registry_year: int) -> in
     return None
 
 
+@with_tenant_schema
 def _confirmation_event(
     parish: Parish,
     candidate_identifier: str,
@@ -94,6 +96,7 @@ def _confirmation_event(
     return event
 
 
+@with_tenant_schema
 def _event_for_registry_record(
     parish: Parish,
     registry_type: str,
@@ -116,6 +119,7 @@ def _event_for_registry_record(
 
 
 @transaction.atomic
+@with_tenant_schema
 def synchronize_registry_entry(
     parish: Parish,
     register_book_identifier: str,

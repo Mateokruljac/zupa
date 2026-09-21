@@ -33,16 +33,15 @@
         <article class="day-mass-entry{% if mass.is_next %} day-mass-entry--next{% elif mass.is_past and next_mass %} day-mass-entry--past{% endif %}">
           <a href="{% page_url 'nakane' %}?date={{ today }}" class="day-mass-row">
             <time>{{ mass.time }}</time>
-            <span><strong>{{ mass.location|default:"Župna crkva" }}</strong><small>{{ mass.celebrant|default:"Celebrant nije dodijeljen" }}</small></span>
+            <span><strong>{{ mass.location|default:"Župna crkva" }}</strong></span>
             <span class="day-mass-meta">
               {% if mass.is_next %}<span class="day-mass-badge">Sljedeća</span>{% endif %}
-              {% if mass.celebrant %}<span class="status-dot status-dot--ok" title="Celebrant dodijeljen"></span>{% else %}<span class="status-dot status-dot--warn" title="Celebrant nije dodijeljen"></span>{% endif %}
             </span>
           </a>
           <ul class="day-mass-intentions">
             {% for intention in mass.intentions %}
             <li>
-              <a href="{% page_url 'nakane' %}?date={{ today }}">{{ intention.intentionFor }}{% if intention.requestedBy %}<small> · {{ intention.requestedBy }}</small>{% endif %}</a>
+              <a href="{% page_url 'nakane' %}?date={{ today }}">{{ intention.intentionFor }}</a>
             </li>
             {% empty %}
             <li class="day-mass-intentions-empty">Nema upisanih nakana</li>
@@ -55,7 +54,6 @@
       </div>
       <div class="agenda-foot">
         <span><strong>{{ intentions_today|length }}</strong> nakana danas</span>
-        {% if unassigned_masses %}<span class="agenda-warning"><strong>{{ unassigned_masses }}</strong> bez dodijeljenog celebranta</span>{% endif %}
       </div>
     </section>
   </div>

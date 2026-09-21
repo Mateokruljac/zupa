@@ -19,10 +19,22 @@ docker compose up -d db
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python manage.py migrate
-python manage.py seed_pastoral
+python manage.py migrate_schemas --shared
+python manage.py create_tenant_user bdm-slavonski-brod \
+  "Župa Blažene Djevice Marije" localhost --seed
 python manage.py runserver
 ```
+
+`migrate` bez `migrate_schemas` nije dovoljan. Prvo se migrira `public`
+(Tenant/Domain), zatim naredba `create_tenant_user` napravi schemu župe
+i pokrene tenant migracije. Host `localhost` mora biti u tablici `domain`. `127.0.0.1` u razvoju pada
+na public schemu (control plane /admin tenanata).
+
+HTTP viewovi ne trebaju `schema_context`: `TenantMainMiddleware` postavlja
+schemu prema domeni. `schema_context` / `run_in_tenant_schema` koriste
+Celery zadaci i management naredbe. Zadatak u drugoj schemi:
+
+`python manage.py tenant_command seed_pastoral --schema=bdm-slavonski-brod`
 
 `manage.py`, WSGI i ASGI u razvoju zadano koriste `zupa.settings.local`.
 Izvan Dockera Django spaja se na `127.0.0.1:5432`.
@@ -90,8 +102,9 @@ Lokalni i produkcijski settings koriste PostgreSQL.
 
 ```bash
 docker compose up -d --build
-docker compose exec -T web python manage.py migrate
-docker compose exec -T web python manage.py seed_pastoral
+docker compose exec -T web python manage.py migrate_schemas --shared
+docker compose exec -T web python manage.py create_tenant_user \
+  bdm-slavonski-brod "Župa Blažene Djevice Marije" localhost --seed
 ```
 
 Mailhog sučelje dostupno je na http://localhost:8025/.

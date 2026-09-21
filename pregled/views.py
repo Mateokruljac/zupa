@@ -7,10 +7,12 @@ from django.views.decorators.http import require_http_methods
 from pastoral.decorators import pastoral_login_required
 from pastoral.services.data import ParishDataService
 from pregled.services.dashboard import build_dashboard_context
+from django_multitenant.schema import with_tenant_schema
 
 
 @pastoral_login_required
 @require_http_methods(['GET', 'POST'])
+@with_tenant_schema
 def dashboard(request):
     parish_data_service = ParishDataService.for_request(request)
     if request.method == 'POST':

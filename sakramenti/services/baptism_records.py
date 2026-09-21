@@ -11,6 +11,7 @@ from sakramenti.models import (
     EventParticipant,
     SacramentalEvent,
 )
+from django_multitenant.schema import with_tenant_schema
 from sakramenti.services.family_card_sacraments import exclude_family_card_events
 from pastoral.models import Parish
 from zupa_vjernici.models import Person
@@ -61,6 +62,7 @@ def baptism_stipend_amount(baptism_record: dict) -> Decimal:
         return Decimal('0')
 
 
+@with_tenant_schema
 def get_compatibility_template_version() -> RegisterTemplateVersion:
     template, _ = RegisterTemplate.objects.get_or_create(
         code=LEGACY_BAPTISM_TEMPLATE_CODE,
@@ -106,6 +108,7 @@ def _book_years_from_legacy_data(parish: Parish, legacy_book: dict) -> set[int]:
     return available_years
 
 
+@with_tenant_schema
 def _create_or_find_register_book(
     parish: Parish,
     template_version: RegisterTemplateVersion,
@@ -146,6 +149,7 @@ def _create_or_find_register_book(
     return register_book
 
 
+@with_tenant_schema
 def _set_single_historical_participant(
     parish: Parish,
     event: SacramentalEvent,
@@ -174,6 +178,7 @@ def _set_single_historical_participant(
     participants.exclude(pk=primary_participant.pk).delete()
 
 
+@with_tenant_schema
 def _synchronize_recipient(
     parish: Parish,
     event: SacramentalEvent,
@@ -223,6 +228,7 @@ def _synchronize_recipient(
         ).exclude(pk=recipient_participant.pk).delete()
 
 
+@with_tenant_schema
 def _synchronize_register_entry(
     parish: Parish,
     event: SacramentalEvent,
@@ -301,6 +307,7 @@ def _synchronize_register_entry(
 
 
 @transaction.atomic
+@with_tenant_schema
 def synchronize_baptism_record(
     parish: Parish,
     baptism_record: dict,
@@ -385,6 +392,7 @@ def synchronize_baptism_record(
 
 
 @transaction.atomic
+@with_tenant_schema
 def cancel_synchronized_baptism(
     parish: Parish,
     source_identifier: str,
@@ -418,6 +426,7 @@ def cancel_synchronized_baptism(
 
 
 @transaction.atomic
+@with_tenant_schema
 def reconcile_baptism_records(
     parish: Parish,
     baptism_records: list[dict],
@@ -453,6 +462,7 @@ def reconcile_baptism_records(
 
 
 @transaction.atomic
+@with_tenant_schema
 def apply_legacy_baptism_backfill(parish: Parish) -> BaptismBackfillReport:
     locked_parish = Parish.objects.select_for_update().get(pk=parish.pk)
     report = analyze_legacy_baptisms(locked_parish)
@@ -532,6 +542,7 @@ def apply_legacy_baptism_backfill(parish: Parish) -> BaptismBackfillReport:
     return report
 
 
+@with_tenant_schema
 def relational_baptisms_as_legacy_dictionaries(parish: Parish) -> list[dict]:
     baptism_events = exclude_family_card_events(
         SacramentalEvent.objects.filter(
@@ -588,6 +599,7 @@ def relational_baptisms_as_legacy_dictionaries(parish: Parish) -> list[dict]:
     return sorted(records, key=lambda record: record['id'])
 
 
+@with_tenant_schema
 def select_baptism_records_for_read(
     parish: Parish,
     legacy_baptism_records: list[dict],

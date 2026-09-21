@@ -81,10 +81,6 @@
     borderBase: "#e3dcd2",
   };
 
-  function storageKey() {
-    return global.PastoralThemeInit?.STORAGE_KEY || "pastoral-color-scheme";
-  }
-
   function resolveColorScheme(pref) {
     if (global.PastoralThemeInit?.resolve) return global.PastoralThemeInit.resolve(pref);
     if (pref === "system") {
@@ -103,11 +99,6 @@
     const scheme = pref || root.dataset.colorSchemePref || "light";
     root.dataset.colorSchemePref = scheme;
     root.dataset.colorScheme = resolveColorScheme(scheme);
-    try {
-      localStorage.setItem(storageKey(), scheme);
-    } catch {
-      /* noop */
-    }
     global.PastoralThemeInit?.applyEarly?.(scheme);
   }
 
@@ -234,25 +225,12 @@
 
   function applyFromSettings(settings) {
     applyColorScheme(settings.colorScheme || "light");
-    const preset = PRESETS.find((p) => p.id === settings.themePresetId);
-    if (preset && !settings.customTheme) {
-      applyThemeVars({
-        presetId: preset.id,
-        primary: preset.primary,
-        accent: preset.accent,
-        bg: preset.bg,
-        bgPattern: preset.bgPattern,
-      });
-      return;
-    }
-    const primary = settings.primaryColor || preset?.primary || "#5c2e3a";
-    const accent = settings.accentColor || preset?.accent || "#b8922a";
     applyThemeVars({
       presetId: settings.themePresetId || "custom",
-      primary,
-      accent,
-      bg: settings.bgColor || preset?.bg,
-      bgPattern: settings.bgPatternColor || preset?.bgPattern,
+      primary: settings.primaryColor || "#5c2e3a",
+      accent: settings.accentColor || "#b8922a",
+      bg: settings.bgColor || "#f6f3ed",
+      bgPattern: settings.bgPatternColor || "#ebe6dc",
     });
   }
 

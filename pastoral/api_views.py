@@ -12,10 +12,12 @@ from pastoral.models import User
 from pastoral.services.otp import send_login_code
 from pastoral.services.api_actions import dispatch_action
 from pastoral.services.data import ParishDataService
+from django_multitenant.schema import with_tenant_schema
 
 
 @require_http_methods(['POST'])
 @ratelimit(key='ip', rate='3/m', method='POST', block=False)
+@with_tenant_schema
 def send_otp_api(request):
     if getattr(request, 'limited', False):
         return JsonResponse({

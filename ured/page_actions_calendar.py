@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from django.contrib import messages
 
 from ured.forms import EventForm, TaskForm
+from django_multitenant.schema import with_tenant_schema
 
 if TYPE_CHECKING:
     from pastoral.services.data import ParishDataService
@@ -41,6 +42,7 @@ def _event_conflicts(
     )
 
 
+@with_tenant_schema
 def _update_calendar_event(
     request,
     parish_data: dict,
@@ -91,6 +93,7 @@ def _update_calendar_event(
     messages.success(request, 'Događaj je spremljen.')
 
 
+@with_tenant_schema
 def _update_calendar_task(
     request,
     parish_data: dict,
@@ -124,6 +127,7 @@ def _update_calendar_task(
     messages.success(request, 'Zadatak je spremljen.')
 
 
+@with_tenant_schema
 def handle_calendar_action(
     request,
     page_slug: str,

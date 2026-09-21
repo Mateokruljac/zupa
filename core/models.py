@@ -10,10 +10,14 @@ promjenu usporedbom polja, ne hashom.
 """
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import date, timedelta
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
+
+from django_multitenant.schema import TenantAwareManager, TenantBoundModel, tenant_context
+from django_multitenant.schema import with_tenant_schema
 
 UNIFIED_KEY_SEPARATOR = '::'
 OPEN_ENDED_VALID_TO = date(9999, 12, 31)
@@ -81,7 +85,7 @@ def _concrete_tracked_field_names(model_class, extra_excluded_names=None) -> lis
     return tracked_names
 
 
-class SCD1(models.Model):
+class SCD1(TenantBoundModel):
     """Dimenzija tipa 1: overwrite u mjestu (osoba, vijeće, šifrarnici)."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -103,17 +107,19 @@ class SCD1(models.Model):
     class Meta:
         abstract = True
 
+    @with_tenant_schema
     def save(self, *args, **kwargs):
         origin_fields = kwargs.pop('unified_key_origin_fields', None)
         self._refresh_unified_key(origin_fields)
         return super().save(*args, **kwargs)
 
+    @with_tenant_schema
     def save_new(self, unified_key_origin_fields=None, *args, **kwargs):
         self._refresh_unified_key(unified_key_origin_fields)
         super().save(*args, **kwargs)
 
     def _refresh_unified_key(self, origin_fields=None):
-        field_names = origin_fields or self.unified_key_origin_fields
+        field_names = origin_fields
         if field_names:
             self.unified_key = build_unified_key(self, field_names)
         elif not self.unified_key:
@@ -123,7 +129,7 @@ class SCD1(models.Model):
         return self.unified_key
 
 
-class CurrentSCD2Manager(models.Manager):
+class CurrentSCD2Manager(TenantAwareManager):
     """Manager koji vraća samo otvorene SCD2 redove.
 
     `objects` i dalje vidi cijelu povijest. UI i operativni store moraju
@@ -134,7 +140,7 @@ class CurrentSCD2Manager(models.Manager):
         return super().get_queryset().filter(date_to=OPEN_ENDED_VALID_TO)
 
 
-class SCD2(models.Model):
+class SCD2(TenantBoundModel):
     """Dimenzija tipa 2: materijalna izmjena zatvara stari red i otvara novi.
 
     Ne koristi se za osobe (to je SCD1) niti za činjenice poput krštenja.
@@ -159,7 +165,7 @@ class SCD2(models.Model):
     )
     unified_key_origin_fields: tuple[str, ...] = ()
     scd2_save_exclude_fields: tuple[str, ...] = ()
-    objects = models.Manager()
+    objects = TenantAwareManager()
     current = CurrentSCD2Manager()
 
     class Meta:
@@ -175,6 +181,7 @@ class SCD2(models.Model):
     def is_current(self) -> bool:
         return self.date_to == OPEN_ENDED_VALID_TO
 
+    @with_tenant_schema
     def save(self, *args, **kwargs):
         origin_fields = kwargs.pop('unified_key_origin_fields', None)
         field_names = origin_fields or self.unified_key_origin_fields
@@ -184,6 +191,7 @@ class SCD2(models.Model):
             self.unified_key = str(self.id or uuid.uuid4())
         return super().save(*args, **kwargs)
 
+    @with_tenant_schema
     def save_new(self, exclude=None, unified_key_origin_fields=None, *args, **kwargs):
         """Spremi SCD2 zapis po pravilu verzije, ne običnim overwriteom.
 
@@ -215,6 +223,7 @@ class SCD2(models.Model):
         return super().save(*args, **kwargs)
 
     @transaction.atomic
+    @with_tenant_schema
     def _close_and_version_if_changed(self, extra_excluded_names=None):
         """Zaključava trenutačni red pa ga zatvara ako je sadržaj stvarno drugačiji.
 
@@ -247,6 +256,7 @@ class SCD2(models.Model):
         return self.unified_key
 
 
+@with_tenant_schema
 def upsert_current_scd2(model_class, lookup: dict, defaults: dict):
     """Nađe otvoreni SCD2 red ili ga kreira; materijalnu izmjenu verzira.
 
@@ -264,34 +274,37 @@ def upsert_current_scd2(model_class, lookup: dict, defaults: dict):
         Može zatvoriti prethodni otvoreni red. Ne preusmjerava djecu s FK-om
         na stari `id` — to rade pozivatelji (`upsert_current_household`).
     """
-    current_row = model_class.current.filter(**lookup).first()
-    if current_row is None:
-        instance = model_class(**lookup, **defaults)
-        instance.save_new()
-        return instance, True
-    for field_name, field_value in defaults.items():
-        setattr(current_row, field_name, field_value)
-    current_row.save_new()
-    return current_row, False
+    with tenant_context():
+        current_row = model_class.current.filter(**lookup).first()
+        if current_row is None:
+            instance = model_class(**lookup, **defaults)
+            instance.save_new()
+            return instance, True
+        for field_name, field_value in defaults.items():
+            setattr(current_row, field_name, field_value)
+        current_row.save_new()
+        return current_row, False
 
 
+@with_tenant_schema
 def close_current_scd2_rows(queryset) -> int:
     """Zatvara otvorene redove umjesto DELETE.
 
     Povijest ostaje čitljiva. SCD2A dodatno gasi `is_active`.
     Fizikalno brisanje bi prekinulo FK-ove i izgubilo trag adrese/članstva.
     """
-    yesterday = timezone.localdate() - timedelta(days=1)
-    closed = 0
-    for row in queryset.filter(date_to=OPEN_ENDED_VALID_TO).iterator():
-        row.date_to = yesterday
-        if hasattr(row, 'is_active'):
-            row.is_active = False
-            row.save(update_fields=['date_to', 'is_active', 'updated_at'])
-        else:
-            row.save(update_fields=['date_to', 'updated_at'])
-        closed += 1
-    return closed
+    with tenant_context():
+        yesterday = timezone.localdate() - timedelta(days=1)
+        closed = 0
+        for row in queryset.filter(date_to=OPEN_ENDED_VALID_TO).iterator():
+            row.date_to = yesterday
+            if hasattr(row, 'is_active'):
+                row.is_active = False
+                row.save(update_fields=['date_to', 'is_active', 'updated_at'])
+            else:
+                row.save(update_fields=['date_to', 'updated_at'])
+            closed += 1
+        return closed
 
 
 class SCD2A(SCD2):
@@ -308,7 +321,7 @@ class SCD2A(SCD2):
         abstract = True
 
 
-class FCTA(models.Model):
+class FCTA(TenantBoundModel):
     """Činjenica s UUID primarnim ključem (sakramenti, blagajna, zadaci)."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -319,7 +332,7 @@ class FCTA(models.Model):
         abstract = True
 
 
-class FCTB(models.Model):
+class FCTB(TenantBoundModel):
     """Činjenica s integer PK — samo kad je visok volumen opravdan (npr. liturgijski kalendar)."""
 
     id = models.BigAutoField(primary_key=True, editable=False)
@@ -328,3 +341,91 @@ class FCTB(models.Model):
 
     class Meta:
         abstract = True
+
+
+class Settings(SCD1):
+    """Sistemski parametri tenanta (`application_settings`)."""
+
+    PLATFORM_COLOR = 'PlatformColor'
+    DEFAULT_PLATFORM_COLOR = (
+        '{"bgColor": "#f5f3f8", "accentColor": "#9a8fb8", '
+        '"colorScheme": "light", "customTheme": false, '
+        '"primaryColor": "#4a3d6b", "themePresetId": "advent", '
+        '"bgPatternColor": "#ebe8f0"}'
+    )
+    THEME_SETTING_KEYS = (
+        'primaryColor',
+        'accentColor',
+        'bgColor',
+        'bgPatternColor',
+        'themePresetId',
+        'customTheme',
+        'colorScheme',
+    )
+
+    unified_key_origin_fields = ('name',)
+
+    objects = models.Manager()
+
+    name = models.CharField(max_length=50, unique=True)
+    value = models.TextField()
+    description = models.TextField()
+
+    class Meta:
+        db_table = 'application_settings'
+        verbose_name = 'Postavka'
+        verbose_name_plural = 'Settings'
+        ordering = ('name',)
+
+    def __str__(self):
+        return self.name
+
+    @classmethod
+    def default_platform_color(cls) -> dict:
+        return json.loads(cls.DEFAULT_PLATFORM_COLOR)
+
+    @classmethod
+    def load_platform_color(cls) -> dict:
+        from django_multitenant.schema import tenant_schema_only
+
+        with tenant_schema_only():
+            row = cls.objects.filter(name=cls.PLATFORM_COLOR, is_active=True).first()
+        if row is None:
+            return cls.default_platform_color()
+        try:
+            parsed = json.loads(row.value)
+        except (TypeError, json.JSONDecodeError):
+            return cls.default_platform_color()
+        if not isinstance(parsed, dict):
+            return cls.default_platform_color()
+        return {
+            key: parsed[key]
+            for key in cls.THEME_SETTING_KEYS
+            if key in parsed
+        }
+
+    @classmethod
+    def save_platform_color(cls, appearance: dict) -> dict:
+        from django_multitenant.schema import tenant_schema_only
+
+        stored = cls.default_platform_color()
+        stored.update(cls.load_platform_color())
+        for key in cls.THEME_SETTING_KEYS:
+            if key in appearance and appearance[key] is not None:
+                stored[key] = appearance[key]
+        encoded = json.dumps(stored, ensure_ascii=False, sort_keys=True)
+        with tenant_schema_only():
+            row, _created = cls.objects.get_or_create(
+                name=cls.PLATFORM_COLOR,
+                defaults={
+                    'value': encoded,
+                    'description': 'Boje i način prikaza sučelja ovog tenanta.',
+                },
+            )
+            row.value = encoded
+            row.description = row.description or (
+                'Boje i način prikaza sučelja ovog tenanta.'
+            )
+            row.save_new()
+        return stored
+

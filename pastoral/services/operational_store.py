@@ -9,6 +9,7 @@ Nove poslovne kolone ne smiju ići u `payload`.
 from __future__ import annotations
 
 import copy
+import uuid
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
@@ -16,6 +17,7 @@ from django.db import transaction
 from django.db.models import Prefetch
 
 from core.models import close_current_scd2_rows
+from core.utils import _parse_iso_date, _decimal_amount
 from pastoral.models import Parish
 from financije.models import (
     CashbookEntry,
@@ -23,25 +25,22 @@ from financije.models import (
     Invoice,
     ParishDebt,
 )
+from django_multitenant.schema import with_tenant_schema
 from liturgija.models import (
     BulletinIssue,
-    BulletinLayout,
     MassException,
     MassIntention,
-    MassScheduleLogEntry,
     MassScheduleSlot,
+)
+from liturgija.services.bulletin_records import (
+    bulletin_issue_as_legacy_record,
+    bulletin_issue_field_defaults_from_legacy,
 )
 from liturgija.services.mass_records import (
     mass_exception_as_legacy_record,
-    mass_exception_field_defaults_from_legacy,
     mass_intention_as_legacy_record,
-    mass_intention_field_defaults_from_legacy,
-    mass_schedule_log_as_legacy_record,
-    mass_schedule_log_field_defaults_from_legacy,
     mass_schedule_slot_as_legacy_record,
-    mass_schedule_slot_field_defaults_from_legacy,
 )
-from liturgija.services.zupni_listic import load_config
 from ured.services.office_records import (
     announcement_as_legacy_record,
     announcement_field_defaults_from_legacy,
@@ -91,7 +90,6 @@ from financije.services.finance_records import (
     parish_debt_field_defaults_from_legacy,
 )
 
-
 # Kolekcije koje više ne smiju ostati u Parish.data nakon cutovera.
 ORM_BACKED_COLLECTION_KEYS = frozenset({
     'streets',
@@ -113,11 +111,59 @@ ORM_BACKED_COLLECTION_KEYS = frozenset({
     'intentions',
     'massSchedule',
     'massExceptions',
-    'massScheduleLog',
-    'zupniListicLayout',
     'zupniListicIssues',
-    'zupniListicTemplate',
 })
+
+
+def _weekdays_list(value) -> list[int]:
+    """JSON lista dana → intovi; nebrojčane stavke se preskaču."""
+    if not isinstance(value, list):
+        return []
+    weekdays = []
+    for item in value:
+        try:
+            weekdays.append(int(item))
+        except (TypeError, ValueError):
+            continue
+    return weekdays
+
+
+def mass_schedule_slot_field_defaults_from_legacy(record: dict) -> dict:
+    """JS dict → kwargs za ``MassScheduleSlot``."""
+    return {
+        'day_label': str(record.get('day') or ''),
+        'mass_time': str(record.get('time') or ''),
+        'weekdays': _weekdays_list(record.get('weekdays')),
+        'location': str(record.get('location') or ''),
+        'notes': str(record.get('notes') or ''),
+        'valid_from': _parse_iso_date(record.get('validFrom')),
+        'valid_until': _parse_iso_date(record.get('validUntil')),
+        'no_mass': bool(record.get('noMass')),
+    }
+
+
+def mass_intention_field_defaults_from_legacy(record: dict) -> dict:
+    """JS dict → kwargs za ``MassIntention``."""
+    return {
+        'intention_date': _parse_iso_date(record.get('date')),
+        'mass_time': str(record.get('massTime') or ''),
+        'intention_for': str(record.get('intentionFor') or ''),
+        'stipend': _decimal_amount(record.get('stipend')),
+        'is_paid': bool(record.get('paid')),
+        'notes': str(record.get('notes') or ''),
+    }
+
+
+def mass_exception_field_defaults_from_legacy(record: dict) -> dict:
+    """JS dict → kwargs za iznimku mise."""
+    return {
+        'exception_date': _parse_iso_date(record.get('date')),
+        'cancel_all': bool(record.get('cancelAll')),
+        'cancel_times': list(record.get('cancelTimes') or [])
+        if isinstance(record.get('cancelTimes'), list)
+        else [],
+        'note': str(record.get('note') or ''),
+    }
 
 
 def _record_identifier(record: dict, fallback_prefix: str, index: int) -> str:
@@ -131,6 +177,7 @@ def _payloads_from_queryset(queryset) -> list[dict]:
     return [copy.deepcopy(row.payload or {}) for row in queryset]
 
 
+@with_tenant_schema
 def _replace_list_collection(model, parish: Parish, records: list, *, id_prefix: str):
     records = list(records or [])
     keep_identifiers = set()
@@ -151,13 +198,14 @@ def _replace_list_collection(model, parish: Parish, records: list, *, id_prefix:
     ).delete()
 
 
+@with_tenant_schema
 def _replace_typed_collection(
-    model,
-    parish: Parish,
-    records: list,
-    *,
-    id_prefix: str,
-    defaults_from_legacy,
+        model,
+        parish: Parish,
+        records: list,
+        *,
+        id_prefix: str,
+        defaults_from_legacy,
 ) -> None:
     keep_identifiers = set()
     for index, record in enumerate(records or []):
@@ -177,56 +225,113 @@ def _replace_typed_collection(
     ).delete()
 
 
+def _replace_mass_intentions(records: list) -> None:
+    keep_pks = set()
+    for record in records or []:
+        if not isinstance(record, dict):
+            continue
+        defaults = mass_intention_field_defaults_from_legacy(record)
+        try:
+            pk = uuid.UUID(str(record.get('id')))
+        except (ValueError, TypeError, AttributeError):
+            pk = None
+        if pk:
+            intention = MassIntention.objects.filter(pk=pk).first()
+            if intention is not None:
+                for field_name, field_value in defaults.items():
+                    setattr(intention, field_name, field_value)
+                intention.save()
+                keep_pks.add(intention.pk)
+                continue
+        intention = MassIntention(**defaults)
+        intention.save()
+        keep_pks.add(intention.pk)
+    MassIntention.objects.exclude(pk__in=keep_pks).delete()
+
+
+def _replace_mass_schedule_slots(records: list) -> None:
+    keep_pks = set()
+    for record in records or []:
+        if not isinstance(record, dict):
+            continue
+        defaults = mass_schedule_slot_field_defaults_from_legacy(record)
+        try:
+            pk = uuid.UUID(str(record.get('id')))
+        except (ValueError, TypeError, AttributeError):
+            pk = None
+        if pk:
+            slot = MassScheduleSlot.objects.filter(pk=pk).first()
+            if slot is not None:
+                for field_name, field_value in defaults.items():
+                    setattr(slot, field_name, field_value)
+                slot.save()
+                keep_pks.add(slot.pk)
+                continue
+        slot = MassScheduleSlot(**defaults)
+        slot.save()
+        keep_pks.add(slot.pk)
+    MassScheduleSlot.objects.exclude(pk__in=keep_pks).delete()
+
+
+def _replace_mass_exceptions(records: list) -> None:
+    keep_pks = set()
+    for record in records or []:
+        if not isinstance(record, dict):
+            continue
+        defaults = mass_exception_field_defaults_from_legacy(record)
+        try:
+            pk = uuid.UUID(str(record.get('id')))
+        except (ValueError, TypeError, AttributeError):
+            pk = None
+        if pk:
+            exception = MassException.objects.filter(pk=pk).first()
+            if exception is not None:
+                for field_name, field_value in defaults.items():
+                    setattr(exception, field_name, field_value)
+                exception.save()
+                keep_pks.add(exception.pk)
+                continue
+        exception = MassException(**defaults)
+        exception.save()
+        keep_pks.add(exception.pk)
+    MassException.objects.exclude(pk__in=keep_pks).delete()
+
+
+def _replace_bulletin_issues(records: list) -> None:
+    keep_pks = set()
+    for record in records or []:
+        if not isinstance(record, dict):
+            continue
+        defaults = bulletin_issue_field_defaults_from_legacy(record)
+        if defaults['week_start'] is None or defaults['week_end'] is None:
+            continue
+        try:
+            pk = uuid.UUID(str(record.get('id')))
+        except (ValueError, TypeError, AttributeError):
+            pk = None
+        issue = None
+        if pk:
+            issue = BulletinIssue.objects.filter(pk=pk).first()
+        if issue is None:
+            issue = BulletinIssue(**defaults)
+            issue.save()
+        else:
+            for field_name, field_value in defaults.items():
+                setattr(issue, field_name, field_value)
+            issue.save()
+        keep_pks.add(issue.pk)
+    BulletinIssue.objects.exclude(pk__in=keep_pks).delete()
+
+
+@with_tenant_schema
 def _save_liturgical_collections(parish: Parish, parish_data: dict) -> None:
-    _replace_typed_collection(
-        MassIntention,
-        parish,
-        parish_data.get('intentions'),
-        id_prefix='n',
-        defaults_from_legacy=mass_intention_field_defaults_from_legacy,
-    )
-    _replace_typed_collection(
-        MassScheduleSlot,
-        parish,
-        parish_data.get('massSchedule'),
-        id_prefix='ms',
-        defaults_from_legacy=mass_schedule_slot_field_defaults_from_legacy,
-    )
-    _replace_typed_collection(
-        MassException,
-        parish,
-        parish_data.get('massExceptions'),
-        id_prefix='mx',
-        defaults_from_legacy=mass_exception_field_defaults_from_legacy,
-    )
-    _replace_typed_collection(
-        MassScheduleLogEntry,
-        parish,
-        parish_data.get('massScheduleLog'),
-        id_prefix='msl',
-        defaults_from_legacy=mass_schedule_log_field_defaults_from_legacy,
-    )
-
-    layout_payload = parish_data.get('zupniListicLayout')
-    template_payload = parish_data.get('zupniListicTemplate')
-    if layout_payload is None and template_payload is None:
-        BulletinLayout.objects.filter(parish=parish).delete()
-    else:
-        BulletinLayout.objects.update_or_create(
-            parish=parish,
-            defaults={
-                'payload': copy.deepcopy(layout_payload or {}),
-                'template_payload': copy.deepcopy(template_payload),
-            },
-        )
-    _replace_list_collection(
-        BulletinIssue,
-        parish,
-        parish_data.get('zupniListicIssues'),
-        id_prefix='li',
-    )
+    _replace_mass_intentions(parish_data.get('intentions'))
+    _replace_mass_schedule_slots(parish_data.get('massSchedule'))
+    _replace_mass_exceptions(parish_data.get('massExceptions'))
+    _replace_bulletin_issues(parish_data.get('zupniListicIssues'))
 
 
+@with_tenant_schema
 def save_liturgical_collections(parish: Parish, parish_data: dict) -> None:
     """Spremi samo kolekcije koje mijenja aktivni liturgijski JSON API."""
     with transaction.atomic():
@@ -234,6 +339,7 @@ def save_liturgical_collections(parish: Parish, parish_data: dict) -> None:
         parish.save(update_fields=['updated_at'])
 
 
+@with_tenant_schema
 def _save_financial_collections(parish: Parish, parish_data: dict) -> None:
     _replace_typed_collection(
         ParishDebt,
@@ -268,6 +374,7 @@ def _save_financial_collections(parish: Parish, parish_data: dict) -> None:
     )
 
 
+@with_tenant_schema
 def save_financial_collections(parish: Parish, parish_data: dict) -> None:
     """Spremi samo ORM kolekcije koje mijenjaju financijske stranice."""
     with transaction.atomic():
@@ -275,6 +382,7 @@ def save_financial_collections(parish: Parish, parish_data: dict) -> None:
         parish.save(update_fields=['updated_at'])
 
 
+@with_tenant_schema
 def load_operational_collections(parish: Parish) -> dict:
     """Sastavi legacy parish_data dict isključivo iz ORM-a."""
     parish_data: dict = {}
@@ -368,40 +476,21 @@ def load_operational_collections(parish: Parish) -> dict:
 
     parish_data['intentions'] = [
         mass_intention_as_legacy_record(intention)
-        for intention in MassIntention.objects.filter(parish=parish)
+        for intention in MassIntention.objects.all()
     ]
     parish_data['massSchedule'] = [
         mass_schedule_slot_as_legacy_record(slot)
-        for slot in MassScheduleSlot.objects.filter(parish=parish)
+        for slot in MassScheduleSlot.objects.all()
     ]
     parish_data['massExceptions'] = [
         mass_exception_as_legacy_record(exception)
-        for exception in MassException.objects.filter(parish=parish)
-    ]
-    parish_data['massScheduleLog'] = [
-        mass_schedule_log_as_legacy_record(entry)
-        for entry in MassScheduleLogEntry.objects.filter(parish=parish)
+        for exception in MassException.objects.all()
     ]
 
-    bulletin_layout = BulletinLayout.objects.filter(parish=parish).first()
-    if bulletin_layout:
-        parish_data['zupniListicLayout'] = copy.deepcopy(
-            bulletin_layout.payload or {}
-        )
-        parish_data['zupniListicTemplate'] = copy.deepcopy(
-            bulletin_layout.template_payload
-        )
-    else:
-        parish_data['zupniListicLayout'] = {}
-        parish_data['zupniListicTemplate'] = None
-    if not (parish_data['zupniListicLayout'] or {}).get('blocks'):
-        default_layout = copy.deepcopy(load_config()['defaultLayout'])
-        default_layout['updatedAt'] = datetime.now().astimezone().isoformat()
-        parish_data['zupniListicLayout'] = default_layout
-
-    parish_data['zupniListicIssues'] = _payloads_from_queryset(
-        BulletinIssue.objects.filter(parish=parish)
-    )
+    parish_data['zupniListicIssues'] = [
+        bulletin_issue_as_legacy_record(issue)
+        for issue in BulletinIssue.objects.all()
+    ]
 
     # Izvedeno polje — nikad se ne sprema u ORM.
     parish_data['parishioners'] = []
@@ -424,6 +513,7 @@ def load_operational_collections(parish: Parish) -> dict:
     return parish_data
 
 
+@with_tenant_schema
 def save_operational_collections(parish: Parish, parish_data: dict) -> None:
     """Upsert svih ORM-backed kolekcija iz legacy dicta."""
     with transaction.atomic():

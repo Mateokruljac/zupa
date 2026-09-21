@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import copy
 import re
-import uuid
 from datetime import date, datetime
 from html import escape
 
@@ -19,6 +18,7 @@ _config_cache: dict | None = None
 
 
 def load_config() -> dict:
+    """Vrste blokova i default layout iz Python dicta (kopija, da se ne mutira modul)."""
     global _config_cache
     if _config_cache is None:
         _config_cache = copy.deepcopy(ZUPNI_LISTIC_CONFIG)
@@ -26,6 +26,7 @@ def load_config() -> dict:
 
 
 def plain_text_to_html(text: str | None) -> str:
+    """Običan tekst (prazan red = novi odlomak) → escapeani HTML."""
     t = (text or '').strip()
     if not t:
         return '<p>—</p>'
@@ -45,10 +46,12 @@ _LEGACY_ANNOUNCEMENT_PLACEHOLDERS = {
 
 
 def _plain_listic_body(html: str) -> str:
+    """Makni tagove da usporedimo placeholder tekst."""
     return re.sub(r'<[^>]+>', '', html or '').replace('\xa0', ' ').strip()
 
 
 def _strip_legacy_listic_defaults(layout: dict) -> dict:
+    """Očisti stare demo rečenice iz custom/announcements blokova."""
     for block in layout.get('blocks') or []:
         plain = _plain_listic_body(block.get('body') or '')
         if block.get('type') == 'custom_text' and plain == _LEGACY_CUSTOM_TEXT:
@@ -58,25 +61,21 @@ def _strip_legacy_listic_defaults(layout: dict) -> dict:
     return layout
 
 
-def get_layout(data: dict, config: dict | None = None) -> dict:
+def get_layout(data: dict | None = None, config: dict | None = None) -> dict:
+    """Kostur listića: default iz koda, ne spremljeni predložak župe."""
     cfg = config or load_config()
-    layout = data.get('zupniListicLayout')
-    if layout and layout.get('blocks'):
-        return _strip_legacy_listic_defaults(copy.deepcopy(layout))
-    return copy.deepcopy(cfg['defaultLayout'])
+    return _strip_legacy_listic_defaults(copy.deepcopy(cfg['defaultLayout']))
 
 
 def migrate_listic_data(data: dict) -> dict:
-    cfg = load_config()
-    if not data.get('zupniListicLayout', {}).get('blocks'):
-        data['zupniListicLayout'] = copy.deepcopy(cfg['defaultLayout'])
-        data['zupniListicLayout']['updatedAt'] = datetime.now().astimezone().isoformat()
+    """Osiguraj listu izdanja (in-place)."""
     if not isinstance(data.get('zupniListicIssues'), list):
         data['zupniListicIssues'] = []
     return data
 
 
 def liturgical_color_hint(iso: str) -> str:
+    """Kratki natpis boje/dana za UI; fallback po danu u tjednu ako kalendar prazan."""
     day = LiturgicalService().get_day(iso, with_hilp=False)
     if day.get('colorLabel'):
         return day['colorLabel']
@@ -91,6 +90,7 @@ def liturgical_color_hint(iso: str) -> str:
 
 
 def format_nakane_html(data: dict, week_start: str) -> str:
+    """Tablica nakana tog tjedna za listić."""
     start = week_start_from(week_start)
     end = week_end_from(start)
     rows = sorted(
@@ -114,6 +114,7 @@ def format_nakane_html(data: dict, week_start: str) -> str:
 
 
 def format_announcements(data: dict, body_html: str = '') -> str:
+    """Tijelo obavijesti: plain → HTML, ili ostavi postojeći HTML."""
     if not body_html.strip():
         return ''
     return (
@@ -124,6 +125,7 @@ def format_announcements(data: dict, body_html: str = '') -> str:
 
 
 def format_sacraments_and_events(data: dict, week_start: str, week_end: str) -> str:
+    """Krštenja, vjenčanja, pogrebi i događaji unutar tjedna → HTML lista."""
     lines: list[str] = []
     for b in data.get('baptisms') or []:
         bd = b.get('baptismDate') or ''
@@ -149,6 +151,7 @@ def format_sacraments_and_events(data: dict, week_start: str, week_end: str) -> 
 
 
 def render_block_html(block: dict, data: dict, settings: dict, week_start: str) -> str:
+    """Jedan blok listića prema ``type`` (header, mise, nakane, …)."""
     start = week_start_from(week_start)
     end = week_end_from(start)
     btype = block.get('type') or ''
@@ -203,6 +206,7 @@ def render_block_html(block: dict, data: dict, settings: dict, week_start: str) 
 
 
 def render_layout_to_html(layout: dict, data: dict, settings: dict, week_start: str) -> str:
+    """Spoji uključene blokove u cijeli HTML dokument listića."""
     blocks = [b for b in (layout or {}).get('blocks') or [] if b.get('enabled', True)]
     inner = '\n'.join(
         render_block_html(b, data, settings, week_start)
@@ -212,6 +216,7 @@ def render_layout_to_html(layout: dict, data: dict, settings: dict, week_start: 
 
 
 def sync_auto_blocks(layout: dict, data: dict, settings: dict, week_start: str) -> dict:
+    """Ako footer nema tijelo, uzmi default iz konfiguracije."""
     layout = _strip_legacy_listic_defaults(copy.deepcopy(layout))
     cfg = load_config()
     for block in layout.get('blocks') or []:
@@ -224,6 +229,7 @@ def sync_auto_blocks(layout: dict, data: dict, settings: dict, week_start: str) 
 
 
 def sorted_issues(data: dict) -> list:
+    """Izdanja listića, najnovije prvo."""
     return sorted(
         data.get('zupniListicIssues') or [],
         key=lambda x: x.get('createdAt') or '',
@@ -232,13 +238,13 @@ def sorted_issues(data: dict) -> list:
 
 
 def zupni_listic_page_context(data: dict, settings: dict, request) -> dict:
+    """Kontekst stranice: default layout, tjedan iz ``?week=``, pretpregled HTML."""
     cfg = load_config()
     layout = get_layout(data, cfg)
     week_start = week_start_from(request.GET.get('week') or None)
     issues = sorted_issues(data)
     edit_layout = sync_auto_blocks(layout, data, settings, week_start)
     return {
-        'listic_layout': layout,
         'listic_edit_layout': edit_layout,
         'listic_issues': issues,
         'week_start': week_start,
@@ -248,6 +254,7 @@ def zupni_listic_page_context(data: dict, settings: dict, request) -> dict:
 
 
 def render_preview(data: dict, settings: dict, payload: dict) -> dict:
+    """API pretpregled: layout iz requesta ili default iz koda."""
     layout = payload.get('layout') or get_layout(data)
     week_start = payload.get('weekStart') or week_start_from()
     html = render_layout_to_html(layout, data, settings, week_start)
@@ -255,13 +262,15 @@ def render_preview(data: dict, settings: dict, payload: dict) -> dict:
 
 
 def prepare_issue(data: dict, settings: dict, issue: dict) -> dict:
+    """Dopuni izdanje (naslov, snapshot, ``renderedHtml``) prije spremanja.
+
+    Novi broj nema ``id`` dok ga ORM ne dodijeli (FCTA UUID).
+    """
     issue = dict(issue)
     ws = issue.get('weekStart') or week_start_from()
     we = issue.get('weekEnd') or week_end_from(ws)
     layout = issue.get('layoutSnapshot') or get_layout(data)
     issue['layoutSnapshot'] = copy.deepcopy(layout)
-    if not issue.get('id'):
-        issue['id'] = f'listic_{uuid.uuid4().hex[:8]}'
     if not issue.get('title'):
         issue['title'] = f'Listić {fmt_short(ws)} – {fmt_short(we)}'
     issue['weekStart'] = ws
@@ -271,4 +280,6 @@ def prepare_issue(data: dict, settings: dict, issue: dict) -> dict:
         issue['createdAt'] = now
     issue['updatedAt'] = now
     issue['renderedHtml'] = render_layout_to_html(layout, data, settings, ws)
+    if not issue.get('id'):
+        issue.pop('id', None)
     return issue

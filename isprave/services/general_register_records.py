@@ -11,6 +11,7 @@ from isprave.models import (
     RegisterBook,
     RegisterBookYear,
 )
+from django_multitenant.schema import with_tenant_schema
 from pastoral.models import Parish
 
 
@@ -23,6 +24,7 @@ def _parse_required_date(raw_value) -> date:
         raise ValidationError({'recordDate': 'Unesite ispravan datum.'}) from error
 
 
+@with_tenant_schema
 def relational_general_entries_as_dictionaries(parish: Parish) -> list[dict]:
     entries = GeneralRegisterEntry.objects.filter(
         register_book_year__register_book__parish=parish,
@@ -44,6 +46,7 @@ def relational_general_entries_as_dictionaries(parish: Parish) -> list[dict]:
 
 
 @transaction.atomic
+@with_tenant_schema
 def reconcile_general_register_entries(
     parish: Parish,
     entry_records: list[dict],

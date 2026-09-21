@@ -12,6 +12,7 @@ from isprave.forms import RegistryBookForm, RegistryRecordForm
 from sakramenti.services.api_action_handlers.formation import (
     upsert_confirmation_candidate,
 )
+from django_multitenant.schema import with_tenant_schema
 from sakramenti.services.baptism_records import synchronize_baptism_record
 from isprave.services.registry_entry_records import synchronize_registry_entry
 from sakramenti.services.sacrament_mutations import (
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
     from pastoral.services.data import ParishDataService
 
 
+@with_tenant_schema
 def handle_registry_books_action(
     request,
     page_slug: str,

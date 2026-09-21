@@ -12,6 +12,7 @@ from sakramenti.models import (
     MarriageDetails,
     SacramentalEvent,
 )
+from django_multitenant.schema import with_tenant_schema
 from sakramenti.services.family_card_sacraments import exclude_family_card_events
 from pastoral.models import Parish
 
@@ -62,6 +63,7 @@ def _witness_names(marriage_details: MarriageDetails) -> tuple[str, str]:
     )
 
 
+@with_tenant_schema
 def relational_weddings_as_dictionaries(parish: Parish) -> list[dict]:
     wedding_events = exclude_family_card_events(
         SacramentalEvent.objects.filter(
@@ -107,6 +109,7 @@ def relational_weddings_as_dictionaries(parish: Parish) -> list[dict]:
     return wedding_records
 
 
+@with_tenant_schema
 def _synchronize_spouses(
     parish: Parish,
     wedding_event: SacramentalEvent,
@@ -141,6 +144,7 @@ def _synchronize_spouses(
     ).exclude(id__in=retained_participant_ids).delete()
 
 
+@with_tenant_schema
 def _synchronize_wedding(parish: Parish, wedding_record: dict) -> SacramentalEvent:
     public_identifier = str(wedding_record.get('id') or '').strip()
     couple_name = str(wedding_record.get('couple') or '').strip()
@@ -206,6 +210,7 @@ def _synchronize_wedding(parish: Parish, wedding_record: dict) -> SacramentalEve
 
 
 @transaction.atomic
+@with_tenant_schema
 def reconcile_wedding_records(parish: Parish, wedding_records: list[dict]) -> None:
     retained_event_ids = []
     seen_identifiers = set()

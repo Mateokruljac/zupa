@@ -10,6 +10,7 @@ from pastoral.models import OtpChallenge
 from pastoral.services.data import ParishDataService
 from pastoral.services.mail import send_otp_login_email
 from pastoral.models import User
+from django_multitenant.schema import with_tenant_schema
 
 
 def _role_label(role: str) -> str:
@@ -21,6 +22,7 @@ def _normalize_email(email: str) -> str:
 
 
 @transaction.atomic
+@with_tenant_schema
 def send_login_code(request, *, email: str, role: str) -> tuple[bool, dict]:
     """Generira kod, šalje ga mailom i pamti pending sesiju.
 
@@ -104,6 +106,7 @@ def send_login_code(request, *, email: str, role: str) -> tuple[bool, dict]:
 
 
 @transaction.atomic
+@with_tenant_schema
 def verify_login_code(email: str, role: str, submitted_code: str) -> tuple[bool, str]:
     """Provjeri kod: postoji, nije istekao, odgovara — zatim ga potroši.
 

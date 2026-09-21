@@ -10,6 +10,7 @@ from functools import lru_cache
 from liturgija.services.liturgical_day_catalog import localize_celebration
 
 
+# Romcal rank token → hrvatski natpis ranga.
 RANK_HR = {
     'solemnity': 'Svetkovina',
     'sunday': 'Nedjelja',
@@ -19,6 +20,7 @@ RANK_HR = {
     'weekday': 'Svagdan',
 }
 
+# Veći broj = važnije slavlje (za is_primary).
 RANK_PRIORITY = {
     'weekday': 0,
     'optional_memorial': 1,
@@ -31,6 +33,7 @@ RANK_PRIORITY = {
 
 @lru_cache(maxsize=1)
 def _romcal_engine():
+    """Jedan Romcal motor po procesu (učitavanje definicija je skupo)."""
     from romcal import Romcal, get_bundled_calendar_definitions, get_bundled_resources
 
     return Romcal(
@@ -45,16 +48,19 @@ def _romcal_engine():
 
 
 def _value(value) -> str:
+    """Romcal enum/objekt → običan string."""
     raw = getattr(value, 'root', getattr(value, 'value', value))
     return str(raw or '')
 
 
 def _display_name(event) -> str:
+    """Hrvatski naziv iz kataloga prema latinskom ``fullname``."""
     display_name, _, _ = localize_celebration(event.fullname)
     return display_name
 
 
 def _romcal_resolved_color(event, display_name: str) -> str:
+    """Boja kao u uvozu: katalog pa Romcal boje."""
     from liturgija.services.liturgical_imports import _normalized_liturgical_color
 
     rank = _value(event.rank)

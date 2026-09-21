@@ -10,11 +10,13 @@ from django.db import transaction
 from pastoral.services.api_action_handlers.shared import normalize_parish_data
 from ured.api_actions import import_public_submission
 from sakramenti.services.baptism_records import synchronize_baptism_record
+from django_multitenant.schema import with_tenant_schema
 
 if TYPE_CHECKING:
     from pastoral.services.data import ParishDataService
 
 
+@with_tenant_schema
 def handle_public_submissions_action(
     request,
     page_slug: str,

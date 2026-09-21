@@ -16,10 +16,12 @@ from pastoral.services.data import ParishDataService
 from pastoral.services.otp import send_login_code, verify_login_code
 from pastoral.web_manifest_data import WEB_MANIFEST
 from pastoral.models import User
+from django_multitenant.schema import with_tenant_schema
 
 TECHNICAL_ADMIN_ROLES = frozenset({'zupnik', 'upravitelj'})
 
 
+@with_tenant_schema
 def ensure_technical_admin_access(user):
     """Župnik i upravitelj smiju u tehničku administraciju (`is_staff`).
 
@@ -45,7 +47,7 @@ def index_view(request):
 def _render_login_page(request, context, *, status=200):
     requested_destination = request.GET.get('next', '')
     login_context = {
-        'parish_settings': ParishDataService().load_settings(),
+        'parish_settings': ParishDataService.for_request(request).load_settings(),
         'technical_admin_login': requested_destination.startswith('/admin/'),
         **context,
     }
@@ -95,6 +97,7 @@ def admin_login_redirect_view(request):
 
 @require_http_methods(['GET', 'POST'])
 @ratelimit(key='ip', rate='10/m', method='POST', block=False)
+@with_tenant_schema
 def login_view(request):
     if request.user.is_authenticated:
         return redirect(_login_destination(request, request.user))

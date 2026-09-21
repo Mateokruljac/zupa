@@ -1,24 +1,19 @@
 """Django admin registracije za Liturgija."""
-import json
-
-from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
-from django.core.exceptions import ValidationError
+from django.db import connection
 from django.http import HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
-from django.utils.html import format_html
 
-from liturgija.admin_forms import LiturgicalCalendarEntryForm
+from liturgija.admin_forms import LiturgicalCalendarEntryForm, CalendarYearImportForm
 from liturgija.models import (
+    BulletinIssue,
     LiturgicalCalendarEntry,
     LiturgicalTradition,
 )
-from liturgija.services.liturgical_imports import (
-    manual_celebration_identity,
-    refresh_primary_flags,
-)
+from django_multitenant.schema import with_tenant_schema
+from liturgija.services.liturgical_imports import refresh_primary_flags
 from liturgija.tasks import delete_calendar_entries_task, import_calendar_package_task
 from pastoral.admin_mixins import (
     ParishTechnicalAdminMixin,
@@ -28,11 +23,31 @@ from pastoral.admin_mixins import (
 
 @admin.register(LiturgicalTradition)
 class LiturgicalTraditionAdmin(ProtectedReferenceAdminMixin, admin.ModelAdmin):
-    list_display = ('name', 'code', 'is_active', 'updated_at')
+    list_display = ('name', 'is_active', 'updated_at')
     list_filter = ('is_active',)
-    search_fields = ('name', 'code')
+    search_fields = ('name',)
     readonly_fields = ('id', 'created_at', 'updated_at')
-    fields = ('id', 'name', 'code', 'is_active', 'created_at', 'updated_at')
+    fields = ('id', 'name', 'description', 'is_active', 'created_at', 'updated_at')
+
+
+@admin.register(BulletinIssue)
+class BulletinIssueAdmin(admin.ModelAdmin):
+    list_display = ('title', 'week_start', 'week_end', 'status', 'updated_at')
+    list_filter = ('status',)
+    search_fields = ('title',)
+    date_hierarchy = 'week_start'
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    fields = (
+        'id',
+        'week_start',
+        'week_end',
+        'title',
+        'status',
+        'layout',
+        'rendered_html',
+        'created_at',
+        'updated_at',
+    )
 
 
 @admin.register(LiturgicalCalendarEntry)
@@ -47,34 +62,20 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
     )
     list_display_links = ('date', 'name')
     list_filter = ('is_primary', 'liturgical_color', 'provider')
-    search_fields = ('name', 'original_name', 'external_identifier')
+    search_fields = ('name', 'original_name')
     date_hierarchy = 'date'
     ordering = ('-date', '-priority', 'name')
     readonly_fields = (
-        'provider', 'external_identifier', 'is_primary',
-        'raw_data_preview', 'created_at', 'updated_at',
+        'provider', 'is_primary', 'created_at', 'updated_at',
     )
     fields = (
         'date', 'name', 'original_name', 'liturgical_color',
         'priority', 'priority_label', 'is_primary', 'provider',
-        'external_identifier', 'raw_data_preview', 'created_at', 'updated_at',
+        'created_at', 'updated_at',
     )
 
-    @admin.display(description='Izvorni API zapis')
-    def raw_data_preview(self, calendar_entry):
-        rendered_data = json.dumps(
-            calendar_entry.raw_data or {},
-            ensure_ascii=False,
-            indent=2,
-            sort_keys=True,
-        )
-        return format_html(
-            '<pre style="max-height:620px;overflow:auto;padding:14px;border:1px solid #ddd;'
-            'border-radius:6px;background:#f8f8f8;white-space:pre-wrap">{}</pre>',
-            rendered_data,
-        )
-
     def get_urls(self):
+        """Dodaj /import/romcal/ ispred standardnih admin URL-ova."""
         return [
             path(
                 'import/romcal/',
@@ -85,6 +86,7 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
         ]
 
     def import_romcal_view(self, request):
+        """GET/POST forma godine → Celery uvoz Romcala."""
         return self._import_year_view(
             request,
             title='Uvezi Romcal (Hrvatska)',
@@ -99,10 +101,15 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
         )
 
     def _import_year_view(self, request, *, title, help_text, provider):
+        """Pokreni uvoz u workeru; u eager modu čeka rezultat i prikaže brojke."""
         form = CalendarYearImportForm(request.POST or None)
         if request.method == 'POST' and form.is_valid():
             year = form.cleaned_data['year']
-            async_result = import_calendar_package_task.delay(provider, year)
+            async_result = import_calendar_package_task.delay(
+                provider,
+                year,
+                schema_name=connection.schema_name,
+            )
             if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
                 payload = async_result.get()
                 if payload.get('ok'):
@@ -137,6 +144,7 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
         )
 
     def _import_form_response(self, request, form, *, title, help_text):
+        """Render forme uvoza s admin kontekstom (sidebar, crumbs)."""
         context = {
             **self.admin_site.each_context(request),
             'opts': self.opts,
@@ -150,7 +158,9 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
             context,
         )
 
+    @with_tenant_schema
     def save_model(self, request, calendar_entry, form, change):
+        """Ručni red: provider MANUAL pri kreiranju; pa ``is_primary`` na starom i novom datumu."""
         previous_date = None
         if change:
             previous_date = (
@@ -161,11 +171,6 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
             )
         else:
             calendar_entry.provider = LiturgicalCalendarEntry.Provider.MANUAL
-        if calendar_entry.provider == LiturgicalCalendarEntry.Provider.MANUAL:
-            calendar_entry.external_identifier = manual_celebration_identity(
-                calendar_entry.date,
-                calendar_entry.name,
-            )
         super().save_model(request, calendar_entry, form, change)
         refresh_primary_flags({calendar_entry.date, previous_date})
 
@@ -173,15 +178,20 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
         return bool(request.user.is_active and request.user.is_staff)
 
     def delete_model(self, request, calendar_entry):
+        """Obriši jedan red pa ponovo izračunaj glavno slavlje tog datuma."""
         entry_date = calendar_entry.date
         super().delete_model(request, calendar_entry)
         refresh_primary_flags({entry_date})
 
     def delete_queryset(self, request, queryset):
+        """Masovno brisanje: iznad praga ide u Celery, inače odmah + refresh zastavica."""
         entry_ids = list(queryset.values_list('pk', flat=True))
         threshold = getattr(settings, 'ADMIN_ACTION_CELERY_THRESHOLD', 10_000)
         if len(entry_ids) > threshold:
-            async_result = delete_calendar_entries_task.delay(entry_ids)
+            async_result = delete_calendar_entries_task.delay(
+                entry_ids,
+                schema_name=connection.schema_name,
+            )
             if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
                 payload = async_result.get()
                 messages.success(

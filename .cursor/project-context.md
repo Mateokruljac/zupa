@@ -2,8 +2,8 @@
 
 Aplikacija župnog ureda (Django 4.2+/5.x, PostgreSQL).
 UI je na hrvatskom; identifikatori u kodu na engleskom. Korisnik prijave:
-`pastoral.User` (`AUTH_USER_MODEL`, tablica `users_user`). Tenant je jedna
-`Parish` po uredu.
+Tenant je jedna PostgreSQL schema (`django-tenants`). `Parish` ostaje
+župa unutar te scheme. Domena (Host) bira tenanta.
 
 Primarni dokument arhitekture baze: `MDs/DB_ARCHITECTURE_PROPOSAL.md`.
 

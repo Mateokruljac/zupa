@@ -15,6 +15,7 @@ from django.db import models
 from django.db.models import F, Q
 from core.models import FCTA, SCD1, SCD2, SCD2A, OPEN_ENDED_VALID_TO, current_version_unique
 from zupa_vjernici.canonical import CanonicalTradition
+from django_multitenant.schema import with_tenant_schema
 
 
 def normalize_person_search_text(value: str) -> str:
@@ -198,6 +199,7 @@ class Person(SCD1):
         if relationship_errors:
             raise ValidationError(relationship_errors)
 
+    @with_tenant_schema
     def save(self, *args, **kwargs):
         self.normalized_given_names = normalize_person_search_text(self.given_names)
         self.normalized_surname = normalize_person_search_text(self.surname)

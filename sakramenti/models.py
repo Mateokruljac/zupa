@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
+from django_multitenant.schema import with_tenant_schema
 
 
 class SacramentalEvent(FCTA):
@@ -113,6 +114,7 @@ class SacramentalEvent(FCTA):
             })
         self._validate_locked_event_is_unchanged()
 
+    @with_tenant_schema
     def _validate_locked_event_is_unchanged(self):
         if self.pk:
             previous_status = type(self).objects.filter(pk=self.pk).values_list(
@@ -123,10 +125,12 @@ class SacramentalEvent(FCTA):
                     'Zaključani sakramentalni događaj ne može se izravno mijenjati.'
                 )
 
+    @with_tenant_schema
     def save(self, *args, **kwargs):
         self._validate_locked_event_is_unchanged()
         return super().save(*args, **kwargs)
 
+    @with_tenant_schema
     def delete(self, *args, **kwargs):
         if self.status == self.Status.LOCKED:
             raise ValidationError('Zaključani sakramentalni događaj ne može se brisati.')
@@ -196,6 +200,7 @@ class EventParticipant(FCTA):
         if validation_errors:
             raise ValidationError(validation_errors)
 
+    @with_tenant_schema
     def save(self, *args, **kwargs):
         linked_person = self.person if self.person_id else None
         if linked_person and not self.snapshot_given_names and not self.snapshot_surname:

@@ -13,7 +13,6 @@ DEMO_PARISH_DATA = json.loads(r"""
       "weekdays": [
         0
       ],
-      "celebrant": "vlč. Krunoslav Karas",
       "location": "Župna crkva",
       "notes": ""
     },
@@ -24,7 +23,6 @@ DEMO_PARISH_DATA = json.loads(r"""
       "weekdays": [
         0
       ],
-      "celebrant": "vlč. Krunoslav Karas",
       "location": "Župna crkva",
       "notes": ""
     },
@@ -35,7 +33,6 @@ DEMO_PARISH_DATA = json.loads(r"""
       "weekdays": [
         0
       ],
-      "celebrant": "",
       "location": "Župna crkva",
       "notes": "Djeca i obitelji"
     },
@@ -46,7 +43,6 @@ DEMO_PARISH_DATA = json.loads(r"""
       "weekdays": [
         0
       ],
-      "celebrant": "",
       "location": "Župna crkva",
       "notes": ""
     },
@@ -61,7 +57,6 @@ DEMO_PARISH_DATA = json.loads(r"""
         4,
         5
       ],
-      "celebrant": "",
       "location": "Župna crkva",
       "notes": ""
     },
@@ -72,19 +67,16 @@ DEMO_PARISH_DATA = json.loads(r"""
       "weekdays": [
         6
       ],
-      "celebrant": "",
       "location": "Župna crkva",
       "notes": ""
     }
   ],
   "massExceptions": [],
-  "massScheduleLog": [],
   "intentions": [
     {
       "id": "n1",
       "date": "2026-06-09",
       "massTime": "18:00",
-      "requestedBy": "Ana Horvat",
       "intentionFor": "Pokoj duše Ivana H.",
       "stipend": 50,
       "paid": true,
@@ -94,7 +86,6 @@ DEMO_PARISH_DATA = json.loads(r"""
       "id": "n2",
       "date": "2026-06-10",
       "massTime": "07:30",
-      "requestedBy": "Petar Kovač",
       "intentionFor": "Zdravlje obitelji",
       "stipend": 30,
       "paid": false,
@@ -104,7 +95,6 @@ DEMO_PARISH_DATA = json.loads(r"""
       "id": "n4",
       "date": "2026-06-14",
       "massTime": "11:00",
-      "requestedBy": "Marija B.",
       "intentionFor": "Za uspjeh na ispitu",
       "stipend": 30,
       "paid": false,
@@ -892,7 +882,6 @@ DEMO_PARISH_DATA = json.loads(r"""
       "at": "2026-06-09T10:27:30.049Z"
     }
   ],
-  "zupniListicTemplate": null,
   "zupniListicIssues": [],
   "publicSubmissions": [],
   "visits": [

@@ -5,9 +5,9 @@ from typing import TYPE_CHECKING, Callable
 
 from django.db import transaction
 
+from django_multitenant.schema import with_tenant_schema
 from financije.page_actions import handle_finance_action
 from isprave.page_actions import handle_registry_books_action
-from liturgija.page_actions import handle_intention_page_action
 from sakramenti.page_actions import handle_sakramenti_action
 from ured.page_actions import handle_ured_action
 from zupa_vjernici.page_actions import handle_parish_community_action
@@ -23,7 +23,6 @@ MVP_PAGE_ACTION_HANDLERS: tuple[PageActionHandler, ...] = (
     handle_parish_community_action,
     handle_sakramenti_action,
     handle_finance_action,
-    handle_intention_page_action,
     handle_registry_books_action,
 )
 
@@ -37,6 +36,7 @@ def page_action_handlers() -> tuple[PageActionHandler, ...]:
     return PAGE_ACTION_HANDLERS
 
 
+@with_tenant_schema
 def handle_page_post(
     request,
     page: str,

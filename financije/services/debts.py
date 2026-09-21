@@ -135,7 +135,7 @@ def collect_receivables(data: dict, *, only_unpaid: bool = True) -> list[dict]:
             'amount': amt,
             'label': n.get('intentionFor') or 'Nakana',
             'sublabel': f"{n.get('date', '')} · misa {n.get('massTime', '')}",
-            'contact': n.get('requestedBy', ''),
+            'contact': '',
             'dueDate': n.get('date', ''),
             'paid': paid,
             'link_page': 'nakane',

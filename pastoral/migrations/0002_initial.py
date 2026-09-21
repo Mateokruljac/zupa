@@ -11,7 +11,8 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('liturgija', '0002_initial'),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        ('liturgija', '0001_initial'),
         ('pastoral', '0001_initial'),
         ('zupa_vjernici', '0001_initial'),
     ]

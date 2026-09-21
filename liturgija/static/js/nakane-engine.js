@@ -80,6 +80,7 @@
 
   /* ---------- podaci / CRUD ---------- */
 
+  /** JSON iz <script id="nakane-bootstrap-data"> — početno stanje stranice. */
   function readBootstrap() {
     const el = document.getElementById("nakane-bootstrap-data");
     if (!el) return {};
@@ -125,6 +126,7 @@
     return [];
   }
 
+  /** Termini mise tog dana (isti algoritam kao Python get_masses_for_date). */
   function massesForDate(iso) {
     const schedule = state.massSchedule || [];
     const exceptions = state.massExceptions || [];
@@ -148,9 +150,6 @@
         if (entry.time) slots.push({ time: entry.time });
       });
     }
-    (exc?.addSlots || []).forEach((add) => {
-      if (add.time) slots.push({ time: add.time });
-    });
     slots.sort((a, b) => String(a.time).localeCompare(String(b.time)));
     return slots;
   }
@@ -309,12 +308,10 @@
               <strong>${esc(n.intentionFor)}</strong>
               <br><small>${num(n.stipend)} €</small>
               ${n.notes ? `<br><small class="nakane-day-notes">📝 ${esc(n.notes)}</small>` : ""}
-              ${n.paid && n.paymentId ? `<br><small class="card-sub">Ref: ${esc(n.paymentId)}</small>` : ""}
             </div>
             <div class="nakana-item-actions">
               ${n.paid ? '<span class="badge badge-done">stipendij evidentiran</span>' : '<span class="badge badge-urgent">stipendij nije evidentiran</span>'}
               <button type="button" class="btn btn-ghost btn-sm" data-edit-intent="${n.id}">Uredi</button>
-              ${!n.paid ? `<button type="button" class="btn btn-primary btn-sm" data-pay-intent="${n.id}">Evidentiraj stipendij</button>` : ""}
               <button type="button" class="btn btn-ghost btn-sm" data-del-intent="${n.id}">Obriši</button>
             </div>
           </div>`
@@ -722,7 +719,6 @@
                       <td>${n.paid ? '<span class="badge badge-done">evidentiran</span>' : '<span class="badge badge-urgent">nije evidentiran</span>'}</td>
                       <td class="nakane-table-actions">
                         <button type="button" class="btn btn-ghost btn-sm" data-edit-intent="${n.id}">Uredi</button>
-                        ${!n.paid ? `<button type="button" class="btn btn-primary btn-sm" data-pay-intent="${n.id}">Evidentiraj stipendij</button>` : ""}
                         <button type="button" class="btn btn-ghost btn-sm" data-del-intent="${n.id}">Obriši</button>
                       </td>
                     </tr>`;
@@ -829,29 +825,17 @@
         printDay(state.selectedDate, btn.dataset.printMass);
       });
     });
-    root.querySelectorAll("[data-pay-intent]").forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        try {
-          await runAction("mark_intention_paid", { id: btn.dataset.payIntent });
-          showToast("Plaćanje zabilježeno");
-          refresh();
-        } catch {
-          showToast("Greška pri spremanju");
-        }
-      });
-    });
     root.querySelectorAll("[data-del-intent]").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         const id = btn.dataset.delIntent;
         const doDelete = async () => {
           try {
-            await runAction("delete_intention", { id });
+            await runAction("delete_intention", id);
             showToast("Nakana obrisana");
             refresh();
           } catch {
-            showToast("Greška pri brisanju");
+            showToast("Došlo je do greške prilikom brisanja");
           }
         };
         const M = global.PastoralModal;
@@ -885,25 +869,21 @@
   }
 
   function nakanaFormBody(record, iso, { editableDate = false } = {}) {
-    const paidSlot = record
-      ? record.paid
-        ? `<p class="card-sub nakana-form__paid-status">Stipendij evidentiran${record.paymentId ? ` · ref. ${esc(record.paymentId)}` : ""}.</p>`
-        : ""
-      : `<label class="nakana-form__paid"><input type="checkbox" name="paid" /> Stipendij evidentiran</label>`;
+    const paidChecked = record?.paid ? " checked" : "";
     return `
       <div class="nakana-form form-wide">
         <div class="nakana-form__meta${editableDate ? " nakana-form__meta--with-date" : ""}">
           ${editableDate ? `<div class="form-group"><label>Datum *</label><input name="date" type="date" value="${record?.date || iso || ""}" required /></div>` : ""}
           <div class="form-group"><label>Misa (sat)</label>${massSelect(iso, record?.massTime)}</div>
           <div class="form-group"><label>Stipendij (€)</label><input name="stipend" type="number" min="0" step="0.01" value="${record?.stipend ?? state.defaultStipend}" /></div>
-          ${paidSlot}
+          <label class="nakana-form__paid"><input type="checkbox" name="paid"${paidChecked} /> Stipendij evidentiran</label>
         </div>
         <div class="form-group"><label>Za koga / namjera *</label><input name="intentionFor" required placeholder="Pokoj duše…" value="${esc(record?.intentionFor || "")}" /></div>
         <div class="form-group"><label>Bilješka (samo za svećenika)</label><textarea name="notes" rows="2" placeholder="Interna bilješka…">${esc(record?.notes || "")}</textarea></div>
       </div>`;
   }
 
-  function readForm(form, iso, { editableDate = false, originalRecord = null } = {}) {
+  function readForm(form, iso, { editableDate = false } = {}) {
     const fd = new FormData(form);
     const intentionFor = (fd.get("intentionFor") || "").trim();
     if (!intentionFor) {
@@ -916,12 +896,7 @@
       return null;
     }
     const massTime = fd.get("massTime") || "";
-    const availableTimes = massTimeOptions(date);
-    const keepingSameSlot =
-      originalRecord &&
-      originalRecord.date === date &&
-      (originalRecord.massTime || "") === massTime;
-    if (!keepingSameSlot && !availableTimes.includes(massTime)) {
+    if (!massTimeOptions(date).includes(massTime)) {
       showToast("Za taj dan nema mise — nakana se ne može upisati");
       return null;
     }
@@ -935,6 +910,7 @@
     };
   }
 
+  /** Modal nove nakane; sprema create_intention preko PastoralApi. */
   function openAddModal(iso) {
     const M = global.PastoralModal;
     if (!M?.openForm) return;
@@ -971,6 +947,7 @@
     });
   }
 
+  /** Modal uređivanja; update_intention na server. */
   function openEditModal(id) {
     const M = global.PastoralModal;
     if (!M?.openForm) return;
@@ -987,12 +964,11 @@
       onSubmit: (form) => {
         const fields = readForm(form, record.date, {
           editableDate: true,
-          originalRecord: record,
         });
         if (!fields) return false;
         (async () => {
           try {
-            await runAction("update_intention", { id: record.id, ...fields });
+            await runAction("update_intention", { id: record.id, data: fields });
             M.close();
             showToast("Nakana ažurirana");
             refresh();
@@ -1245,6 +1221,7 @@
     }
   }
 
+  /** Učitaj bootstrap, nacrta UI, veži gumbe. */
   function init() {
     const root = document.getElementById("nakane-root");
     if (!root) return;

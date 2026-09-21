@@ -15,6 +15,7 @@ from zupa_vjernici.models import Person, normalize_person_search_text
 FEMALE_RELATIONS = frozenset({
     'majka', 'žena', 'zena', 'kći', 'kci', 'kcer', 'wife', 'mother', 'daughter',
 })
+from django_multitenant.schema import with_tenant_schema
 MALE_RELATIONS = frozenset({
     'otac', 'muž', 'muz', 'sin', 'husband', 'father', 'son',
 })
@@ -51,6 +52,7 @@ def birth_year_as_text(value) -> str:
     return str(value).strip()[:20]
 
 
+@with_tenant_schema
 def find_or_create_person(
     parish,
     *,

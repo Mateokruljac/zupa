@@ -13,6 +13,7 @@ from pastoral.admin_mixins import (
     ParishTechnicalAdminMixin,
     ProtectedReferenceAdminMixin,
 )
+from django_multitenant.schema import with_tenant_schema
 from pastoral.models import Diocese, Parish, User
 
 try:
@@ -102,6 +103,7 @@ class AdminUserCreationForm(forms.ModelForm):
             validate_password(password2, self.instance)
         return password2
 
+    @with_tenant_schema
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data['password1'])

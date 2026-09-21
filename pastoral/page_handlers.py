@@ -5,12 +5,15 @@ from pastoral.page_context_registry import (
 )
 from pastoral.services.data import ParishDataService
 from pregled.services.dashboard import build_dashboard_context
+from django_multitenant.schema import with_tenant_schema
 
 
+@with_tenant_schema
 def dashboard_context(request, parish_data_service: ParishDataService) -> dict:
     return build_dashboard_context(parish_data_service)
 
 
+@with_tenant_schema
 def build_page_context(request, page_slug: str) -> dict:
     parish_data_service = ParishDataService.for_request(request)
     page_title, page_subtitle = page_title_subtitle(page_slug)

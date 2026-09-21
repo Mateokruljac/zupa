@@ -43,7 +43,7 @@ DOCUMENT_TEMPLATES = json.loads(r"""
       "tjedan_od",
       "zupa"
     ],
-    "body": "<div class=\"print-doc\">\n        <h2 style=\"text-align:center\">RASPORED MOLITVENIH NAKANA</h2>\n        <p>Župa {{zupa}} · tjedan od {{tjedan_od}}</p>\n        <table border=\"1\" cellpadding=\"8\" style=\"width:100%;border-collapse:collapse;margin-top:1em\">\n          <thead><tr><th>Datum</th><th>Misa</th><th>Namjera</th><th>Naručitelj</th><th>Stipendij</th></tr></thead>\n          <tbody>{{tablica_nakana}}</tbody>\n        </table>\n      </div>"
+    "body": "<div class=\"print-doc\">\n        <h2 style=\"text-align:center\">RASPORED MOLITVENIH NAKANA</h2>\n        <p>Župa {{zupa}} · tjedan od {{tjedan_od}}</p>\n        <table border=\"1\" cellpadding=\"8\" style=\"width:100%;border-collapse:collapse;margin-top:1em\">\n          <thead><tr><th>Datum</th><th>Misa</th><th>Namjera</th><th>Stipendij</th></tr></thead>\n          <tbody>{{tablica_nakana}}</tbody>\n        </table>\n      </div>"
   },
   {
     "id": "izvjestaj_dekanska_vizitacija",

@@ -1,6 +1,9 @@
 import re
 
-from django.db import transaction
+from django.db import connection, transaction
+from django_tenants.utils import get_public_schema_name
+
+from django_multitenant.schema import with_tenant_schema
 
 
 THEME_COLOR_PATTERN = re.compile(r'^#[0-9a-fA-F]{6}$')
@@ -39,11 +42,35 @@ def _mixed_theme_color(first_color, second_color, first_weight):
 
 
 @transaction.atomic
+@with_tenant_schema
 def synchronize_admin_interface_theme(primary_color, accent_color):
-    """Usklađuje aktivni django-admin-interface Theme s paletom župe."""
+    """Usklađuje django-admin-interface Theme u schemi tenanta, ne u public."""
     from admin_interface.cache import del_cached_active_theme
     from admin_interface.models import Theme
 
+    schema_name = getattr(connection, 'schema_name', None)
+    if not schema_name or schema_name == get_public_schema_name():
+        return None
+
+    include_public = getattr(connection, 'include_public_schema', True)
+    connection.set_schema(schema_name, include_public=False)
+    try:
+        return _write_tenant_admin_theme(
+            Theme,
+            del_cached_active_theme,
+            primary_color,
+            accent_color,
+        )
+    finally:
+        connection.set_schema(schema_name, include_public=include_public)
+
+
+def _write_tenant_admin_theme(
+    Theme,
+    del_cached_active_theme,
+    primary_color,
+    accent_color,
+):
     normalized_primary_color = _normalized_theme_color(
         primary_color,
         '#5C2E3A',

@@ -18,14 +18,23 @@
     colorScheme: "light",
   };
 
-  function readServerSettings() {
-    const el = document.getElementById("parish-settings-data");
+  function readJsonScript(elementId) {
+    const el = document.getElementById(elementId);
     if (!el) return null;
     try {
       return JSON.parse(el.textContent);
     } catch {
       return null;
     }
+  }
+
+  function readServerSettings() {
+    return readJsonScript("parish-settings-data");
+  }
+
+  function readPlatformColor() {
+    const platform = readJsonScript("platform-color-data");
+    return platform && typeof platform === "object" ? platform : null;
   }
 
   function csrfToken() {
@@ -39,39 +48,62 @@
     return document.body?.dataset?.djangoShell === "1";
   }
 
+  const THEME_KEYS = [
+    "primaryColor",
+    "accentColor",
+    "bgColor",
+    "bgPatternColor",
+    "themePresetId",
+    "customTheme",
+    "colorScheme",
+  ];
+
+  function omitThemeKeys(data) {
+    const rest = { ...data };
+    THEME_KEYS.forEach((key) => {
+      delete rest[key];
+    });
+    return rest;
+  }
+
+  function themeFrom(data) {
+    const theme = {};
+    THEME_KEYS.forEach((key) => {
+      if (data && data[key] != null) theme[key] = data[key];
+    });
+    return theme;
+  }
+
   function loadSettings() {
-    const server = readServerSettings();
-    let merged = server ? { ...FALLBACK, ...server, _parishId: PARISH_ID } : { ...FALLBACK };
-    if (!merged.colorScheme) {
-      try {
-        merged.colorScheme = localStorage.getItem("pastoral-color-scheme") || "light";
-      } catch {
-        merged.colorScheme = "light";
-      }
-    }
+    const server = omitThemeKeys(readServerSettings() || {});
+    const platform = themeFrom(readPlatformColor() || {});
+    const merged = { ...omitThemeKeys(FALLBACK), ...server, ...platform };
+    if (!merged.colorScheme) merged.colorScheme = "light";
     return merged;
   }
 
   function writeServerSettings(payload) {
-    const el = document.getElementById("parish-settings-data");
-    if (!el) return;
-    try {
-      el.textContent = JSON.stringify(payload);
-    } catch {
-      /* noop */
+    const parishEl = document.getElementById("parish-settings-data");
+    if (parishEl) {
+      try {
+        parishEl.textContent = JSON.stringify(omitThemeKeys(payload));
+      } catch {
+        /* noop */
+      }
+    }
+    const platformEl = document.getElementById("platform-color-data");
+    if (platformEl) {
+      try {
+        platformEl.textContent = JSON.stringify(themeFrom(payload));
+      } catch {
+        /* noop */
+      }
     }
   }
 
   function saveSettings(data) {
     const payload = { ...loadSettings(), ...data };
     writeServerSettings(payload);
-    if (payload.colorScheme) {
-      try {
-        localStorage.setItem("pastoral-color-scheme", payload.colorScheme);
-      } catch {
-        /* noop */
-      }
-    }
     if (!isDjangoShell()) return;
     fetch("/theme/save/", {
       method: "POST",

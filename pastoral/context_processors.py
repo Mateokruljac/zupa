@@ -9,12 +9,24 @@ from pastoral.services.data import ParishDataService
 from pastoral.services.admin_interface_theme import (
     synchronize_admin_interface_theme,
 )
+from django_multitenant.schema import with_tenant_schema
 from pastoral.services.permissions import (
     current_nav_page,
     filter_nav,
     group_nav_sections,
     nav_badges_from_stats,
 )
+
+
+def current_platform_color() -> dict:
+    from django.db.utils import ProgrammingError
+
+    from core.models import Settings
+
+    try:
+        return Settings.load_platform_color()
+    except ProgrammingError:
+        return Settings.default_platform_color()
 
 
 THEME_COLOR_PATTERN = re.compile(r'^#[0-9a-fA-F]{6}$')
@@ -27,6 +39,7 @@ def _valid_theme_color(color_value, fallback_color):
     return fallback_color
 
 
+@with_tenant_schema
 def _technical_admin_theme(request):
     from pastoral.models import Parish
 
@@ -56,7 +69,8 @@ def _technical_admin_theme(request):
             .first()
         )
 
-    parish_settings = selected_parish.settings if selected_parish else {}
+    parish_settings = dict(selected_parish.settings if selected_parish else {})
+    parish_settings.update(current_platform_color())
     legacy_theme = parish_settings.get('theme') or {}
     technical_admin_theme = {
         'primary_color': _valid_theme_color(
@@ -76,14 +90,21 @@ def _technical_admin_theme(request):
 
 
 def pastoral_globals(request):
+    platform_color = current_platform_color()
     is_technical_admin = (
         request.resolver_match
         and request.resolver_match.namespace == 'admin'
     )
     if is_technical_admin:
-        return {'technical_admin_theme': _technical_admin_theme(request)}
+        return {
+            'technical_admin_theme': _technical_admin_theme(request),
+            'platform_color': platform_color,
+        }
     if not request.user.is_authenticated:
-        return {}
+        return {
+            'platform_color': platform_color,
+            'parish_settings': platform_color,
+        }
     parish_data_service = ParishDataService.for_request(request)
     current_page = current_nav_page(request)
     parish_settings = parish_data_service.load_settings()
@@ -95,6 +116,7 @@ def pastoral_globals(request):
     active_role = tenant_context.role if tenant_context else request.user.role
     navigation_items = filter_nav(active_role, current_page)
     return {
+        'platform_color': platform_color,
         'parish_settings': parish_settings,
         'nav_items': navigation_items,
         'nav_sections': group_nav_sections(navigation_items),

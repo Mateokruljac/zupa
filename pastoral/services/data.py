@@ -8,6 +8,7 @@ from django.db import transaction
 
 from pastoral.models import Parish
 from pastoral.fixtures.demo_data import DEMO_PARISH_DATA
+from django_multitenant.schema import with_tenant_schema
 
 DEFAULT_SETTINGS = {
     '_parishId': 'bdm-slavonski-brod',
@@ -36,14 +37,19 @@ class ParishDataService:
 
     @classmethod
     def for_request(cls, request) -> 'ParishDataService':
-        """Koristi parish s requesta ako ga middleware/view već razriješi."""
-        return cls(getattr(request, 'tenant', None) or getattr(request, 'parish', None))
+        """Župa iz request.parish; django-tenantsov request.tenant nije Parish."""
+        parish = getattr(request, 'parish', None)
+        if isinstance(parish, Parish):
+            return cls(parish)
+        return cls()
 
+    @with_tenant_schema
     def lock_for_update(self) -> None:
         """Zaključaj tenant red unutar aktivne transakcije prije read-modify-writea."""
         self.parish = Parish.objects.select_for_update().get(pk=self.parish.pk)
 
     @classmethod
+    @with_tenant_schema
     def get_or_create_parish(cls) -> Parish:
         parish, created = Parish.objects.get_or_create(
             slug=settings.PARISH_DEFAULT_SLUG,
@@ -70,6 +76,7 @@ class ParishDataService:
             parish.save(update_fields=['settings'])
         return parish
 
+    @with_tenant_schema
     def _has_operational_rows(self) -> bool:
         from zupa_vjernici.models import Household, Street
         return (
@@ -78,8 +85,9 @@ class ParishDataService:
             or bool(self.parish.data)
         )
 
+    @with_tenant_schema
     def load(self) -> dict:
-        from pastoral.services.api_actions import normalize_parish_data
+        from pastoral.services.api_action_handlers.shared import normalize_parish_data
         from pastoral.services.operational_store import load_operational_collections
         from sakramenti.services.baptism_records import (
             relational_baptisms_as_legacy_dictionaries,
@@ -129,6 +137,7 @@ class ParishDataService:
         normalize_parish_data(parish_data)
         return parish_data
 
+    @with_tenant_schema
     def save(self, parish_data: dict) -> None:
         from pastoral.services.operational_store import save_operational_collections
         from sakramenti.services.formation_records import (
@@ -169,6 +178,7 @@ class ParishDataService:
             self.parish.data = {}
             self.parish.save(update_fields=['data', 'updated_at'])
 
+    @with_tenant_schema
     def save_liturgical(self, parish_data: dict) -> None:
         from pastoral.services.operational_store import (
             save_liturgical_collections,
@@ -176,6 +186,7 @@ class ParishDataService:
 
         save_liturgical_collections(self.parish, parish_data)
 
+    @with_tenant_schema
     def save_financial(self, parish_data: dict) -> None:
         from pastoral.services.operational_store import (
             save_financial_collections,
@@ -183,15 +194,32 @@ class ParishDataService:
 
         save_financial_collections(self.parish, parish_data)
 
+    @with_tenant_schema
     def load_settings(self) -> dict:
+        from core.models import Settings
+
         merged = {**DEFAULT_SETTINGS, **(self.parish.settings or {})}
+        for theme_key in Settings.THEME_SETTING_KEYS:
+            merged.pop(theme_key, None)
         merged['_parishId'] = self.parish.slug
+        merged.update(Settings.load_platform_color())
         return merged
 
+    @with_tenant_schema
     def save_settings(self, parish_settings: dict) -> None:
-        self.parish.settings = {**parish_settings, '_parishId': self.parish.slug}
+        from core.models import Settings
+
+        Settings.save_platform_color(parish_settings)
+        stored_settings = {
+            key: value
+            for key, value in parish_settings.items()
+            if key not in Settings.THEME_SETTING_KEYS
+        }
+        stored_settings['_parishId'] = self.parish.slug
+        self.parish.settings = stored_settings
         self.parish.save(update_fields=['settings', 'updated_at'])
 
+    @with_tenant_schema
     def reset_demo(self) -> list[dict]:
         from pastoral.services.operational_store import save_operational_collections
         from sakramenti.services.baptism_records import reconcile_baptism_records

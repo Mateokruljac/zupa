@@ -7,6 +7,7 @@ import uuid
 from django.contrib import messages
 
 from ured.forms import CouncilMeetingForm, CouncilMemberForm
+from django_multitenant.schema import with_tenant_schema
 
 if TYPE_CHECKING:
     from pastoral.services.data import ParishDataService
@@ -53,6 +54,7 @@ def _council_member(
     )
 
 
+@with_tenant_schema
 def handle_council_action(
     request,
     page_slug: str,

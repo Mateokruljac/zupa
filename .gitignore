@@ -24,6 +24,9 @@ staticfiles/
 website_project/website.sqlite3
 website_project/media/
 
+# Liturgija app log
+liturgija/logs/
+
 # Operating-system metadata
 .DS_Store
 Thumbs.db

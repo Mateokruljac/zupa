@@ -27,6 +27,7 @@
   const djangoYearInFlight = {};
   const djangoMonthInFlight = {};
 
+  /** GET /api/liturgical/year/{year}/ — svi uvezeni dani, bez HILP-a. */
   async function fetchDjangoLiturgicalYear(year) {
     if (mappedDayCache[year]) return mappedDayCache[year];
     if (djangoYearInFlight[year]) return djangoYearInFlight[year];
@@ -69,6 +70,7 @@
     };
   }
 
+  /** Dan iz memorije (nakon fetch godine) ili prazan karton. */
   function getMappedDay(iso) {
     const y = parseYear(iso);
     for (const calYear of [y, y + 1, y - 1]) {
@@ -157,6 +159,7 @@
     return yearIndexCache[year];
   }
 
+  /** Jedan dan: cache, inače API dana (s HILP čitanjima). */
   async function getDay(iso) {
     const date = iso || isoToday();
     try {
@@ -265,6 +268,7 @@
     }
   }
 
+  /** Umetni HTML karton liturgijskog dana u element. */
   async function mountInto(el, iso, opts) {
     if (!el) return;
     const date = iso || isoToday();

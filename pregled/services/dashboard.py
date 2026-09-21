@@ -418,9 +418,6 @@ def build_dashboard_context(
         'work_queue': reminders[:6],
         'today_masses': todays_masses,
         'next_mass': next_mass,
-        'unassigned_masses': sum(
-            1 for mass in todays_masses if not mass.get('celebrant')
-        ),
         'today': today,
         'liturgical_day': LiturgicalService().get_day(today),
     }

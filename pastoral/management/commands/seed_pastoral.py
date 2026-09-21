@@ -2,11 +2,13 @@ from django.core.management.base import BaseCommand
 
 from pastoral.models import User
 from pastoral.services.data import ParishDataService
+from django_multitenant.schema import with_tenant_schema
 
 
 class Command(BaseCommand):
     help = 'Učitaj demo podatke župe i demo korisnike'
 
+    @with_tenant_schema
     def handle(self, *args, **options):
         svc = ParishDataService()
         svc.reset_demo()

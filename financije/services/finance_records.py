@@ -17,6 +17,7 @@ import copy
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from core.utils import _decimal_amount
 from financije.ledgers import LEDGER_CRKVENI, normalize_ledger
 from financije.models import CashbookEntry, Invoice, ParishDebt
 
@@ -30,19 +31,6 @@ def _parse_iso_date(value) -> date | None:
         return date.fromisoformat(raw[:10])
     except ValueError:
         return None
-
-
-def _decimal_amount(value) -> Decimal:
-    """
-    Pretvara UI iznos u Decimal za ORM.
-
-    Neispravan unos postaje 0, ne iznimka — spremanje ne smije pasti
-    zbog praznog polja dok forma još šalje stringove.
-    """
-    try:
-        return Decimal(str(value if value is not None else 0))
-    except (InvalidOperation, TypeError, ValueError):
-        return Decimal('0')
 
 
 def _iso_or_empty(value: date | None) -> str:

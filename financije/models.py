@@ -12,8 +12,11 @@ UI i dalje vidi camelCase dictove koje `operational_store` slaže preko
 from core.models import FCTA
 from django.db import models
 
+from django_multitenant.schema import TenantBoundModel
+from django_multitenant.schema import with_tenant_schema
 
-class FinanceSettings(models.Model):
+
+class FinanceSettings(TenantBoundModel):
     """
     Skalarni financijski parametri jedne župe.
 
@@ -45,6 +48,7 @@ class FinanceSettings(models.Model):
     created_at = models.DateTimeField('Kreirano', auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @with_tenant_schema
     def save(self, *args, **kwargs):
         """`unified_key` je id župe — nema drugog poslovnog ključa postavki."""
         self.unified_key = str(self.parish_id or self.unified_key)

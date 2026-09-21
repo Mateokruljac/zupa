@@ -8,6 +8,7 @@ na novi otvoreni red — inače bi ostala na zatvorenoj verziji ulice.
 from __future__ import annotations
 
 from zupa_vjernici.models import Street
+from django_multitenant.schema import with_tenant_schema
 
 
 def street_as_legacy_record(street: Street) -> dict:
@@ -32,6 +33,7 @@ def street_field_defaults_from_legacy(record: dict) -> dict:
     }
 
 
+@with_tenant_schema
 def upsert_current_street(parish, public_identifier: str, defaults: dict):
     """Spremi otvorenu ulicu i, ako je verzija, preusmjeri kućanstva.
 

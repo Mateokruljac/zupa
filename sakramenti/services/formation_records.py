@@ -10,6 +10,7 @@ from django.db.models import Prefetch
 
 from sakramenti.models import FormationCandidate, FormationProgramYear
 from pastoral.models import Parish
+from django_multitenant.schema import with_tenant_schema
 
 
 COLLECTION_BY_PROGRAM_TYPE = {
@@ -122,6 +123,7 @@ def _program_year_as_dictionary(program_year: FormationProgramYear) -> dict:
     return projected_group
 
 
+@with_tenant_schema
 def relational_formation_programs_as_dictionaries(parish: Parish) -> dict[str, list[dict]]:
     """Return the stable dictionary contract expected by existing screens."""
     projected_collections = {
@@ -142,6 +144,7 @@ def relational_formation_programs_as_dictionaries(parish: Parish) -> dict[str, l
     return projected_collections
 
 
+@with_tenant_schema
 def _synchronize_candidate(
     program_year: FormationProgramYear,
     candidate_record: dict,
@@ -186,6 +189,7 @@ def _synchronize_candidate(
 
 
 @transaction.atomic
+@with_tenant_schema
 def reconcile_formation_programs(parish: Parish, parish_data: dict) -> None:
     """Make relational preparation records match the current UI representation."""
     retained_program_year_ids = []

@@ -4,6 +4,14 @@ from django.utils.translation import gettext_lazy as _
 # DJANGO ADMIN
 ADMIN_REORDER = [
     {
+        'label': _('Tenanti'),
+        'description': _('PostgreSQL scheme i domene (public schema).'),
+        'models': (
+            'django_multitenant.Tenant',
+            'django_multitenant.Domain',
+        ),
+    },
+    {
         'label': _('Župa — postavke'),
         'description': _(
             'Osnovni podaci župe i veze na referentne kataloške vrijednosti. '
@@ -11,6 +19,7 @@ ADMIN_REORDER = [
         ),
         'models': (
             'pastoral.Parish',
+            'core.Settings',
         ),
     },
     {
@@ -50,7 +59,7 @@ ADMIN_REORDER = [
             'Tko smije u Pastoral i tko ima pristup ovoj tehničkoj administraciji.'
         ),
         'models': (
-            'pastoral.User',
+            'django_multitenant.User',
             'auth.Group',
         ),
     },

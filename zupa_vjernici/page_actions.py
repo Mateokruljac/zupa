@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from django.contrib import messages
 
-from pastoral.services.api_actions import normalize_parish_data
+from pastoral.services.api_action_handlers.shared import normalize_parish_data
 from zupa_vjernici.api_actions import (
     create_family,
     delete_street,
@@ -17,6 +17,7 @@ from zupa_vjernici.api_actions import (
     upsert_street,
     upsert_visit,
 )
+from django_multitenant.schema import with_tenant_schema
 from zupa_vjernici.forms import (
     FamilyContributionForm,
     FamilyForm,
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
     from pastoral.services.data import ParishDataService
 
 
+@with_tenant_schema
 def handle_family_action(
     request,
     page_slug: str,
@@ -147,6 +149,7 @@ def handle_family_action(
     return True
 
 
+@with_tenant_schema
 def handle_streets_and_visits_action(
     request,
     page_slug: str,

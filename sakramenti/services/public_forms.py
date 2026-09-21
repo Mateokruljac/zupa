@@ -1,3 +1,4 @@
+from django.db import connection
 from django.conf import settings
 from django.forms import Form
 from django.utils import timezone
@@ -133,6 +134,7 @@ def dispatch_public_submission_email(form_slug: str, payload: dict, *, timeout: 
         subject=EMAIL_SUBJECTS.get(form_slug, 'Nova javna prijava'),
         template_base=template_base,
         context=context,
+        schema_name=getattr(connection, 'schema_name', None),
     )
 
     try:

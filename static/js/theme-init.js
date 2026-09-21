@@ -1,24 +1,23 @@
 /**
- * Rani init svijetlog/tamnog načina — sprječava bljesak pri učitavanju.
+ * Rani način prikaza — samo iz #platform-color-data / #parish-settings-data.
  */
 (function (global) {
-  const STORAGE_KEY = "pastoral-color-scheme";
+  function readJsonScript(elementId) {
+    const el = document.getElementById(elementId);
+    if (!el) return null;
+    try {
+      return JSON.parse(el.textContent);
+    } catch {
+      return null;
+    }
+  }
 
   function readPref() {
-    const el = document.getElementById("parish-settings-data");
-    if (el) {
-      try {
-        const s = JSON.parse(el.textContent);
-        if (s.colorScheme) return s.colorScheme;
-      } catch {
-        /* noop */
-      }
-    }
-    try {
-      return localStorage.getItem(STORAGE_KEY) || "light";
-    } catch {
-      return "light";
-    }
+    const platform = readJsonScript("platform-color-data");
+    if (platform && platform.colorScheme) return platform.colorScheme;
+    const parish = readJsonScript("parish-settings-data");
+    if (parish && parish.colorScheme) return parish.colorScheme;
+    return "light";
   }
 
   function resolve(pref) {
@@ -37,5 +36,5 @@
   const publicSite = document.documentElement.hasAttribute("data-public-site");
   applyEarly(publicSite ? "light" : readPref());
 
-  global.PastoralThemeInit = { STORAGE_KEY, readPref, resolve, applyEarly };
+  global.PastoralThemeInit = { readPref, resolve, applyEarly };
 })(typeof window !== "undefined" ? window : global);

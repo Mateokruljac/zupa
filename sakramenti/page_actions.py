@@ -10,6 +10,7 @@ from sakramenti.services.baptism_records import (
     cancel_synchronized_baptism,
     synchronize_baptism_record,
 )
+from django_multitenant.schema import with_tenant_schema
 from sakramenti.forms import (
     AnointingForm,
     BaptismForm,
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
     from pastoral.services.data import ParishDataService
 
 
+@with_tenant_schema
 def handle_sacrament_action(
     request,
     page_slug: str,
@@ -425,6 +427,7 @@ def _first_communion_candidate_payload(
     }
 
 
+@with_tenant_schema
 def handle_formation_action(
     request,
     page_slug: str,

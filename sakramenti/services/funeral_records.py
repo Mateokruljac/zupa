@@ -12,6 +12,7 @@ from sakramenti.models import (
     FuneralDetails,
     SacramentalEvent,
 )
+from django_multitenant.schema import with_tenant_schema
 from sakramenti.services.family_card_sacraments import exclude_family_card_events
 from pastoral.models import Parish
 
@@ -53,6 +54,7 @@ def _parse_amount(raw_value) -> Decimal:
         raise ValidationError({'stipend': 'Unesite ispravan iznos.'}) from error
 
 
+@with_tenant_schema
 def relational_funerals_as_dictionaries(parish: Parish) -> list[dict]:
     funeral_events = exclude_family_card_events(
         SacramentalEvent.objects.filter(
@@ -96,6 +98,7 @@ def relational_funerals_as_dictionaries(parish: Parish) -> list[dict]:
     return funeral_records
 
 
+@with_tenant_schema
 def _synchronize_recipient(
     parish: Parish,
     funeral_event: SacramentalEvent,
@@ -121,6 +124,7 @@ def _synchronize_recipient(
     ).exclude(pk=recipient.pk).delete()
 
 
+@with_tenant_schema
 def _synchronize_funeral(parish: Parish, funeral_record: dict) -> SacramentalEvent:
     public_identifier = str(funeral_record.get('id') or '').strip()
     deceased_name = str(funeral_record.get('deceased') or '').strip()
@@ -182,6 +186,7 @@ def _synchronize_funeral(parish: Parish, funeral_record: dict) -> SacramentalEve
 
 
 @transaction.atomic
+@with_tenant_schema
 def reconcile_funeral_records(parish: Parish, funeral_records: list[dict]) -> None:
     retained_event_ids = []
     seen_identifiers = set()

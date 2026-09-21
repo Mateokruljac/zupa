@@ -34,6 +34,7 @@ def _normalize_latin_key(latin_name: str) -> str:
 
 
 def _catalog_from_csv_rows(rows) -> dict[str, dict[str, str]]:
+    """CSV redovi (latin, hrvatski, boja) → dict. Preskače header i kratke redove."""
     catalog = {}
     for row in rows:
         fields = [field.strip() for field in row if str(field).strip() != '']
@@ -50,6 +51,7 @@ def _catalog_from_csv_rows(rows) -> dict[str, dict[str, str]]:
 
 
 def _load_catalog_from_csv() -> dict[str, dict[str, str]]:
+    """Učitaj CSV ako postoji; delimiter je navodnik (format izvora)."""
     if not CSV_PATH.exists():
         return {}
     with CSV_PATH.open(encoding='utf-8', newline='') as handle:
@@ -59,6 +61,7 @@ def _load_catalog_from_csv() -> dict[str, dict[str, str]]:
 
 
 def _write_json_catalog(catalog: dict[str, dict[str, str]]) -> None:
+    """Jednokratno spremi JSON pored CSV-a da runtime ne parsira CSV."""
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     JSON_PATH.write_text(
         json.dumps(catalog, ensure_ascii=False, indent=2) + '\n',
@@ -86,6 +89,7 @@ def liturgical_day_catalog() -> dict[str, dict[str, str]]:
 
 @lru_cache(maxsize=1)
 def _normalized_catalog() -> dict[str, dict[str, str]]:
+    """Isti katalog pod normaliziranim latinskim ključem (fallback lookup)."""
     return {
         _normalize_latin_key(latin_name): entry
         for latin_name, entry in liturgical_day_catalog().items()

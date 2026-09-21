@@ -13,6 +13,7 @@ from isprave.models import (
     RegisterTemplate,
     RegisterTemplateVersion,
 )
+from django_multitenant.schema import with_tenant_schema
 from sakramenti.models import SacramentalEvent
 
 
@@ -39,6 +40,7 @@ def _parse_optional_date(raw_value) -> date | None:
         raise ValidationError({'lastEntry': 'Unesite ispravan datum.'}) from error
 
 
+@with_tenant_schema
 def _template_version_for_registry_type(
     registry_type: str,
 ) -> RegisterTemplateVersion | None:
@@ -69,6 +71,7 @@ def _template_version_for_registry_type(
     return template_version
 
 
+@with_tenant_schema
 def relational_register_books_as_dictionaries(parish: Parish) -> list[dict]:
     register_books = RegisterBook.objects.filter(parish=parish).exclude(
         status=RegisterBook.Status.ARCHIVED
@@ -94,6 +97,7 @@ def relational_register_books_as_dictionaries(parish: Parish) -> list[dict]:
 
 
 @transaction.atomic
+@with_tenant_schema
 def reconcile_register_books(parish: Parish, register_book_records: list[dict]) -> None:
     retained_register_book_ids = []
     seen_identifiers = set()

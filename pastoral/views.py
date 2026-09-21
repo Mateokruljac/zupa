@@ -14,13 +14,13 @@ from financije.forms import CashbookEntryForm, DonationForm, InvoiceForm, Parish
 from financije.ledgers import LEDGER_CRKVENI, LEDGER_GRADNJA, LEDGER_KOLEKTE
 from isprave.document_print import document_print_response
 from isprave.page_forms import attach_isprave_forms
-from liturgija.forms import IntentionForm
 from sakramenti.page_forms import attach_sacrament_forms
 from ured.page_forms import attach_ured_forms
 from zupa_vjernici.page_forms import attach_parish_community_forms
 from .page_handlers import build_page_context
 from .services.data import ParishDataService
 from .services.admin_interface_theme import synchronize_admin_interface_theme
+from django_multitenant.schema import with_tenant_schema
 
 from .view_modules.authentication import (  # noqa: F401
     admin_login_redirect_view,
@@ -95,11 +95,7 @@ def _add_standard_forms_to_page_context(
     parish_data_service: ParishDataService,
     page_context: dict,
 ) -> None:
-    if page == 'nakane':
-        page_context['intention_form'] = IntentionForm(initial={
-            'date': parish_data_service.today_iso(),
-        })
-    elif page == 'dugovanja':
+    if page == 'dugovanja':
         page_context['debt_form'] = ParishDebtForm()
     elif page == 'blagajna':
         current_ledger = page_context.get('cashbook_ledger') or LEDGER_CRKVENI
@@ -209,6 +205,7 @@ def admin_page_view(request, page: str):
 
 @login_required
 @require_POST
+@with_tenant_schema
 def save_theme_view(request):
     try:
         payload = json.loads(request.body.decode('utf-8'))

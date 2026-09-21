@@ -1,8 +1,4 @@
-"""URL-ovi za Liturgija.
-
-Uključuju se u `zupa/urls.py` ispod `pages/`. Javni put ostaje
-`/pages/<slug>/`, a `pastoral:page` i dalje radi za reverse.
-"""
+"""URL-ovi Liturgije. Uključeni u `zupa/urls.py` ispod `pages/`."""
 from django.urls import path
 
 from liturgija import views

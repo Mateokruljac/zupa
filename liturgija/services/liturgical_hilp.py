@@ -1,4 +1,4 @@
-"""HILP liturgija dana — hrvatska čitanja za svaki dan."""
+"""HILP liturgija dana — hrvatska čitanja s hilp.hr (HTML scrape + cache)."""
 from __future__ import annotations
 
 import html as html_lib
@@ -10,6 +10,7 @@ from django.core.cache import cache
 
 HILP_BASE = 'https://hilp.hr/liturgija-dana/'
 
+# (prefix u HTML naslovu, natpis koji ide u JSON)
 READING_KEYS = (
     ('prvo čitanje', 'Prvo čitanje'),
     ('otpjevni psalam', 'Otpjevni psalam'),
@@ -20,17 +21,20 @@ READING_KEYS = (
 
 
 def hilp_url(iso: str) -> str:
+    """Javni URL za datum (link u UI i za fetch)."""
     y, m, d = iso.split('-')
     return f'{HILP_BASE}?god={y}&mj={int(m)}&dan={int(d)}'
 
 
 def _strip_html(fragment: str) -> str:
+    """HTML blurb → običan tekst (``<br>`` postaje novi red)."""
     text = re.sub(r'<br\s*/?>', '\n', fragment or '', flags=re.I)
     text = re.sub(r'<[^>]+>', '', text)
     return html_lib.unescape(text).strip()
 
 
 def _parse_blurbs(html: str) -> list[tuple[str, str]]:
+    """Divi Divi themesa: par (naslov h4, opis)."""
     pattern = re.compile(
         r'<h4 class="et_pb_module_header"><span>(.*?)</span></h4>\s*'
         r'<div class="et_pb_blurb_description">(.*?)</div>',
@@ -40,6 +44,7 @@ def _parse_blurbs(html: str) -> list[tuple[str, str]]:
 
 
 def _is_reading_header(header: str) -> str | None:
+    """Ako je naslov čitanje, vrati kanonski natpis; inače None."""
     low = header.lower().rstrip(':').strip()
     for key, label in READING_KEYS:
         if low == key or low.startswith(key):
@@ -48,6 +53,7 @@ def _is_reading_header(header: str) -> str | None:
 
 
 def _is_section_boundary(header: str) -> bool:
+    """Sljedeći blurb je novo poglavlje — prestani skupljati tijelo čitanja."""
     low = header.lower()
     if _is_reading_header(header):
         return True
@@ -73,6 +79,7 @@ def _is_section_boundary(header: str) -> bool:
 
 
 def parse_hilp_html(html: str) -> dict:
+    """Iz HTML-a dana izvuci čitanja, misao, tjedan, boju."""
     blurbs = _parse_blurbs(html)
     readings: list[dict] = []
     gospel_thought = ''
@@ -91,7 +98,7 @@ def parse_hilp_html(html: str) -> dict:
             i += 1
             continue
         if low.startswith('misna čitanja'):
-            reading_refs = desc.split('\n')[0].strip()
+            reading_refs = desc.split('\n')[0].strip()  # prvi red = kratke reference
             i += 1
             continue
         if 'tjedan kroz godinu' in low:
@@ -112,6 +119,7 @@ def parse_hilp_html(html: str) -> dict:
             ref = desc.split('\n')[0].strip()
             body_parts: list[str] = []
             j = i + 1
+            # Tijelo čitanja su sljedeći blurbs do sljedećeg naslova.
             while j < len(blurbs):
                 nh, nd = blurbs[j]
                 if _is_reading_header(nh) or _is_section_boundary(nh):
@@ -141,6 +149,7 @@ def parse_hilp_html(html: str) -> dict:
 
 
 def fetch_hilp_day(iso: str) -> dict | None:
+    """Dohvati i parsiraj dan; 24 h cache. None ako mreža ili prazna stranica."""
     cache_key = f'hilp_day_v1_{iso}'
     cached = cache.get(cache_key)
     if cached is not None:
@@ -156,7 +165,7 @@ def fetch_hilp_day(iso: str) -> dict | None:
 
     parsed = parse_hilp_html(html)
     if not parsed.get('readings') and not parsed.get('gospelThought'):
-        return None
+        return None  # HTML se promijenio ili dan još nije objavljen
 
     parsed['source'] = 'hilp'
     parsed['hilpUrl'] = url

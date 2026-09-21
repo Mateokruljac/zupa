@@ -16,7 +16,22 @@ SECRET_KEY = environment.str(
 DEBUG = False
 ALLOWED_HOSTS = ['*']
 
-INSTALLED_APPS = [
+SHARED_APPS = [
+    'django_tenants',
+    'django_multitenant',
+    'django.contrib.contenttypes',
+    'django.contrib.auth',
+    'admin_interface',
+    'colorfield',
+    'django.contrib.admin',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'whitenoise.runserver_nostatic',
+    'django.contrib.staticfiles',
+    'django_celery_beat',
+]
+
+TENANT_APPS = [
     'admin_interface',
     'colorfield',
     'django.contrib.admin',
@@ -24,10 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
-    'django_celery_beat',
-    'core.apps.CoreConfig',
+    'core',
     'pastoral',
     'pregled',
     'zupa_vjernici',
@@ -35,7 +48,11 @@ INSTALLED_APPS = [
     'financije',
     'isprave',
     'ured',
-    'liturgija'
+    'liturgija',
+]
+
+INSTALLED_APPS = SHARED_APPS + [
+    app for app in TENANT_APPS if app not in SHARED_APPS
 ]
 
 AUTHENTICATION_BACKENDS = (
@@ -43,6 +60,7 @@ AUTHENTICATION_BACKENDS = (
 )
 
 MIDDLEWARE = [
+    'django_tenants.middleware.main.TenantMainMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -52,9 +70,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'zupa.middleware.request_tenant.RequestMiddleware',
 ]
 
 ROOT_URLCONF = 'zupa.urls'
+PUBLIC_SCHEMA_URLCONF = 'zupa.urls_public'
 
 TEMPLATES = [
     {
@@ -78,7 +98,7 @@ WSGI_APPLICATION = 'zupa.wsgi.application'
 # Iste zadane vjerodajnice kao `db` servis u docker-compose.yml.
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django_tenants.postgresql_backend',
         'NAME': environment.str('DB_NAME', default='zupa'),
         'USER': environment.str('DB_USER', default='zupa'),
         'PASSWORD': environment.str('DB_PASS', default='zupa'),
@@ -91,6 +111,11 @@ DATABASES = {
     }
 }
 
+DATABASE_ROUTERS = ('django_tenants.routers.TenantSyncRouter',)
+
+TENANT_MODEL = 'django_multitenant.Tenant'
+TENANT_DOMAIN_MODEL = 'django_multitenant.Domain'
+SHOW_PUBLIC_IF_NO_TENANT_FOUND = False
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -115,7 +140,7 @@ MEDIA_ROOT = BASE_DIR / 'static' / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-AUTH_USER_MODEL = "pastoral.User"
+AUTH_USER_MODEL = 'django_multitenant.User'
 
 LOGIN_URL = 'pastoral:login'
 LOGOUT_REDIRECT_URL = 'pastoral:login'
@@ -174,6 +199,8 @@ CACHES = {
         default='locmemcache://pastoral-default',
     ),
 }
+CACHES['default']['KEY_FUNCTION'] = 'django_tenants.cache.make_key'
+CACHES['default']['REVERSE_KEY_FUNCTION'] = 'django_tenants.cache.reverse_key'
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = None
 DATA_UPLOAD_MAX_NUMBER_FILES = None
@@ -183,6 +210,10 @@ X_FRAME_OPTIONS = 'SAMEORIGIN'
 
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 8 * 60 * 60
+SESSION_COOKIE_DOMAIN = None
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_DOMAIN = None
+CSRF_COOKIE_SAMESITE = 'Lax'
 
 PARISH_DEFAULT_SLUG = 'bdm-slavonski-brod'
 TENANCY_LEGACY_FALLBACK_ENABLED = False

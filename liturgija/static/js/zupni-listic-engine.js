@@ -1,21 +1,28 @@
 /**
- * Župni listić — minimalni kontroler (pregled na serveru, ostalo lokalno).
+ * Župni listić — klijentski editor blokova.
+ *
+ * HTML pretpregled dolazi sa servera (`render_listic_preview`).
+ * Layout se šalje u `upsert_listic_issue` / preview action.
  */
 (function (global) {
+  /** querySelector unutar root-a (ili document). */
   function $(sel, root) {
     return (root || document).querySelector(sel);
   }
 
+  /** Duboka kopija JSON-om (layout ne smije dijeliti reference). */
   function clone(v) {
     return JSON.parse(JSON.stringify(v));
   }
 
+  /** Ponedjeljak tjedna koji sadrži iso (T12 da DST ne pomakne datum). */
   function weekStartFrom(iso) {
     const d = new Date((iso || new Date().toISOString().slice(0, 10)) + "T12:00:00");
     d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
     return d.toISOString().slice(0, 10);
   }
 
+  /** Ispis preko PastoralPrint ili novog prozora. */
   function printHtml(html, title) {
     if (global.PastoralPrint?.printHtml) {
       global.PastoralPrint.printHtml(html, title);
@@ -29,6 +36,7 @@
     w.print();
   }
 
+  /** Wrapper oko PastoralApi (cache župnih podataka + action). */
   function api() {
     return {
       getData: () => clone(global.PastoralApi?.getCache?.() || {}),
@@ -36,14 +44,13 @@
     };
   }
 
-  function migrate(data, defaultLayout) {
-    if (!data.zupniListicLayout?.blocks?.length && defaultLayout) {
-      data.zupniListicLayout = clone(defaultLayout);
-    }
+  /** Osiguraj listu izdanja (predložak je default iz koda, ne Parish.data). */
+  function migrate(data) {
     if (!Array.isArray(data.zupniListicIssues)) data.zupniListicIssues = [];
     return data;
   }
 
+  /** HTML kartice jednog bloka u builderu. */
   function blockCard(block, meta, i, n) {
     const esc = (s) =>
       String(s ?? "")
@@ -69,6 +76,7 @@
     </article>`;
   }
 
+  /** Veži tabove, builder i pretpregled na root stranice. */
   function init(root) {
     const boot = JSON.parse($("#listic-initial-data")?.textContent || "{}");
     const types = boot.config?.blockTypes || {};
@@ -77,7 +85,6 @@
 
     let weekStart = root.dataset.weekStart || weekStartFrom();
     let editLayout = clone(boot.editLayout || defLayout());
-    let savedLayout = clone(boot.savedLayout || defLayout());
     let editingId = null;
     let previewTimer;
 
@@ -234,7 +241,7 @@
         if (!issue) return;
         editingId = issue.id;
         weekStart = issue.weekStart || weekStartFrom();
-        editLayout = clone(issue.layoutSnapshot || savedLayout);
+        editLayout = clone(issue.layoutSnapshot || defLayout());
         $("#listic-week-start", root).value = weekStart;
         $("#listic-cancel-edit", root)?.classList.remove("hidden");
         paintBuilder(builderEdit, editLayout.blocks, schedulePreview);

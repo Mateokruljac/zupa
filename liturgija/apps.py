@@ -1,3 +1,4 @@
+"""Django app Liturgija: kalendar, mise, nakane, župni listić."""
 from django.apps import AppConfig
 
 

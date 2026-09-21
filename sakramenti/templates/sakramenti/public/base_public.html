@@ -1,19 +1,20 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="hr" data-public-site>
+<html lang="hr" data-public-site data-tenant-schema="{{ request.tenant.schema_name|default:'' }}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="{{ parish_settings.primaryColor|default:'#5c2e3a' }}">
+  <meta name="theme-color" content="{{ platform_color.primaryColor|default:parish_settings.primaryColor|default:'#5c2e3a' }}">
   <title>{% block title %}Javni obrasci{% endblock %} — {{ parish_settings.shortName|default:parish_settings.name|default:"Pastoral" }}</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
   {{ parish_settings|json_script:"parish-settings-data" }}
+  {{ platform_color|json_script:"platform-color-data" }}
   <script src="{% static 'js/theme-init.js' %}"></script>
   <link rel="stylesheet" href="{% static 'css/styles.css' %}">
   <style>
     :root {
-      --tenant-primary: {{ parish_settings.primaryColor|default:'#5c2e3a' }};
-      --tenant-accent: {{ parish_settings.accentColor|default:'#b8922a' }};
+      --tenant-primary: {{ platform_color.primaryColor|default:parish_settings.primaryColor|default:'#5c2e3a' }};
+      --tenant-accent: {{ platform_color.accentColor|default:parish_settings.accentColor|default:'#b8922a' }};
     }
   </style>
 </head>

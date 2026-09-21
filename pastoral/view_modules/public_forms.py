@@ -10,6 +10,7 @@ from sakramenti.forms_public import (
     PUBLIC_FORM_CLASSES,
     PUBLIC_FORM_INTROS,
 )
+from django_multitenant.schema import with_tenant_schema
 from sakramenti.services.public_forms import (
     build_submission_payload,
     dispatch_public_submission_email,
@@ -35,6 +36,7 @@ def public_index_view(request):
 
 
 @require_http_methods(['GET', 'POST'])
+@with_tenant_schema
 def public_form_view(request, form: str):
     if form not in PUBLIC_FORMS:
         raise Http404()

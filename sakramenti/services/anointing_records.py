@@ -11,6 +11,7 @@ from sakramenti.models import (
     EventParticipant,
     SacramentalEvent,
 )
+from django_multitenant.schema import with_tenant_schema
 from sakramenti.services.family_card_sacraments import exclude_family_card_events
 from pastoral.models import Parish
 
@@ -45,6 +46,7 @@ def _parse_optional_time(raw_value) -> time | None:
         raise ValidationError({'scheduledTime': 'Unesite ispravno vrijeme.'}) from error
 
 
+@with_tenant_schema
 def relational_anointings_as_dictionaries(parish: Parish) -> list[dict]:
     anointing_events = exclude_family_card_events(
         SacramentalEvent.objects.filter(
@@ -83,6 +85,7 @@ def relational_anointings_as_dictionaries(parish: Parish) -> list[dict]:
     return anointing_records
 
 
+@with_tenant_schema
 def _synchronize_recipient(
     parish: Parish,
     anointing_event: SacramentalEvent,
@@ -108,6 +111,7 @@ def _synchronize_recipient(
     ).exclude(pk=recipient.pk).delete()
 
 
+@with_tenant_schema
 def _synchronize_anointing(
     parish: Parish,
     anointing_record: dict,
@@ -163,6 +167,7 @@ def _synchronize_anointing(
 
 
 @transaction.atomic
+@with_tenant_schema
 def reconcile_anointing_records(parish: Parish, anointing_records: list[dict]) -> None:
     retained_event_ids = []
     seen_identifiers = set()
