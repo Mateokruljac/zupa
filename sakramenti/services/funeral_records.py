@@ -148,10 +148,7 @@ def _synchronize_funeral(parish: Parish, funeral_record: dict) -> SacramentalEve
         funeral_record.get('celebrant') or ''
     ).strip()
     funeral_event.liturgical_tradition = parish.default_liturgical_tradition
-    if parish.church_sui_iuris_id:
-        funeral_event.canonical_tradition = (
-            parish.church_sui_iuris.canonical_tradition
-        )
+    funeral_event.canonical_tradition = parish.canonical_tradition_for_events()
     if funeral_event.status == SacramentalEvent.Status.CANCELLED:
         funeral_event.status = SacramentalEvent.Status.DRAFT
     funeral_event.save()

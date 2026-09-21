@@ -21,34 +21,9 @@ urlpatterns = [
         name='liturgical_year',
     ),
     path(
-        'api/liturgical/raw/<int:year>/',
-        liturgija_api_views.liturgical_raw_year_api,
-        name='liturgical_raw_year',
-    ),
-    path(
         'api/liturgical/day/<str:iso>/',
         liturgija_api_views.liturgical_day_api,
         name='liturgical_day',
-    ),
-    path(
-        'api/liturgical/romcal/day/<str:iso>/',
-        liturgija_api_views.liturgical_romcal_day_api,
-        name='liturgical_romcal_day',
-    ),
-    path(
-        'api/liturgical/compare/<str:iso>/',
-        liturgija_api_views.liturgical_compare_api,
-        name='liturgical_compare',
-    ),
-    path(
-        'api/liturgical/v1/',
-        liturgija_api_views.liturgical_v1_info_api,
-        name='liturgical_v1_info',
-    ),
-    path(
-        'api/liturgical/v1/day/<str:iso>/',
-        liturgija_api_views.liturgical_v1_day_api,
-        name='liturgical_v1_day',
     ),
     path(
         'api/liturgical/month/<int:year>/<int:month>/',

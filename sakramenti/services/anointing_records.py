@@ -137,10 +137,7 @@ def _synchronize_anointing(
         anointing_record.get('priest') or ''
     ).strip()
     anointing_event.liturgical_tradition = parish.default_liturgical_tradition
-    if parish.church_sui_iuris_id:
-        anointing_event.canonical_tradition = (
-            parish.church_sui_iuris.canonical_tradition
-        )
+    anointing_event.canonical_tradition = parish.canonical_tradition_for_events()
     if anointing_event.status == SacramentalEvent.Status.CANCELLED:
         anointing_event.status = SacramentalEvent.Status.DRAFT
     anointing_event.save()

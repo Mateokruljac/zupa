@@ -1,5 +1,10 @@
-"""Operativni zapisi župnog ureda (bivši Parish.data)."""
-from core.models import FCTA, SCD1, SCD2
+"""Operativni zapisi župnog ureda.
+
+Kalendar, zadaci, javne prijave, vijeća i osnivački dekret.
+Prava korisnika nisu ovdje — Django groups i `ParishMembership`.
+Dokumenti ostaju otvoreno pitanje (`DocumentBinding` nije DMS).
+"""
+from core.models import FCTA, SCD1, SCD2, current_version_unique
 from django.db import models
 
 
@@ -113,7 +118,11 @@ class Announcement(FCTA):
 
 
 class Council(SCD1):
-    """Župno pastoralno ili ekonomsko vijeće — jedan red po vrsti u župi."""
+    """Župno pastoralno ili ekonomsko vijeće.
+
+    Jedan red po vrsti u župi. Članovi nisu JSON — to je `CouncilMembership`.
+    Termini sastanaka ovdje su operativni datumi, ne kalendarski događaji.
+    """
 
     unified_key_origin_fields = ('parish_id', 'council_type')
 
@@ -143,6 +152,11 @@ class Council(SCD1):
 
 
 class CouncilMembership(SCD2):
+    """Mandat osobe (ili povijesnog imena) u vijeću.
+
+    Nije Django Group niti pravo na modul. Prava ureda idu kroz groups
+    i `ParishMembership`.
+    """
     unified_key_origin_fields = ('council_id', 'public_identifier')
 
     council = models.ForeignKey(
@@ -165,13 +179,22 @@ class CouncilMembership(SCD2):
     notes = models.TextField(blank=True)
 
     class Meta:
-        unique_together = [('council', 'public_identifier')]
+        constraints = (
+            current_version_unique(
+                'council',
+                'public_identifier',
+                name='councilmembership_one_current_id',
+            ),
+        )
         verbose_name = 'Članstvo u vijeću'
         verbose_name_plural = 'Članstva u vijeću'
 
 
 class ParishFoundingDecree(SCD1):
-    """Kanonski identitet župe (osnivanje) — nije spremište datoteka."""
+    """Kanonski identitet župe (naziv, teritorij, referenca dekreta).
+
+    Nije DMS i ne drži datoteke. Pitanje spremanja isprava ostaje otvoreno.
+    """
 
     unified_key_origin_fields = ('parish_id',)
 

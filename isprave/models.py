@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
+from zupa_vjernici.canonical import CanonicalTradition
 
 # Isti skup tipova događaja kao sakramenti.SacramentalEvent.EventType
 # (bez importa modela radi kružnih ovisnosti).
@@ -88,7 +89,7 @@ class RegisterTemplate(SCD1):
 
     class OwnerScope(models.TextChoices):
         SYSTEM = 'system', 'Sustav'
-        CHURCH = 'church', 'Crkva sui iuris'
+        CHURCH = 'church', 'Kanonska tradicija'
         JURISDICTION = 'jurisdiction', 'Crkvena jurisdikcija'
 
     unified_key_origin_fields = ('code',)
@@ -101,8 +102,13 @@ class RegisterTemplate(SCD1):
     owner_scope = models.CharField(
         'Vlasnik', max_length=16, choices=OwnerScope.choices, default=OwnerScope.SYSTEM
     )
-    church_sui_iuris = models.ForeignKey('zupa_vjernici.ChurchSuiIuris', verbose_name='Crkva sui iuris', on_delete=models.PROTECT,
-        null=True, blank=True, related_name='register_templates',
+    canonical_tradition = models.CharField(
+        'Kanonska tradicija',
+        max_length=16,
+        choices=CanonicalTradition.choices,
+        blank=True,
+        db_index=True,
+        help_text='Latinska ili istočna (Križevačka eparhija), ako predložak nije opći.',
     )
     ecclesiastical_jurisdiction = models.ForeignKey('zupa_vjernici.EcclesiasticalJurisdiction', verbose_name='Crkvena jurisdikcija',
         on_delete=models.PROTECT, null=True, blank=True,
@@ -122,8 +128,10 @@ class RegisterTemplate(SCD1):
     def clean(self):
         super().clean()
         validation_errors = {}
-        if self.owner_scope == self.OwnerScope.CHURCH and not self.church_sui_iuris_id:
-            validation_errors['church_sui_iuris'] = 'Odaberite Crkvu sui iuris.'
+        if self.owner_scope == self.OwnerScope.CHURCH and not self.canonical_tradition:
+            validation_errors['canonical_tradition'] = (
+                'Odaberite kanonsku tradiciju (latinska ili istočna).'
+            )
         if self.owner_scope == self.OwnerScope.JURISDICTION and not self.ecclesiastical_jurisdiction_id:
             validation_errors['ecclesiastical_jurisdiction'] = 'Odaberite crkvenu jurisdikciju.'
         if validation_errors:

@@ -1,53 +1,12 @@
 /**
- * Katolički liturgijski kalendar — vanjski API-ji
+ * Katolički liturgijski kalendar
  *
- * Izvori:
- * - Romcal Croatia + LitCal VA — slavlja, liturgijsko vrijeme, boja i čitanja
- * - Church Calendar API (http://calapi.inadiutorium.cz) — rezerva za dan (bez čitanja)
- * - HILP liturgija dana — puni hrvatski tekst (poveznica, nema javnog API-ja)
+ * U aplikaciji čita Django API koji vraća retke iz baze
+ * (`LiturgicalCalendarEntry`). HILP ostaje poveznica na puni tekst čitanja.
  */
 (function (global) {
-  const LITCAL_BASE = "https://litcal.johnromanodorazio.com/api/v5/calendar";
-  const CALAPI_BASE = "http://calapi.inadiutorium.cz/api/v0/en/calendars/default";
   const HILP_LITURGY = "https://hilp.hr/liturgija-dana/";
   const CACHE_PREFIX = "pastoral_litcal_v5_";
-
-  const SEASON_HR = {
-    ADVENT: "Advent",
-    CHRISTMASTIDE: "Božićno razdoblje",
-    "CHRISTMAS TIME": "Božićno razdoblje",
-    LENT: "Korizma",
-    "EASTER TRIDUUM": "Veliki tjedan / Triduum",
-    EASTERTIDE: "Uskrsno razdoblje",
-    "ORDINARY TIME": "Obično vrijeme",
-    ORDINARY_TIME: "Obično vrijeme",
-  };
-
-  const COLOR_HR = {
-    purple: "Ljubičasta",
-    violet: "Ljubičasta",
-    white: "Bijela",
-    red: "Crvena",
-    green: "Zelena",
-    rose: "Ružičasta",
-    black: "Crna",
-  };
-
-  const CALAPI_SEASON_HR = {
-    advent: "Advent",
-    christmas: "Božićno razdoblje",
-    lent: "Korizma",
-    easter: "Uskrsno razdoblje",
-    ordinary: "Obično vrijeme",
-  };
-
-  const CALAPI_RANK_HR = {
-    solemnity: "Svetkovina",
-    feast: "Blagdan",
-    memorial: "Spomen",
-    "optional memorial": "Izborni spomen",
-    ferial: "Radni dan",
-  };
 
   const GRADE_HR = {
     SOLEMNITY: "Svetkovina",
@@ -68,10 +27,6 @@
   const djangoYearInFlight = {};
   const djangoMonthInFlight = {};
 
-  function useDjangoLiturgical() {
-    return typeof location !== "undefined" && location.pathname.startsWith("/");
-  }
-
   async function fetchDjangoLiturgicalYear(year) {
     if (mappedDayCache[year]) return mappedDayCache[year];
     if (djangoYearInFlight[year]) return djangoYearInFlight[year];
@@ -90,6 +45,28 @@
 
   function isTranslatedDay(day) {
     return day && day.translated !== false && day.title;
+  }
+
+  function djangoYearIsLoaded(year) {
+    return Object.prototype.hasOwnProperty.call(mappedDayCache, year);
+  }
+
+  function emptyStoredDay(date) {
+    return {
+      source: "offline",
+      empty: true,
+      date,
+      title: "Nema unosa",
+      shortTitle: "Nema unosa",
+      subtitle: "Uvezite kalendar u tehničkoj administraciji.",
+      color: null,
+      colorLabel: "",
+      observances: [],
+      celebrations: [],
+      hilpUrl: hilpUrlForDate(date),
+      loaded: true,
+      translated: true,
+    };
   }
 
   function getMappedDay(iso) {
@@ -138,90 +115,7 @@
     return `${HILP_LITURGY}?god=${y}&mj=${m}&dan=${d}`;
   }
 
-  function seasonLabel(raw) {
-    if (!raw) return "";
-    const key = String(raw).toUpperCase().replace(/\s+/g, " ");
-    return SEASON_HR[key] || SEASON_HR[key.replace(/ /g, "_")] || raw;
-  }
-
-  function colorLabel(colors) {
-    const c = Array.isArray(colors) ? colors[0] : colors;
-    if (!c) return "";
-    return COLOR_HR[String(c).toLowerCase()] || c;
-  }
-
-  function loadYearFromStorage(year) {
-    try {
-      const raw = localStorage.getItem(`${CACHE_PREFIX}${year}`);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      const byDay = parsed?.byDay;
-      if (byDay && parsed?.fetchedAt && Object.keys(byDay).length > 30) return byDay;
-    } catch {
-      /* ignore */
-    }
-    return null;
-  }
-
-  function saveYearToStorage(year, byDay) {
-    try {
-      localStorage.setItem(
-        `${CACHE_PREFIX}${year}`,
-        JSON.stringify({ fetchedAt: new Date().toISOString(), byDay })
-      );
-    } catch {
-      /* quota */
-    }
-  }
-
-  function buildIndexFromLitcal(events) {
-    const byDay = {};
-    for (const ev of events || []) {
-      const d = (ev.date || "").slice(0, 10);
-      if (!d) continue;
-      if (!byDay[d]) byDay[d] = [];
-      byDay[d].push(ev);
-    }
-    for (const d of Object.keys(byDay)) {
-      byDay[d].sort((a, b) => (b.grade || 0) - (a.grade || 0));
-    }
-    return byDay;
-  }
-
-  async function fetchJson(url) {
-    const res = await fetch(url, {
-      credentials: "same-origin",
-      headers: { Accept: "application/json" },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    if (data?.status >= 400 || data?.title === "Too Many Requests") {
-      throw new Error(data.detail || data.title || `HTTP ${data.status}`);
-    }
-    return data;
-  }
-
-  function litcalBundleUrl(year) {
-    return `/api/liturgical/raw/${year}/`;
-  }
-
-  async function fetchLocalLitcalBundle(year) {
-    const data = await fetchJson(litcalBundleUrl(year));
-    const events = data.litcal || data.Litcal || [];
-    if (!events.length) throw new Error("Prazan lokalni kalendar");
-    return events;
-  }
-
-  async function fetchRemoteLitcalYear(year) {
-    const url = `${LITCAL_BASE}?year=${year}&return_type=JSON`;
-    const data = await fetchJson(url);
-    const events = data.litcal || data.Litcal || [];
-    if (!events.length) throw new Error("Prazan API odgovor");
-    return events;
-  }
-
   async function prefetchMonthHr(civilYear, month) {
-    if (!useDjangoLiturgical()) return;
     const monthNum = month + 1;
     const key = `${civilYear}-${monthNum}`;
     if (djangoMonthInFlight[key]) return djangoMonthInFlight[key];
@@ -251,186 +145,40 @@
 
   async function fetchAndIndexLitcalYear(year) {
     if (yearIndexCache[year]) return yearIndexCache[year];
-
-    if (useDjangoLiturgical()) {
-      try {
-        await fetchDjangoLiturgicalYear(year);
-        yearIndexCache[year] = {};
-        return yearIndexCache[year];
-      } catch (djangoError) {
-        console.warn(
-          "[PastoralLiturgical] Django kalendar nije dostupan:",
-          djangoError.message
-        );
-        yearIndexCache[year] = {};
-        return yearIndexCache[year];
-      }
-    }
-
-    const stored = loadYearFromStorage(year);
-    if (stored) {
-      yearIndexCache[year] = stored;
-      return stored;
-    }
-
-    let events;
     try {
-      events = await fetchLocalLitcalBundle(year);
-    } catch (localErr) {
-      console.warn("[PastoralLiturgical] Lokalni kalendar:", localErr.message);
-      events = await fetchRemoteLitcalYear(year);
+      await fetchDjangoLiturgicalYear(year);
+    } catch (djangoError) {
+      console.warn(
+        "[PastoralLiturgical] Kalendar iz baze nije dostupan:",
+        djangoError.message
+      );
     }
-
-    const byDay = buildIndexFromLitcal(events);
-    yearIndexCache[year] = byDay;
-    saveYearToStorage(year, byDay);
-    return byDay;
-  }
-
-  /** Rezerva: Church Calendar API (može pasti zbog CORS-a u pregledniku) */
-  async function fetchCalapiDay(iso) {
-    const [y, m, d] = iso.split("-");
-    const url = `${CALAPI_BASE}/${y}/${Number(m)}/${Number(d)}`;
-    const day = await fetchJson(url);
-    const main =
-      (day.celebrations || [])
-        .filter((c) => c.title)
-        .sort((a, b) => (a.rank_num || 99) - (b.rank_num || 99))[0] || (day.celebrations || [])[0];
-
-    const rankRaw = main?.rank || "";
-    return {
-      source: "calapi",
-      date: day.date || iso,
-      title: main?.title || formatCalapiFerial(day),
-      subtitle: CALAPI_SEASON_HR[day.season] || day.season,
-      seasonWeek: day.season_week,
-      color: main?.colour || "green",
-      colorLabel: COLOR_HR[main?.colour] || main?.colour,
-      rank: rankRaw,
-      rankLabel: formatRankHr(CALAPI_RANK_HR[rankRaw] || rankRaw),
-      celebrations: (day.celebrations || []).filter((c) => c.title).map((c) => c.title),
-      readings: null,
-      lectionary: null,
-      hilpUrl: hilpUrlForDate(iso),
-    };
-  }
-
-  async function fetchExternalLitcalYearForImport(year) {
-    const events = await fetchRemoteLitcalYear(year);
-    return buildIndexFromLitcal(events);
-  }
-
-  async function fetchExternalCalendarDayForImport(iso) {
-    return fetchCalapiDay(iso);
-  }
-
-  function formatCalapiFerial(day) {
-    const sw = day.season_week ? `, ${day.season_week}. tjedan` : "";
-    const season = CALAPI_SEASON_HR[day.season] || day.season || "";
-    const wd = day.weekday ? ` (${day.weekday})` : "";
-    return `${season}${sw}${wd}`.trim() || "Liturgijski dan";
-  }
-
-  function pickPrimaryEvent(events) {
-    if (!events?.length) return null;
-    const candidates = events.filter((e) => !e.is_vigil_mass);
-    if (!candidates.length) return events[0];
-    return candidates.sort((a, b) => (b.grade || 0) - (a.grade || 0))[0];
-  }
-
-  function eventColor(ev) {
-    if (!ev) return null;
-    const c = ev.color;
-    if (Array.isArray(c) && c.length) return String(c[0]).toLowerCase();
-    if (typeof c === "string" && c) return c.toLowerCase();
-    return null;
-  }
-
-  function mapLitcalDay(iso, events) {
-    const primary = pickPrimaryEvent(events);
-    if (!primary) return null;
-
-    const others = (events || [])
-      .filter((e) => e !== primary && e.name && !e.is_vigil_mass)
-      .map((e) => e.name)
-      .slice(0, 4);
-
-    const r = primary.readings || {};
-    const readings = [];
-    if (r.first_reading) readings.push({ label: "Prvo čitanje", text: r.first_reading });
-    if (r.responsorial_psalm) readings.push({ label: "Otpjevni psalam", text: r.responsorial_psalm });
-    if (r.second_reading) readings.push({ label: "Drugo čitanje", text: r.second_reading });
-    if (r.gospel_acclamation) readings.push({ label: "Aleluja", text: r.gospel_acclamation });
-    if (r.gospel) readings.push({ label: "Evanđelje", text: r.gospel });
-
-    const rankRaw = primary.grade ?? primary.grade_lcl ?? "";
-    return {
-      source: "litcal",
-      date: iso,
-      title: primary.name,
-      subtitle: seasonLabel(primary.liturgical_season_lcl || primary.liturgical_season),
-      seasonWeek: primary.psalter_week ? `Tjedan psaltira ${primary.psalter_week}` : "",
-      liturgicalYear: primary.liturgical_year || "",
-      color: eventColor(primary) || "green",
-      colorLabel: colorLabel(primary.color_lcl || primary.color),
-      rank: rankRaw,
-      rankLabel: formatRankHr(rankRaw),
-      celebrations: others,
-      readings,
-      hilpUrl: hilpUrlForDate(iso),
-    };
+    yearIndexCache[year] = {};
+    return yearIndexCache[year];
   }
 
   async function getDay(iso) {
     const date = iso || isoToday();
-
-    if (useDjangoLiturgical()) {
-      try {
-        await loadLitcalYearsForDate(date);
-        const mapped = getMappedDay(date);
-        if (mapped) return mapped;
-        const res = await fetch(`/api/liturgical/day/${date}/`, { credentials: "same-origin" });
-        if (res.ok) {
-          const day = await res.json();
-          const y = parseYear(date);
-          if (!mappedDayCache[y]) mappedDayCache[y] = {};
-          mappedDayCache[y][date] = day;
-          return { ...day, shortTitle: truncate(day.title, 38), loaded: true };
-        }
-      } catch (e) {
-        console.warn("[PastoralLiturgical] Django dan:", e.message);
-      }
-      return {
-        source: "offline",
-        date,
-        title: "Liturgijski podaci nisu uvezeni",
-        subtitle: "Pokrenite uvoz kalendara ili otvorite HILP.",
-        readings: null,
-        hilpUrl: hilpUrlForDate(date),
-      };
-    }
-
     try {
       await loadLitcalYearsForDate(date);
       const mapped = getMappedDay(date);
       if (mapped) return mapped;
-      const events = resolveEventsForDate(date);
-      if (events?.length) return mapLitcalDay(date, events);
+      const res = await fetch(`/api/liturgical/day/${date}/`, { credentials: "same-origin" });
+      if (res.ok) {
+        const day = await res.json();
+        const y = parseYear(date);
+        if (!mappedDayCache[y]) mappedDayCache[y] = {};
+        mappedDayCache[y][date] = day;
+        return { ...day, shortTitle: truncate(day.title, 38), loaded: true };
+      }
     } catch (e) {
-      console.warn("[PastoralLiturgical] LitCal:", e.message);
+      console.warn("[PastoralLiturgical] Dan iz baze:", e.message);
     }
-
-    try {
-      return await fetchCalapiDay(date);
-    } catch (e) {
-      console.warn("[PastoralLiturgical] CalAPI:", e.message);
-    }
-
     return {
       source: "offline",
       date,
-      title: "Liturgijski podaci nisu učitani",
-      subtitle: "Provjerite mrežu ili pokušajte kasnije.",
+      title: "Nema unosa",
+      subtitle: "Uvezite kalendar u tehničkoj administraciji.",
       readings: null,
       hilpUrl: hilpUrlForDate(date),
     };
@@ -439,7 +187,7 @@
   function liturgicalColorClass(color) {
     const c = String(color || "green").toLowerCase();
     if (c === "purple" || c === "violet") return "lit-color--violet";
-    if (c === "white") return "lit-color--white";
+    if (c === "white" || c === "gold") return "lit-color--white";
     if (c === "red") return "lit-color--red";
     if (c === "rose") return "lit-color--rose";
     return "lit-color--green";
@@ -460,8 +208,6 @@
     const raw = String(rank).trim();
     const key = raw.toUpperCase();
     if (GRADE_HR[key]) return GRADE_HR[key];
-    const calKey = raw.toLowerCase();
-    if (CALAPI_RANK_HR[calKey]) return CALAPI_RANK_HR[calKey];
     if (/ferial|weekday|radni/i.test(raw)) return "Radni dan";
     if (/memorial|spomen/i.test(raw)) return raw.includes("Optional") || raw.includes("Izborn") ? "Izborni spomen" : "Spomen";
     if (/feast|blagdan/i.test(raw)) return "Blagdan";
@@ -544,21 +290,6 @@
     return t.length > max ? `${t.slice(0, max - 1)}…` : t;
   }
 
-  function getByDaySync(year) {
-    return yearIndexCache[year] || loadYearFromStorage(year) || null;
-  }
-
-  /** LitCal calendar/Y pokriva advent (god. Y−1) do kasnog studenog (god. Y) — traži u susjednim godinama */
-  function resolveEventsForDate(iso) {
-    const y = parseYear(iso);
-    for (const calYear of [y, y + 1, y - 1]) {
-      const byDay = getByDaySync(calYear);
-      const events = byDay?.[iso];
-      if (events?.length) return events;
-    }
-    return null;
-  }
-
   function calendarYearsForMonth(civilYear, month) {
     const years = new Set([civilYear, civilYear + 1]);
     if (month <= 1) years.add(civilYear - 1);
@@ -586,18 +317,8 @@
     const date = iso || isoToday();
     const mapped = getMappedDay(date);
     if (mapped) return mapped;
-    if (!useDjangoLiturgical()) {
-      const events = resolveEventsForDate(date);
-      if (events?.length) {
-        const local = mapLitcalDay(date, events);
-        if (local) {
-          return {
-            ...local,
-            shortTitle: truncate(local.title, 38),
-            loaded: true,
-          };
-        }
-      }
+    if (djangoYearIsLoaded(parseYear(date))) {
+      return emptyStoredDay(date);
     }
     return {
       source: "pending",
@@ -622,15 +343,9 @@
         out[iso] = pre;
         continue;
       }
-      if (!useDjangoLiturgical()) {
-        const events = resolveEventsForDate(iso);
-        if (events?.length) {
-          const mapped = mapLitcalDay(iso, events);
-          if (mapped) {
-            out[iso] = { ...mapped, shortTitle: truncate(mapped.title, 38), loaded: true };
-            continue;
-          }
-        }
+      if (djangoYearIsLoaded(year)) {
+        out[iso] = emptyStoredDay(iso);
+        continue;
       }
       out[iso] = getSummarySync(iso);
     }
@@ -710,20 +425,10 @@
             </div>`).join("")}
         </div>`
       : "";
-    const sourceNote =
-      d.source === "romcal+litcal-va"
-        ? "Romcal Croatia + LitCal VA"
-        : d.source === "litcal"
-          ? "LitCal API"
-        : d.source === "calapi"
-          ? "Church Calendar API"
-          : d.source === "offline"
-            ? "—"
-            : "LitCal (lokalna kopija)";
 
-    if (d.source === "offline" || !d.title) {
+    if (d.source === "offline" || d.empty || !d.title) {
       return `<div class="nakane-lit-detail" id="nakane-lit-detail">
-        <p class="card-sub">Liturgijski podaci nisu učitani. Otvorite stranicu preko lokalnog poslužitelja (<code>npx serve .</code>) ili provjerite mrežu.</p>
+        <p class="card-sub">Nema unosa u liturgijskom kalendaru za ovaj dan. Uvezite paket u tehničkoj administraciji ili otvorite HILP.</p>
         <div class="nakane-lit-detail-actions">
           <a href="${esc(d.hilpUrl || hilpUrlForDate(d.date))}" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Liturgija dana (HILP)</a>
         </div>
@@ -751,7 +456,7 @@
 
   function renderNakaneLitLoading(iso) {
     return `<div class="nakane-lit-detail nakane-lit-detail--loading" id="nakane-lit-detail">
-      <p class="card-sub">Učitavam liturgijski dan (Romcal + LitCal)…</p>
+      <p class="card-sub">Učitavam liturgijski dan…</p>
       <a href="${esc(hilpUrlForDate(iso))}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm">Liturgija dana (HILP)</a>
     </div>`;
   }
@@ -815,20 +520,6 @@
     return yearLoadInFlight[year];
   }
 
-  function monthDayDots(byDay, year, month) {
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const dots = {};
-    for (let d = 1; d <= daysInMonth; d++) {
-      const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const ev = byDay[iso];
-      if (ev?.length) {
-        const p = pickPrimaryEvent(ev);
-        dots[iso] = (p?.color && p.color[0]) || "green";
-      }
-    }
-    return dots;
-  }
-
   async function renderKalendarPage(root, parishEvents, onSelectDate) {
     if (!root) return;
     const today = isoToday();
@@ -879,7 +570,6 @@
                   if (!d) return `<div class="cal-cell cal-cell--empty"></div>`;
                   const iso = `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
                   const sel = iso === selected ? " cal-selected" : "";
-                  const dot = dots[iso] ? ` lit-dot ${liturgicalColorClass(dots[iso])}` : "";
                   const hasParish = parishByDate[iso]?.length ? " cal-has-event" : "";
                   const sum = monthSummaries[iso] || getSummarySync(iso);
                   const isToday = iso === isoToday() ? " cal-today" : "";
@@ -951,10 +641,7 @@
     loadLitcalYear,
     loadLitcalYearsForMonth,
     loadLitcalYearsForDate,
-    fetchExternalLitcalYearForImport,
-    fetchExternalCalendarDayForImport,
     prefetchMonthHr,
-    resolveEventsForDate,
     renderDayCard,
     mountInto,
     liturgicalColorClass,

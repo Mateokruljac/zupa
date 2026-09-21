@@ -1,4 +1,14 @@
-"""Agregacija dugovanja — logika prebačena iz debts-engine.js."""
+"""
+Agregacija dugovanja za ekran i pregled — logika iz debts-engine.js.
+
+Ne čuva vlastitu tablicu „svih dugova”. Sastavlja retke iz obiteljskog
+lukna, misnih nakana, stipenda sakramenata, skupina pričesti/krizme i
+ručnih `parishDebts`. Zato `mark_debt_paid` mora znati `source.type`.
+
+`receivable` = tko duguje župi; `payable` = što župa duguje.
+Pozivatelji: `debts_page_context`, `finance_reports_context`,
+`pregled.services.analytics`, template tag `cat_meta`.
+"""
 from __future__ import annotations
 
 from datetime import date
@@ -24,6 +34,7 @@ PAYABLE_CATEGORIES = [
 
 
 def _year_from_iso(iso: str | None) -> int:
+    """Godina iz ISO datuma; neispravan ili kratak string pada na tekuću godinu."""
     if not iso or len(iso) < 4:
         return date.today().year
     try:
@@ -33,6 +44,19 @@ def _year_from_iso(iso: str | None) -> int:
 
 
 def cat_meta(cat_id: str, direction: str) -> dict:
+    """
+    Boja i hrvatski naziv kategorije duga za predložak i pretragu.
+
+    `payable` koristi `PAYABLE_CATEGORIES`, inače potraživanja.
+    Nepoznat `cat_id` vraća sam id kao labelu, sivu boju — UI ne puca.
+
+    Args:
+        cat_id: Kod kategorije (`lukno`, `režije`, …).
+        direction: `payable` ili `receivable`.
+
+    Returns:
+        Dict s `id`, `label`, `color`.
+    """
     cats = PAYABLE_CATEGORIES if direction == 'payable' else RECEIVABLE_CATEGORIES
     for c in cats:
         if c['id'] == cat_id:
@@ -41,12 +65,33 @@ def cat_meta(cat_id: str, direction: str) -> dict:
 
 
 def _push(rows: list, item: dict | None) -> None:
+    """Dodaje stavku samo ako postoji i iznos je strogo veći od nule."""
     if not item or float(item.get('amount') or 0) <= 0:
         return
     rows.append(item)
 
 
 def collect_receivables(data: dict, *, only_unpaid: bool = True) -> list[dict]:
+    """
+    Sastavlja potraživanja prema župi iz više izvora u parish dictu.
+
+    Izvori: lukno po godini obitelji (iznos iz retka ili `luknoDefaultAmount`),
+    stipend nakane, vjenčanja/pogrebi/krštenja, skupna pristojba pričesti i
+    krizme, te `parishDebts` sa smjerom `receivable`. Stavka bez iznosa se
+    ne prikazuje. `only_unpaid=False` na ekranu dugovanja uključuje i
+    plaćene retke radi filtera statusa.
+
+    Svaki redak ima `source` za `mark_debt_paid` i opcionalni `link_page`
+    za skok u modul. Identifikatori su složeni (`lukno_{obitelj}_{godina}`),
+    nisu ORM PK.
+
+    Args:
+        data: Legacy parish dict (`families`, `intentions`, sakramenti, …).
+        only_unpaid: True = samo neplaćeno (pregled, brojači).
+
+    Returns:
+        Sortirani retci (`sort_debt_rows`).
+    """
     rows: list[dict] = []
     def_lukno = data.get('luknoDefaultAmount', 150)
 
@@ -99,6 +144,7 @@ def collect_receivables(data: dict, *, only_unpaid: bool = True) -> list[dict]:
         })
 
     def sacrament(list_key, category, label_fn, date_fn):
+        """Isti obrazac stipenda za vjenčanje, sprovod i krštenje u parish dictu."""
         for r in data.get(list_key, []):
             amt = float(r.get('stipend') or 0)
             if amt <= 0:
@@ -202,6 +248,19 @@ def collect_receivables(data: dict, *, only_unpaid: bool = True) -> list[dict]:
 
 
 def collect_payables(data: dict, *, only_unpaid: bool = True) -> list[dict]:
+    """
+    Obveze župe — samo ručni `parishDebts` sa smjerom `payable`.
+
+    Režije i DŽ nisu izvedeni iz računa: ulazni račun živi na drugom
+    ekranu. Zadani smjer praznog polja je `payable` (stari unos).
+
+    Args:
+        data: Parish dict s `parishDebts`.
+        only_unpaid: True = samo neplaćeno.
+
+    Returns:
+        Sortirani retci obveza.
+    """
     rows: list[dict] = []
     for d in data.get('parishDebts', []):
         if (d.get('direction') or 'payable') != 'payable':
@@ -231,6 +290,13 @@ def collect_payables(data: dict, *, only_unpaid: bool = True) -> list[dict]:
 
 
 def sort_debt_rows(rows: list[dict]) -> list[dict]:
+    """
+    Redoslijed tablice: neplaćeno prije plaćenog, zatim novija godina,
+    zatim kasniji datum dospijeća.
+
+    Više uzastopnih `sorted` (stabilno) da prioritet statusa pobijedi
+    godinu. Ne sortira na mjestu originalne liste ako je već nova.
+    """
     rows = sorted(rows, key=lambda r: r.get('dueDate') or '', reverse=True)
     rows = sorted(rows, key=lambda r: -int(r.get('year') or 0))
     rows = sorted(rows, key=lambda r: r.get('paid', False))
@@ -238,6 +304,20 @@ def sort_debt_rows(rows: list[dict]) -> list[dict]:
 
 
 def collect_debts(data: dict, *, direction: str | None = None, only_unpaid: bool = True) -> list[dict]:
+    """
+    Potraživanja, obveze ili oboje, za analitiku nadzorne ploče.
+
+    Bez `direction` spaja oba smjera i ponovno sortira. `pregled` koristi
+    ovu funkciju umjesto da zove dva collectora.
+
+    Args:
+        data: Parish dict.
+        direction: `receivable`, `payable` ili None za oboje.
+        only_unpaid: Proslijeđuje se collectorima.
+
+    Returns:
+        Lista redaka duga.
+    """
     receivable = collect_receivables(data, only_unpaid=only_unpaid)
     payable = collect_payables(data, only_unpaid=only_unpaid)
     if direction == 'receivable':
@@ -248,6 +328,12 @@ def collect_debts(data: dict, *, direction: str | None = None, only_unpaid: bool
 
 
 def years_from_debts(rows: list[dict]) -> list[int]:
+    """
+    Godine za filter na ekranu dugovanja.
+
+    Uvijek uključuje tekuću i prošlu godinu, čak i ako nema stavki,
+    da se lukno nove godine može odabrati prije prvog unosa.
+    """
     years = {r['year'] for r in rows if r.get('year')}
     cur = date.today().year
     years.add(cur)
@@ -256,6 +342,19 @@ def years_from_debts(rows: list[dict]) -> list[int]:
 
 
 def filter_debts(rows: list[dict], filters: dict) -> list[dict]:
+    """
+    Filtrira već sastavljene retke (kategorija, godina, status, tekst).
+
+    Status `unpaid` je zadani prikaz. Pretraga gleda naziv, kontakt,
+    podnaslov i hrvatski naziv kategorije (`cat_meta`), ne sirovi id.
+
+    Args:
+        rows: Izlaz `collect_*`.
+        filters: `category`, `year`, `status`, `q`; `all` isključuje filter.
+
+    Returns:
+        Nova lista; `rows` se ne mutira osim što se kopira na početku.
+    """
     out = list(rows)
     cat = filters.get('category') or 'all'
     if cat != 'all':
@@ -288,6 +387,20 @@ def filter_debts(rows: list[dict], filters: dict) -> list[dict]:
 
 
 def summarize(rows: list[dict], direction: str) -> dict:
+    """
+    Sažetak trenutno prikazanih redaka (nakon filtera).
+
+    Zbroj i broj neplaćenih idu u kartice; `by_category` puni sve
+    poznate kategorije tog smjera nulama da predložak ima stabilan red.
+    Plaćeni retci ulaze samo u `paid_count`.
+
+    Args:
+        rows: Filtrirana lista.
+        direction: Bira katalog kategorija.
+
+    Returns:
+        `total_unpaid`, `unpaid_count`, `paid_count`, `by_category`.
+    """
     unpaid = [r for r in rows if not r.get('paid')]
     total_unpaid = sum(float(r.get('amount') or 0) for r in unpaid)
     cats = PAYABLE_CATEGORIES if direction == 'payable' else RECEIVABLE_CATEGORIES
@@ -307,6 +420,23 @@ def summarize(rows: list[dict], direction: str) -> dict:
 
 
 def debts_page_context(data: dict, request) -> dict:
+    """
+    Kontekst predloška stranice dugovanja.
+
+    GET `view`: `prema-zupi` (potraživanja) ili `zupa-duguje` (obveze).
+    Učitava sve retke smjera (`only_unpaid=False`) pa filtrira, da se
+    plaćeno može uključiti izbornikom. Brojači na tabovima uvijek broje
+    samo neplaćeno, neovisno o filteru tablice.
+
+    Poziva je `financije.page_contexts`. Ne mijenja `data`.
+
+    Args:
+        data: Parish dict.
+        request: GET `view`, `cat`, `year`, `status`, `q`.
+
+    Returns:
+        Ključevi `debts_*` za predložak.
+    """
     view = request.GET.get('view', 'prema-zupi')
     if view not in ('prema-zupi', 'zupa-duguje'):
         view = 'prema-zupi'

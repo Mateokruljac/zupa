@@ -36,23 +36,23 @@ class ParishAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
 
     list_display = (
         'display_name', 'slug', 'tenant_id', 'lifecycle_status', 'diocese',
-        'church_sui_iuris', 'ecclesiastical_jurisdiction',
+        'canonical_tradition', 'ecclesiastical_jurisdiction',
         'updated_at',
     )
     list_filter = (
-        'lifecycle_status', 'diocese', 'church_sui_iuris',
+        'lifecycle_status', 'diocese', 'canonical_tradition',
         'ecclesiastical_jurisdiction', 'default_liturgical_tradition',
     )
     search_fields = ('slug',)
     autocomplete_fields = (
-        'diocese', 'church_sui_iuris', 'ecclesiastical_jurisdiction',
+        'diocese', 'ecclesiastical_jurisdiction',
         'default_liturgical_tradition',
     )
     readonly_fields = (
         'tenant_id', 'updated_at', 'settings_preview',
     )
     fields = (
-        'tenant_id', 'slug', 'diocese', 'church_sui_iuris',
+        'tenant_id', 'slug', 'diocese', 'canonical_tradition',
         'ecclesiastical_jurisdiction', 'default_liturgical_tradition',
         'lifecycle_status',
         'updated_at', 'settings_preview',

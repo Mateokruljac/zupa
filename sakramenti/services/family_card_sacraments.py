@@ -1,4 +1,15 @@
-"""Sakramenti na kartonu obitelji — iz SacramentalEvent, ne iz JSON liste."""
+"""
+Sakramenti na obiteljskom kartonu — čitanje i stubovi, ne matica.
+
+UI i dalje šalje listu oznaka (`krštenje`, `pričest`…). Izvor istine je
+`SacramentalEvent` + `EventParticipant` (uloga primatelja).
+
+Ako karton označi sakrament kojeg još nema u službenoj evidenciji, ovaj
+modul stvara uvozni stub (`family-card:…`). Stub nema *Details red i
+ne smije se pojaviti na stranici krštenja/vjenčanja.
+
+Zaključane i potvrđene matice se ovdje ne brišu.
+"""
 from __future__ import annotations
 
 from collections import defaultdict
@@ -34,6 +45,7 @@ EVENT_TYPE_TO_LABEL = {
 
 
 def sacrament_types_from_labels(labels) -> set[str]:
+    """Pretvara UI oznake s kartona u `SacramentalEvent.EventType` kodove."""
     types = set()
     for label in labels or []:
         event_type = SACRAMENT_LABEL_TO_TYPE.get(str(label).strip().casefold())
@@ -43,6 +55,7 @@ def sacrament_types_from_labels(labels) -> set[str]:
 
 
 def labels_from_event_types(event_types) -> list[str]:
+    """Vraća UI oznake u fiksnom redoslijedu (krštenje → pomazanje)."""
     ordered = []
     for event_type, label in EVENT_TYPE_TO_LABEL.items():
         if event_type in event_types:
@@ -51,14 +64,15 @@ def labels_from_event_types(event_types) -> list[str]:
 
 
 def family_card_public_identifier(person_id, event_type: str) -> str:
+    """Stabilni id stuba da ga možemo razlikovati od službenog događaja."""
     return f'{FAMILY_CARD_EVENT_PREFIX}:{person_id}:{event_type}'
 
 
 def exclude_family_card_events(queryset):
     """Izbacuje kartonske stubove iz službene evidencije sakramenata.
 
-    Stub na obiteljskom kartonu nije matica niti ima *Details red, pa ga
-    stranice krštenja/vjenčanja ne smiju učitavati kao puni zapis.
+    Stub nije matica i nema *Details, pa bi dashboard pao na
+    `event.baptism_details` ako bi se stub učitao kao krštenje.
     """
     return queryset.exclude(
         public_identifier__startswith=f'{FAMILY_CARD_EVENT_PREFIX}:',
@@ -66,7 +80,11 @@ def exclude_family_card_events(queryset):
 
 
 def sacrament_labels_by_person_id(person_ids) -> dict:
-    """Za svaku osobu vrati UI oznake sakramenata u kojima je primatelj."""
+    """Za svaku osobu vraća UI oznake sakramenata u kojima je primatelj.
+
+    Uključuje i službene događaje i kartonske stubove. Poništeni statusi
+    se ne prikazuju.
+    """
     mapping = defaultdict(set)
     if not person_ids:
         return {}
@@ -87,7 +105,11 @@ def sacrament_labels_by_person_id(person_ids) -> dict:
 
 
 def sync_family_card_sacraments(person, parish, labels) -> None:
-    """Usklađuje kartonske stub događaje; službene matice ne dira."""
+    """Usklađuje stubove s checkboxima kartona; službene matice ne dira.
+
+    Nova oznaka bez postojećeg događaja → uvozni stub.
+    Skidanje oznake briše samo `family-card:` stubove koji nisu locked/confirmed.
+    """
     if person is None:
         return
     wanted_types = sacrament_types_from_labels(labels)

@@ -17,6 +17,21 @@ from pastoral.services.otp import send_login_code, verify_login_code
 from pastoral.web_manifest_data import WEB_MANIFEST
 from pastoral.models import User
 
+TECHNICAL_ADMIN_ROLES = frozenset({'zupnik', 'upravitelj'})
+
+
+def ensure_technical_admin_access(user):
+    """Župnik i upravitelj smiju u tehničku administraciju (`is_staff`).
+
+    OTP prijava u Pastoral ne postavlja staff sama od sebe; bez ovoga
+    `/admin/` javlja da nema ovlasti iako je korisnik prijavljen.
+    """
+    if user.role not in TECHNICAL_ADMIN_ROLES or user.is_staff:
+        return user
+    user.is_staff = True
+    user.save(update_fields=['is_staff'])
+    return user
+
 
 def web_manifest_view(request):
     """PWA manifest — zamjena za static/manifest.json."""
@@ -110,6 +125,7 @@ def login_view(request):
                 )
                 user.role = pending_login['role']
                 user.save(update_fields=['role'])
+                ensure_technical_admin_access(user)
                 login(request, user)
                 request.session.pop('otp_pending', None)
                 messages.success(request, f'Dobrodošli, {user.role_label}.')

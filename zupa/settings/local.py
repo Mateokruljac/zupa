@@ -3,25 +3,21 @@ from .base import *
 INSTALLED_APPS.append('debug_toolbar')
 MIDDLEWARE.insert(1, 'debug_toolbar.middleware.DebugToolbarMiddleware')
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
 DEBUG = environment.bool('DEBUG', default=True)
 ALLOWED_HOSTS = ['*']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 INTERNAL_IPS = ['127.0.0.1', 'localhost']
 
-# Izvan Dockera: SMTP ide na 127.0.0.1:1025 (Mailhog mapiran s kontejnera)
-# Web sučelje za pregled mailova: http://localhost:8025 — NE koristiti za slanje!
+# Baza je uvijek PostgreSQL (servis `db` u docker-compose.yml).
+# Izvan kontejnera host `db` nije DNS ime — koristi objavljeni port na localhostu.
 IN_DOCKER = Path('/.dockerenv').exists()
-if not IN_DOCKER and EMAIL_HOST in ('mailhog', 'localhost'):
-    EMAIL_HOST = '127.0.0.1'
-    MAILHOG_SMTP_HOST = '127.0.0.1'
+if not IN_DOCKER:
+    if DATABASES['default']['HOST'] in ('db', 'postgres'):
+        DATABASES['default']['HOST'] = '127.0.0.1'
+    if EMAIL_HOST in ('mailhog', 'localhost'):
+        EMAIL_HOST = '127.0.0.1'
+        MAILHOG_SMTP_HOST = '127.0.0.1'
 
 CELERY_BROKER_URL = environment.str(
     'CELERY_BROKER_URL',

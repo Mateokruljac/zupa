@@ -1,9 +1,18 @@
-"""Pretvorba Household ORM ↔ legacy API dict (članovi su Person)."""
+"""
+Kućanstvo, članstvo i posjete ↔ camelCase dict stranice Obitelji.
+
+Član kartona nije `HouseholdMember`. Identitet je `Person`; pripadnost je
+`HouseholdMembership` (SCD2). Sakramenti se čitaju iz događaja, ne iz JSON-a.
+
+`husband` / `wife` u dictu su projekcija članstava s `spouse_side`, ne stupci
+kućanstva. Relatives su ista tablica s `lives_in_household=False`.
+"""
 from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from core.models import OPEN_ENDED_VALID_TO, close_current_scd2_rows, upsert_current_scd2
 from sakramenti.models import EventParticipant, SacramentalEvent
 from sakramenti.services.family_card_sacraments import (
     sacrament_labels_by_person_id,
@@ -146,7 +155,15 @@ def contribution_as_legacy_record(contribution: HouseholdContribution) -> dict:
 
 
 def household_as_legacy_record(household: Household) -> dict:
-    memberships = list(household.memberships.all())
+    """Sastavlja UI karton obitelji samo iz otvorenih članstava.
+
+    Zatvorene SCD2 verzije članstva namjerno se ne prikazuju.
+    """
+    memberships = [
+        membership
+        for membership in household.memberships.all()
+        if membership.date_to == OPEN_ENDED_VALID_TO
+    ]
     person_ids = [
         membership.person_id
         for membership in memberships
@@ -233,6 +250,36 @@ def household_field_defaults_from_legacy(record: dict, street=None) -> dict:
     }
 
 
+def upsert_current_household(parish, public_identifier: str, defaults: dict):
+    """Verzira kućanstvo i preusmjeri djecu na novi otvoreni red.
+
+    Članstva, lukno i posjete FK-om drže `household_id` (record_id).
+    Ako `save_new` zatvori stari red, bez ovog preusmjeravanja ostala bi
+    siročad na zatvorenoj verziji i karton bi izgledao prazan.
+    """
+    previous = Household.current.filter(
+        parish=parish,
+        public_identifier=public_identifier,
+    ).first()
+    previous_pk = previous.pk if previous else None
+    household, created = upsert_current_scd2(
+        Household,
+        {'parish': parish, 'public_identifier': public_identifier},
+        defaults,
+    )
+    if previous_pk and household.pk != previous_pk:
+        HouseholdMembership.objects.filter(household_id=previous_pk).update(
+            household=household,
+        )
+        HouseholdContribution.objects.filter(household_id=previous_pk).update(
+            household=household,
+        )
+        PastoralVisit.objects.filter(household_id=previous_pk).update(
+            household=household,
+        )
+    return household, created
+
+
 def _upsert_membership(
     household: Household,
     *,
@@ -249,6 +296,12 @@ def _upsert_membership(
     sacrament_labels=None,
     is_head: bool = False,
 ) -> HouseholdMembership:
+    """Otvara ili ažurira trenutačno članstvo i veže ga na Person.
+
+    `relation` ostaje slobodni tekst kartona (majka, sin…). `spouse_side`
+    označava bračni karton. Sakramenti se sinkroniziraju samo ako je lista
+    poslana — inače se stubovi ne diraju.
+    """
     person = find_or_create_person(
         household.parish,
         full_name=full_name,
@@ -257,10 +310,13 @@ def _upsert_membership(
         birth_year=birth_year_as_text(birth_year),
         place_of_birth=place_of_birth,
     )
-    membership, _created = HouseholdMembership.objects.update_or_create(
-        household=household,
-        public_identifier=public_identifier,
-        defaults={
+    membership, _created = upsert_current_scd2(
+        HouseholdMembership,
+        {
+            'household': household,
+            'public_identifier': public_identifier,
+        },
+        {
             'person': person,
             'historical_name': str(full_name or ''),
             'role': str(relation or ''),
@@ -292,7 +348,9 @@ def _apply_spouse_record(
     if not full_name:
         return
     matching = None
-    for membership in household.memberships.select_related('person'):
+    for membership in HouseholdMembership.current.filter(
+        household=household,
+    ).select_related('person'):
         display = _display_name(membership).casefold()
         if full_name.casefold() in {display, display.split()[0] if display else ''}:
             matching = membership
@@ -372,6 +430,11 @@ def _apply_spouse_record(
 
 
 def sync_household_nested_records(household: Household, record: dict) -> None:
+    """Sinkronizira članove, rodbinu, bračni karton i lukno s UI dictom.
+
+    Članstva kojih više nema u dictu se zatvaraju (SCD2), ne brišu.
+    Lukno ostaje FCTA i i dalje se briše ako nestane iz kartona.
+    """
     keep_identifiers = set()
     members = record.get('members') if isinstance(record.get('members'), list) else []
     for index, member_record in enumerate(members):
@@ -435,7 +498,9 @@ def sync_household_nested_records(household: Household, record: dict) -> None:
         keep_identifiers,
     )
 
-    household.memberships.exclude(public_identifier__in=keep_identifiers).delete()
+    close_current_scd2_rows(
+        household.memberships.exclude(public_identifier__in=keep_identifiers),
+    )
 
     contributions = (
         record.get('contributions')

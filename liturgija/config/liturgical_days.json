@@ -1,0 +1,1826 @@
+{
+  "Die 3 ianuarii": {
+    "croatian": "Subota 1. tjedna božićnog vremena",
+    "color": "white"
+  },
+  "Feria quarta post Epiphaniam": {
+    "croatian": "Srijeda 1. tjedna božićnog vremena",
+    "color": "white"
+  },
+  "Feria tertia, hebdomada prima per annum": {
+    "croatian": "Utorak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada secunda per annum": {
+    "croatian": "Utorak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Fabiani, papæ et martyris": {
+    "croatian": "Sv. Fabijan, papa i mučenik",
+    "color": "red"
+  },
+  "Feria quinta, hebdomada secunda per annum": {
+    "croatian": "Četvrtak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada tertia per annum": {
+    "croatian": "Utorak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada quarta per annum": {
+    "croatian": "Utorak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Ansgarii, episcopi": {
+    "croatian": "Sv. Ansgar, biskupa",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada quinta per annum": {
+    "croatian": "Srijeda 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada sexta per annum": {
+    "croatian": "Utorak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Sabbato post Cineres": {
+    "croatian": "Subota nakon Čiste srijede (Pepelnice)",
+    "color": "purple"
+  },
+  "Feria secunda, hebdomada prima Quadragesimæ": {
+    "croatian": "Ponedjeljak 1. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria sexta, hebdomada prima Quadragesimæ": {
+    "croatian": "Petak 2. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria quarta, hebdomada secunda Quadragesimæ": {
+    "croatian": "Srijeda 3. tjedna korizme",
+    "color": "purple"
+  },
+  "Sabbato, hebdomada secunda Quadragesimæ": {
+    "croatian": "Subota 3. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria secunda, hebdomada tertia Quadragesimæ": {
+    "croatian": "Ponedjeljak 3. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria tertia, hebdomada quarta Quadragesimæ": {
+    "croatian": "Utorak 4. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria quarta, hebdomada quarta Quadragesimæ": {
+    "croatian": "Srijeda 5. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria secunda, hebdomada quinta Quadragesimæ": {
+    "croatian": "Ponedjeljak 5. tjedna korizme",
+    "color": "purple"
+  },
+  "$(names:holy_thursday), in Cena Domini": {
+    "croatian": "Četvrtak 1. tjedna Vazmenog trodnevlja",
+    "color": "white"
+  },
+  "Feria secunda, hebdomada secunda temporis paschalis": {
+    "croatian": "Ponedjeljak 2. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria tertia, hebdomada tertia temporis paschalis": {
+    "croatian": "Utorak 3. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada tertia temporis paschalis": {
+    "croatian": "Četvrtak 3. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "S. Adalberti, episcopi et martyris": {
+    "croatian": "Sv. Adalbert, biskup i mučenik",
+    "color": "red"
+  },
+  "Feria sexta, hebdomada tertia temporis paschalis": {
+    "croatian": "Petak 3. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria tertia, hebdomada quarta temporis paschalis": {
+    "croatian": "Utorak 4. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "S. Ludovici Mariæ Grignion de Montfort, presbyteri": {
+    "croatian": "Sv. Ljudevit Marija Grignion Montfortski, prezbiter",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada quarta temporis paschalis": {
+    "croatian": "Četvrtak 4. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria sexta, hebdomada quarta temporis paschalis": {
+    "croatian": "Petak 4. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada sexta temporis paschalis": {
+    "croatian": "Srijeda 6. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria secunda, hebdomada septima temporis paschalis": {
+    "croatian": "Ponedjeljak 7. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada septima temporis paschalis": {
+    "croatian": "Srijeda 7. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada septima temporis paschalis": {
+    "croatian": "Četvrtak 7. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria sexta, hebdomada septima temporis paschalis": {
+    "croatian": "Petak 7. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada octava per annum": {
+    "croatian": "Srijeda 8. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada octava per annum": {
+    "croatian": "Petak 8. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada nona per annum": {
+    "croatian": "Utorak 9. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Sabbato, hebdomada nona per annum": {
+    "croatian": "Subota 9. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada decima per annum": {
+    "croatian": "Utorak 10. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada undecima per annum": {
+    "croatian": "Petak 11. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada duodecima per annum": {
+    "croatian": "Ponedjeljak 12. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Ss. Ioannis Fisher, episcopi, et Thomæ More, martyrum": {
+    "croatian": "Sv. John Fisher i Thomas More - engleski mučenici",
+    "color": "red"
+  },
+  "Sabbato, hebdomada duodecima per annum": {
+    "croatian": "Subota 12. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada decima tertia per annum": {
+    "croatian": "Utorak 13. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Sabbato, hebdomada decima tertia per annum": {
+    "croatian": "Subota 13. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada decima quarta per annum": {
+    "croatian": "Ponedjeljak 14. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quinta, hebdomada decima quarta per annum": {
+    "croatian": "Četvrtak 14. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Ss. Augustini Zhao Rong, presbyteri, et sociorum, martyrum": {
+    "croatian": "Sv. Augustin Zhao Rong, prezbiter i mučenik",
+    "color": "red"
+  },
+  "Feria tertia, hebdomada decima quinta per annum": {
+    "croatian": "Utorak 15. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quinta, hebdomada decima quinta per annum": {
+    "croatian": "Četvrtak 15. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada decima sexta per annum": {
+    "croatian": "Ponedjeljak 16. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada decima sexta per annum": {
+    "croatian": "Utorak 16. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada decima sexta per annum": {
+    "croatian": "Petak 16. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quinta, hebdomada decima septima per annum": {
+    "croatian": "Četvrtak 17. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada decima octava per annum": {
+    "croatian": "Ponedjeljak 18. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quarta, hebdomada decima octava per annum": {
+    "croatian": "Srijeda 18. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada decima octava per annum": {
+    "croatian": "Petak 18. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Caietani, presbyteri": {
+    "croatian": "Sv. Kajetan, prezbiter",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada decima nona per annum": {
+    "croatian": "Srijeda 19. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quinta, hebdomada decima nona per annum": {
+    "croatian": "Četvrtak 19. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quarta, hebdomada vigesima per annum": {
+    "croatian": "Srijeda 20. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada vigesima prima per annum": {
+    "croatian": "Utorak 21. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Iosephi de Calasanz, presbyteri": {
+    "croatian": "Sv. Josip Kalasancijski, prezbiter",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada vigesima tertia per annum": {
+    "croatian": "Srijeda 23. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Sabbato, hebdomada vigesima tertia per annum": {
+    "croatian": "Subota 23. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quinta, hebdomada vigesima quarta per annum": {
+    "croatian": "Četvrtak 24. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Hildegardis Bingensis, abatissæ et Ecclesiæ doctoris": {
+    "croatian": "Sveta Hildegarda iz Bingena. crkvena naučiteljica",
+    "color": "white"
+  },
+  "Sabbato, hebdomada vigesima quarta per annum": {
+    "croatian": "Subota 24. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Sabbato, hebdomada vigesima quinta per annum": {
+    "croatian": "Subota 25. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada vigesima sexta per annum": {
+    "croatian": "Ponedjeljak 26. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Ss. Laurentii Ruiz et sociorum, martyrum": {
+    "croatian": "Sveti Lovro Ruiz i drugovi, mučenik",
+    "color": "red"
+  },
+  "Feria secunda, hebdomada vigesima septima per annum": {
+    "croatian": "Ponedjeljak 27. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada vigesima septima per annum": {
+    "croatian": "Utorak 27. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada vigesima septima per annum": {
+    "croatian": "Petak 27. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Ss. Dionysii, episcopi, et sociorum, martyrum": {
+    "croatian": "Sv. Dionizije, biskup mučenik",
+    "color": "red"
+  },
+  "Feria quarta, hebdomada vigesima octava per annum": {
+    "croatian": "Srijeda 28. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada vigesima octava per annum": {
+    "croatian": "Petak 28. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Hedvigis, religiosæ": {
+    "croatian": "Sveta Hedviga Šleska, redovnica",
+    "color": "white"
+  },
+  "Feria secunda, hebdomada vigesima nona per annum": {
+    "croatian": "Ponedjeljak 29. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Ss. Ioannis de Brébeuf et Isaac Jogues, presbyterorum, et sociorum, martyrum": {
+    "croatian": "Sveti Ivan de Brébeuf, Izak Jogues i drugovi, mučenici",
+    "color": "red"
+  },
+  "Feria quinta, hebdomada vigesima nona per annum": {
+    "croatian": "Četvrtak 29. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada vigesima nona per annum": {
+    "croatian": "Petak 29. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Sabbato, hebdomada vigesima nona per annum": {
+    "croatian": "Subota 29. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada trigesima prima per annum": {
+    "croatian": "Utorak 31. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada trigesima tertia per annum": {
+    "croatian": "Ponedjeljak 33. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Gertrudis, virginis": {
+    "croatian": "Sv. Gertruda, djevica",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada trigesima tertia per annum": {
+    "croatian": "Srijeda 33. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria IV Cinerum": {
+    "croatian": "Pepelnica",
+    "color": "purple"
+  },
+  "Feria secunda, hebdomada trigesima quarta per annum": {
+    "croatian": "Ponedjeljak 34. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Clementis I, papæ et martyris": {
+    "croatian": "Sv. Klement I, papa i mučenik",
+    "color": "red"
+  },
+  "Feria quarta, hebdomada trigesima quarta per annum": {
+    "croatian": "Srijeda 34. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "In octava Nativitatis. Sollemnitas Sanctæ Dei Genetricis Mariæ": {
+    "croatian": "Sveta Marija Bogorodica",
+    "color": "white"
+  },
+  "Ss. Basilii Magni et Gregorii Nazianzeni, episcoporum et Ecclesiæ doctorum": {
+    "croatian": "Sv. Bazilije Veliki i Grgur Nazijanski, biskupi i crkveni naučitelji",
+    "color": "white"
+  },
+  "Ss.mi Nominis Iesu": {
+    "croatian": "Presveto ime Isusovo",
+    "color": "white"
+  },
+  "Dominica secunda post Nativitatem": {
+    "croatian": "Druga nedjelja nakon Božića",
+    "color": "white"
+  },
+  "Die 5 ianuarii": {
+    "croatian": "Ponedjeljak 1. tjedna božićnog vremena",
+    "color": "white"
+  },
+  "In Epiphania Domini": {
+    "croatian": "Bogojavljenje",
+    "color": "white"
+  },
+  "S. Raimundi de Penyafort, presbyteri": {
+    "croatian": "Sveti Rajmund Penjafortski, prezbiter",
+    "color": "white"
+  },
+  "Feria quinta post Epiphaniam": {
+    "croatian": "Četvrtak 1. tjedna božićnog vremena",
+    "color": "white"
+  },
+  "Feria sexta post Epiphaniam": {
+    "croatian": "Petak 1. tjedna božićnog vremena",
+    "color": "white"
+  },
+  "Sabbato post Epiphaniam": {
+    "croatian": "Subota 1. tjedna božićnog vremena",
+    "color": "white"
+  },
+  "In Baptismate Domini": {
+    "croatian": "Krštenje Gospodinovo",
+    "color": "white"
+  },
+  "Feria secunda, hebdomada prima per annum": {
+    "croatian": "Ponedjeljak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Hilarii, episcopi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Hilarije, biskup i crkveni naučitelj",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada prima per annum": {
+    "croatian": "Srijeda 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quinta, hebdomada prima per annum": {
+    "croatian": "Četvrtak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada prima per annum": {
+    "croatian": "Petak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Antonii, abbatis": {
+    "croatian": "Sv. Antun, opat",
+    "color": "white"
+  },
+  "Dominica secunda per annum": {
+    "croatian": "2. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada secunda per annum": {
+    "croatian": "Ponedjeljak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Sebastiani, martyris": {
+    "croatian": "Sv. Sebastijan, mučenik",
+    "color": "red"
+  },
+  "S. Agnetis, virginis et martyris": {
+    "croatian": "Sv. Agneza, djevica i mučenica",
+    "color": "red"
+  },
+  "S. Vincentii, diaconi et martyris": {
+    "croatian": "Sv. Vinko, đakon i mučenik",
+    "color": "red"
+  },
+  "Feria sexta, hebdomada secunda per annum": {
+    "croatian": "Petak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Francisci de Sales, episcopi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Franjo Saleški, biskup i crkveni naučitelj",
+    "color": "white"
+  },
+  "Dominica tertia per annum, seu Dominica Verbi Dei": {
+    "croatian": "Nedjelja Božje riječi -  treća nedjelja kroz godinu",
+    "color": "green"
+  },
+  "Ss. Timothei et Titi, episcoporum": {
+    "croatian": "Sv. Timotej i Tit, biskupi",
+    "color": "white"
+  },
+  "S. Angelæ Merici, virginis": {
+    "croatian": "Sv. Angela Merici, djevica",
+    "color": "white"
+  },
+  "S. Thomæ de Aquino, presbyteri et Ecclesiæ doctoris": {
+    "croatian": "Sv. Toma Akvinski, prezbiter i crkveni naučitelj",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada tertia per annum": {
+    "croatian": "Četvrtak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada tertia per annum": {
+    "croatian": "Petak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Ioannis Bosco, presbyteri": {
+    "croatian": "Sv. Ivan Bosco, prezbiter",
+    "color": "white"
+  },
+  "Dominica quarta per annum": {
+    "croatian": "4. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "In Præsentatione Domini": {
+    "croatian": "Prikazanje Gospodinovo (Svijećnica)",
+    "color": "white"
+  },
+  "S. Blasii, episcopi et martyris": {
+    "croatian": "Sv. Blaž, biskup i mučenik",
+    "color": "red"
+  },
+  "Feria quarta, hebdomada quarta per annum": {
+    "croatian": "Srijeda 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Agathæ, virginis et martyris": {
+    "croatian": "Sv. Agata, djevica i mučenica",
+    "color": "red"
+  },
+  "Ss. Pauli Miki et sociorum, martyrum": {
+    "croatian": "Sv. Pavao Miki i drugovi, mučenici",
+    "color": "red"
+  },
+  "Sabbato, hebdomada quarta per annum": {
+    "croatian": "Subota 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Dominica quinta per annum": {
+    "croatian": "5. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada quinta per annum": {
+    "croatian": "Ponedjeljak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Scholasticæ, virginis": {
+    "croatian": "Sv. Skolastika, djevica",
+    "color": "white"
+  },
+  "B. Mariæ Virginis de Lourdes": {
+    "croatian": "Majka Božja Lurdska",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada quinta per annum": {
+    "croatian": "Četvrtak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada quinta per annum": {
+    "croatian": "Petak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Sabbato, hebdomada prima Quadragesimæ": {
+    "croatian": "Subota 2. tjedna korizme",
+    "color": "purple"
+  },
+  "Ss. Cyrilli, monachi, et Methodii, episcopi, patronorum secundariorum Europæ": {
+    "croatian": "Sv. Ćiril i Metod, biskupi, suzaštitnici Europe",
+    "color": "white"
+  },
+  "Dominica sexta per annum": {
+    "croatian": "6. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada sexta per annum": {
+    "croatian": "Ponedjeljak 1. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Ss. septem Fundatorum Ordinis Servorum B. M. V.": {
+    "croatian": "Sedam svetih utemeljitelja reda slugu Blažene Djevice Marije",
+    "color": "white"
+  },
+  "Feria quinta post Cineres": {
+    "croatian": "Četvrtak nakon pepelnice",
+    "color": "purple"
+  },
+  "Feria sexta post Cineres": {
+    "croatian": "Petak nakon pepelnice",
+    "color": "purple"
+  },
+  "S. Petri Damiani, episcopi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Petar Damiani, biskup i crkveni naučitelj",
+    "color": "white"
+  },
+  "Dominica prima Quadragesimæ": {
+    "croatian": "Prva korizmena nedjelja",
+    "color": "purple"
+  },
+  "S. Polycarpi, episcopi et martyris": {
+    "croatian": "Sv. Polikarp, biskup i mučenik",
+    "color": "red"
+  },
+  "Feria tertia, hebdomada prima Quadragesimæ": {
+    "croatian": "Utorak 1. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria quarta, hebdomada prima Quadragesimæ": {
+    "croatian": "Srijeda 2. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria quinta, hebdomada prima Quadragesimæ": {
+    "croatian": "Četvrtak 2. tjedna korizme",
+    "color": "purple"
+  },
+  "S. Gregorii Narecensis, abbatis et Ecclesiæ doctoris": {
+    "croatian": "Sv. Grgur Nazijanski, opat i crkveni naučitelj",
+    "color": "white"
+  },
+  "Dominica secunda Quadragesimæ": {
+    "croatian": "Druga korizmena nedjelja",
+    "color": "purple"
+  },
+  "Feria secunda, hebdomada secunda Quadragesimæ": {
+    "croatian": "Ponedjeljak 2. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria tertia, hebdomada secunda Quadragesimæ": {
+    "croatian": "Utorak 2. tjedna korizme",
+    "color": "purple"
+  },
+  "S. Casimiri": {
+    "croatian": "Sv. Kazimir",
+    "color": "purple"
+  },
+  "Feria quinta, hebdomada secunda Quadragesimæ": {
+    "croatian": "Četvrtak 3. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria sexta, hebdomada secunda Quadragesimæ": {
+    "croatian": "Petak 3. tjedna korizme",
+    "color": "purple"
+  },
+  "Ss. Perpetuæ et Felicitatis, martyrum": {
+    "croatian": "Sv. Perpetua i Felicita, mučenici",
+    "color": "red"
+  },
+  "Dominica tertia Quadragesimæ": {
+    "croatian": "Treća korizmena nedjelja",
+    "color": "purple"
+  },
+  "S. Franciscæ Romanæ, religiosæ": {
+    "croatian": "Sv. Franciska Rimska, redovnica",
+    "color": "white"
+  },
+  "Feria tertia, hebdomada tertia Quadragesimæ": {
+    "croatian": "Utorak 3. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria quarta, hebdomada tertia Quadragesimæ": {
+    "croatian": "Srijeda 4. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria quinta, hebdomada tertia Quadragesimæ": {
+    "croatian": "Četvrtak 4. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria sexta, hebdomada tertia Quadragesimæ": {
+    "croatian": "Petak 4. tjedna korizme",
+    "color": "purple"
+  },
+  "Sabbato, hebdomada tertia Quadragesimæ": {
+    "croatian": "Subota 4. tjedna korizme",
+    "color": "purple"
+  },
+  "Dominica quarta Quadragesimæ": {
+    "croatian": "Četvrta korizmena nedjelja",
+    "color": "rose"
+  },
+  "Feria secunda, hebdomada quarta Quadragesimæ": {
+    "croatian": "Ponedjeljak 4. tjedna korizme",
+    "color": "purple"
+  },
+  "S. Patricii, episcopi": {
+    "croatian": "Sv. Patrik, biskup",
+    "color": "white"
+  },
+  "S. Cyrilli Hierosolymitani, episcopi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Ćiril Jeruzalemski, biskup i crkvenog naučitelj",
+    "color": "white"
+  },
+  "S. Iosephi, Sponsi B. M. V.": {
+    "croatian": "Sveti Josip, zaručnik Blažene Djevice Marije",
+    "color": "white"
+  },
+  "Feria sexta, hebdomada quarta Quadragesimæ": {
+    "croatian": "Petak 5. tjedna korizme",
+    "color": "purple"
+  },
+  "Sabbato, hebdomada quarta Quadragesimæ": {
+    "croatian": "Subota 5. tjedna korizme",
+    "color": "purple"
+  },
+  "Dominica quinta Quadragesimæ": {
+    "croatian": "Peta korizmena nedjelja",
+    "color": "purple"
+  },
+  "S. Turibii de Mogrovejo, episcopi": {
+    "croatian": "Sv. Turbija iz Mogroveja, biskup",
+    "color": "white"
+  },
+  "Feria tertia, hebdomada quinta Quadragesimæ": {
+    "croatian": "Utorak 5. tjedna korizme",
+    "color": "purple"
+  },
+  "In Annuntiatione Domini": {
+    "croatian": "Navještenje Gospodinovo",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada quinta Quadragesimæ": {
+    "croatian": "Četvrtak 6. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria sexta, hebdomada quinta Quadragesimæ": {
+    "croatian": "Petak 6. tjedna korizme",
+    "color": "purple"
+  },
+  "Sabbato, hebdomada quinta Quadragesimæ": {
+    "croatian": "Subota 6. tjedna korizme",
+    "color": "purple"
+  },
+  "Dominica in Palmis de Passione Domini": {
+    "croatian": "Cvjetnica - Nedjelja muke Gospodnje",
+    "color": "red"
+  },
+  "Feria secunda Hebdomadæ Sanctæ": {
+    "croatian": "Ponedjeljak 6. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria tertia Hebdomadæ Sanctæ": {
+    "croatian": "Utorak 6. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria quarta Hebdomadæ Sanctæ": {
+    "croatian": "Srijeda 7. tjedna korizme",
+    "color": "purple"
+  },
+  "Feria V Hebdomadæ Sanctæ": {
+    "croatian": "Veliki četvrtak",
+    "color": "purple"
+  },
+  "Feria VI in Passione Domini": {
+    "croatian": "Petak 1. tjedna Vazmenog trodnevlja",
+    "color": "red"
+  },
+  "Sabbato Sancto/Vigilia paschalis": {
+    "croatian": "Velika subota",
+    "color": "white"
+  },
+  "Dominica Paschæ in Resurrectione Domini": {
+    "croatian": "Uskrsna nedjelja",
+    "color": "white"
+  },
+  "De die Feria secunda infra octavam Paschæ": {
+    "croatian": "Ponedjeljak 1. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "De die Feria tertia infra octavam Paschæ": {
+    "croatian": "Utorak 1. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "De die Feria quarta infra octavam Paschæ": {
+    "croatian": "Srijeda 1. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "De die Feria quinta infra octavam Paschæ": {
+    "croatian": "Četvrtak 1. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "De die Feria sexta infra octavam Paschæ": {
+    "croatian": "Petak 1. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "De die Sabbato infra octavam Paschæ": {
+    "croatian": "Subota 1. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Dominica in octava Paschæ seu Dominica de Divina Misericordia": {
+    "croatian": "Druga Vazmena Nedjelja, Nedjelja Božjeg Milosrđa",
+    "color": "white"
+  },
+  "S. Martini I, papæ et martyris": {
+    "croatian": "Sv. Martin I, papa i mučenik",
+    "color": "red"
+  },
+  "Feria tertia, hebdomada secunda temporis paschalis": {
+    "croatian": "Utorak 2. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada secunda temporis paschalis": {
+    "croatian": "Srijeda 2. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada secunda temporis paschalis": {
+    "croatian": "Četvrtak 2. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria sexta, hebdomada secunda temporis paschalis": {
+    "croatian": "Petak 2. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Sabbato, hebdomada secunda temporis paschalis": {
+    "croatian": "Subota 2. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Dominica tertia Paschæ": {
+    "croatian": "3. nedjelja uskrsnog vremena",
+    "color": "white"
+  },
+  "Feria secunda, hebdomada tertia temporis paschalis": {
+    "croatian": "Ponedjeljak 3. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "S. Anselmi, episcopi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Anselmo, biskup i crkveni naučitelj",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada tertia temporis paschalis": {
+    "croatian": "Srijeda 3. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "S. Georgii, martyris": {
+    "croatian": "Sv. Juraj, mučenik",
+    "color": "red"
+  },
+  "S. Fidelis a Sigmaringen, presbyteri et martyris": {
+    "croatian": "Sv. Fidelis iz Sigmaringena, prezbiter i mučenik",
+    "color": "red"
+  },
+  "S. Marci, evangelistæ": {
+    "croatian": "Sv. Marko, evanđelist",
+    "color": "red"
+  },
+  "Dominica quarta Paschæ": {
+    "croatian": "4. nedjelja uskrsnog vremena",
+    "color": "white"
+  },
+  "Feria secunda, hebdomada quarta temporis paschalis": {
+    "croatian": "Ponedjeljak 4. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "S. Petri Chanel, presbyteri et martyris": {
+    "croatian": "Sv. Petar Chanel, prezbiter i mučenik",
+    "color": "red"
+  },
+  "In Ascensione Domini": {
+    "croatian": "Uzašašće Gospodinovo",
+    "color": "white"
+  },
+  "S. Catharinæ Senensis, virginis et Ecclesiæ doctoris, patronæ secundariæ Europæ": {
+    "croatian": "Sv. Katarina Sijenska, djevica i crkvena naučiteljica, suzaštitnica Europe",
+    "color": "white"
+  },
+  "S. Pii V, papæ": {
+    "croatian": "Sv. Pio V, papa",
+    "color": "white"
+  },
+  "S. Iosephi opificis": {
+    "croatian": "Sveti Josip Radnik",
+    "color": "white"
+  },
+  "S. Athanasii, episcopi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Atanazije, biskup i crkveni učitelj",
+    "color": "white"
+  },
+  "Dominica quinta Paschæ": {
+    "croatian": "5. nedjelja uskrsnog vremena",
+    "color": "white"
+  },
+  "Feria secunda, hebdomada quinta temporis paschalis": {
+    "croatian": "Ponedjeljak 5. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria tertia, hebdomada quinta temporis paschalis": {
+    "croatian": "Utorak 5. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada quinta temporis paschalis": {
+    "croatian": "Srijeda 5. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada quinta temporis paschalis": {
+    "croatian": "Četvrtak 5. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Feria sexta, hebdomada quinta temporis paschalis": {
+    "croatian": "Petak 5. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Sabbato, hebdomada quinta temporis paschalis": {
+    "croatian": "Subota 5. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Dominica sexta Paschæ": {
+    "croatian": "6. nedjelja uskrsnog vremena",
+    "color": "white"
+  },
+  "Feria secunda, hebdomada sexta temporis paschalis": {
+    "croatian": "Ponedjeljak 6. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "S. Leopoldi Mandić, presbyteri": {
+    "croatian": "Sv. Leopold Mandić, prezbiter",
+    "color": "white"
+  },
+  "B. Mariæ Virginis de Fatima": {
+    "croatian": "Gospa Fatimska",
+    "color": "white"
+  },
+  "Feria sexta, hebdomada sexta temporis paschalis": {
+    "croatian": "Petak 6. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Sabbato, hebdomada sexta temporis paschalis": {
+    "croatian": "Subota 6. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Dominica septima Paschæ": {
+    "croatian": "7. nedjelja uskrsnog vremena",
+    "color": "white"
+  },
+  "S. Ioannis I, papæ et martyris": {
+    "croatian": "Sv. Ivan I, papa i mučenik",
+    "color": "red"
+  },
+  "Feria tertia, hebdomada septima temporis paschalis": {
+    "croatian": "Utorak 7. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "S. Bernardini Senensis, presbyteri": {
+    "croatian": "Sv. Bernardin Sijenski, prezbiter",
+    "color": "white"
+  },
+  "Ss. Christophori Magallanes, presbyteri, et sociorum, martyrum": {
+    "croatian": "Sv. Kristofor Magallanes, prezbiter, i drugovi, mučenici",
+    "color": "red"
+  },
+  "S. Ritæ de Cascia, religiosæ": {
+    "croatian": "Sv. Rita iz Cascije, redovnica",
+    "color": "white"
+  },
+  "Sabbato, hebdomada septima temporis paschalis": {
+    "croatian": "Subota 7. tjedna vazmenog vremena",
+    "color": "white"
+  },
+  "Dominica Pentecostes": {
+    "croatian": "Duhovi — Pedesetnica",
+    "color": "red"
+  },
+  "B. Mariæ Virginis Ecclesiæ Matris": {
+    "croatian": "Blažene Djevice Marije, Majke Crkve",
+    "color": "white"
+  },
+  "S. Philippi Neri, presbyteri": {
+    "croatian": "Sv. Filip Neri, prezbiter",
+    "color": "white"
+  },
+  "S. Augustini Cantuariensis, episcopi": {
+    "croatian": "Sv. Augustin Canterburyjski, biskup",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada octava per annum": {
+    "croatian": "Četvrtak 8. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Pauli VI, papæ": {
+    "croatian": "Sv. Pavao VI, pape",
+    "color": "white"
+  },
+  "Sabbato, hebdomada octava per annum": {
+    "croatian": "Subota 8. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Ss.mæ Trinitatis": {
+    "croatian": "Presveto Trojstvo",
+    "color": "white"
+  },
+  "S. Iustini, martyris": {
+    "croatian": "Sv. Justin, mučenik",
+    "color": "red"
+  },
+  "Ss. Marcellini et Petri, martyrum": {
+    "croatian": "Sv. Marcelin i Petar, mučenici",
+    "color": "red"
+  },
+  "Ss. Caroli Lwanga et sociorum, martyrum": {
+    "croatian": "Sv. Karlo Lwanga i drugovi, mučenici",
+    "color": "red"
+  },
+  "Ss.mi Corporis et Sanguinis Christi": {
+    "croatian": "Presveto Tijelo i Krv Kristova",
+    "color": "white"
+  },
+  "S. Bonifatii, episcopi et martyris": {
+    "croatian": "Sv. Bonifacije, biskup i mučenik",
+    "color": "red"
+  },
+  "S. Norberti, episcopi": {
+    "croatian": "Sv. Norbert, biskup",
+    "color": "white"
+  },
+  "Dominica decima per annum": {
+    "croatian": "10. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada decima per annum": {
+    "croatian": "Ponedjeljak 10. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Ephræm, diaconi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Efrem Sirijski, đakon i crkveni naučitelj",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada decima per annum": {
+    "croatian": "Srijeda 10. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Barnabæ, apostoli": {
+    "croatian": "Sv. Barnaba, apostol",
+    "color": "red"
+  },
+  "Sacratissimi Cordis Iesu": {
+    "croatian": "Petak 10. tjedna vremena kroz godinu",
+    "color": "white"
+  },
+  "S. Antonii de Padova, presbyteri et Ecclesiæ doctoris": {
+    "croatian": "Sv. Antun Padovanski, prezbiter i crkveni naučitelj",
+    "color": "white"
+  },
+  "Dominica undecima per annum": {
+    "croatian": "11. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada undecima per annum": {
+    "croatian": "Ponedjeljak 11. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada undecima per annum": {
+    "croatian": "Utorak 11. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quarta, hebdomada undecima per annum": {
+    "croatian": "Srijeda 11. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quinta, hebdomada undecima per annum": {
+    "croatian": "Četvrtak 11. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Romualdi, abbatis": {
+    "croatian": "Sv. Romuald, opat",
+    "color": "white"
+  },
+  "Sabbato, hebdomada undecima per annum": {
+    "croatian": "Subota 11. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Dominica duodecima per annum": {
+    "croatian": "12. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "S. Paulini Nolani, episcopi": {
+    "croatian": "Sv. Paulin iz Nole, biskup",
+    "color": "white"
+  },
+  "Feria tertia, hebdomada duodecima per annum": {
+    "croatian": "Utorak 12. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "In Nativitate S. Ioannis Baptistæ": {
+    "croatian": "Rođenje Sv. Ivana Krstitelja",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada duodecima per annum": {
+    "croatian": "Četvrtak 12. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada duodecima per annum": {
+    "croatian": "Petak 12. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Cyrilli Alexandrini, episcopi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Ćiril Aleksandrijski, biskup i crkveni naučitelj",
+    "color": "white"
+  },
+  "Dominica decima tertia per annum": {
+    "croatian": "13. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "Ss. Petri et Pauli, apostolorum": {
+    "croatian": "Sv. Petar i Pavao, apostoli",
+    "color": "red"
+  },
+  "Ss. Protomartyrum S. Romanæ Ecclesiæ": {
+    "croatian": "Sv. Protomučenici Svete Rimske Crkve",
+    "color": "red"
+  },
+  "Feria quarta, hebdomada decima tertia per annum": {
+    "croatian": "Srijeda 13. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quinta, hebdomada decima tertia per annum": {
+    "croatian": "Četvrtak 13. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Thomæ, apostoli": {
+    "croatian": "Sv. Toma, apostol",
+    "color": "red"
+  },
+  "S. Elisabeth Lusitaniæ": {
+    "croatian": "Sv. Elizabeta Portugalska",
+    "color": "white"
+  },
+  "Dominica decima quarta per annum": {
+    "croatian": "14. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "S. Mariæ Goretti, virginis et martyris": {
+    "croatian": "Sv. Maria Goreti, djevica i mučenica",
+    "color": "red"
+  },
+  "Feria tertia, hebdomada decima quarta per annum": {
+    "croatian": "Utorak 14. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quarta, hebdomada decima quarta per annum": {
+    "croatian": "Srijeda 14. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Ioannis Mariæ Vianney, presbyteri": {
+    "croatian": "Sv. Ivan Marija Vianney, prezbiter",
+    "color": "white"
+  },
+  "B. Mariæ a Iesu Crucifixo Petković, virginis": {
+    "croatian": "Blažena Marija Propetog Isusa Petković, djevica",
+    "color": "white"
+  },
+  "Feria sexta, hebdomada decima quarta per annum": {
+    "croatian": "Petak 14. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Benedicti, abbatis, patroni Europæ": {
+    "croatian": "Sv. Benedikt, opat i zaštitnik Europe",
+    "color": "white"
+  },
+  "Dominica decima quinta per annum": {
+    "croatian": "15. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "B. Mariæ Virginis de Marija Bistrica": {
+    "croatian": "Majka Božja Bistrička",
+    "color": "white"
+  },
+  "S. Camilli de Lellis, presbyteri": {
+    "croatian": "Sv. Kamilo de Lellis, prezbiter",
+    "color": "white"
+  },
+  "S. Bonaventuræ, episcopi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Bonaventura, biskup i crkveni naučitelj",
+    "color": "white"
+  },
+  "B. Mariæ Virginis de Monte Carmelo": {
+    "croatian": "Gospa od Karmela",
+    "color": "white"
+  },
+  "Feria sexta, hebdomada decima quinta per annum": {
+    "croatian": "Petak 15. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Sabbato, hebdomada decima quinta per annum": {
+    "croatian": "Subota 15. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Dominica decima sexta per annum": {
+    "croatian": "16. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "S. Apollinaris, episcopi et martyris": {
+    "croatian": "Sv. Apolinar, biskup i mučenik",
+    "color": "red"
+  },
+  "S. Laurentii de Brindisi, presbyteri et Ecclesiæ doctoris": {
+    "croatian": "Sv. Lovro Brindisijski, prezbiter i crkveni naučitelj",
+    "color": "white"
+  },
+  "S. Mariæ Magdalenæ": {
+    "croatian": "Sv. Marija Magdalena",
+    "color": "white"
+  },
+  "S. Birgittæ, religiosæ, patronæ secundariæ Europæ": {
+    "croatian": "Sv. Brigita, redovnica",
+    "color": "white"
+  },
+  "S. Sarbelii Makhlūf, presbyteri": {
+    "croatian": "Sv. Šarbel Makhluf, prezbiter",
+    "color": "white"
+  },
+  "S. Iacobi, apostoli": {
+    "croatian": "Sv. Jakov, apostol",
+    "color": "red"
+  },
+  "Dominica decima septima per annum": {
+    "croatian": "17. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada decima septima per annum": {
+    "croatian": "Ponedjeljak 17. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada decima septima per annum": {
+    "croatian": "Utorak 17. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Marthæ, Mariæ et Lazari": {
+    "croatian": "Sv. Marta, Marija i Lazar",
+    "color": "white"
+  },
+  "S. Petri Chrysologi, episcopi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Petar Krizolog, biskup i crkveni naučitelj",
+    "color": "white"
+  },
+  "S. Ignatii de Loyola, presbyteri": {
+    "croatian": "Sv. Ignacije Lojolski, prezbiter",
+    "color": "white"
+  },
+  "S. Alfonsi Mariæ de’ Liguori, episcopi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Alfonso Marija de Liguori, biskup i crkveni naučitelj",
+    "color": "white"
+  },
+  "Dominica decima octava per annum": {
+    "croatian": "18. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "S. Pii X, papæ": {
+    "croatian": "Sv. Pio X, papa",
+    "color": "white"
+  },
+  "B. Augustini Gazothus, episcopi et martyris": {
+    "croatian": "Blaženi Augustin Kažotić, biskup i mučenik",
+    "color": "red"
+  },
+  "In Dedicatione basilicæ S. Mariæ": {
+    "croatian": "Posvete bazilike Svete Marije Velike (Gospe Snježne)",
+    "color": "white"
+  },
+  "In Transfiguratione Domini": {
+    "croatian": "Preobraženje Gospodina",
+    "color": "white"
+  },
+  "Ss. Xysti II, papæ, et sociorum, martyrum": {
+    "croatian": "Sv. Siksto II, papa i mučenik",
+    "color": "red"
+  },
+  "S. Dominici, presbyteri": {
+    "croatian": "Sv. Dominik, prezbiter",
+    "color": "white"
+  },
+  "Dominica decima nona per annum": {
+    "croatian": "19. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "S. Laurentii, diaconi et martyris": {
+    "croatian": "Sv. Lovro, đakon i mučenik",
+    "color": "red"
+  },
+  "S. Claræ, virginis": {
+    "croatian": "Sv. Klara, djevica",
+    "color": "white"
+  },
+  "S. Ioannæ Franciscæ de Chantal, religiosæ": {
+    "croatian": "Sv. Ivana Franciska de Chantal, redovnica",
+    "color": "white"
+  },
+  "Ss. Pontiani, papæ, et Hippolyti, presbyteri, martyrum": {
+    "croatian": "Sv. Poncijan, papa i Hipolit, prezbiter, mučenik",
+    "color": "red"
+  },
+  "S. Maximiliani Mariæ Kolbe, presbyteri et martyris": {
+    "croatian": "Sv. Maksimilijan Maria Kolbe, prezbiter i mučenik",
+    "color": "red"
+  },
+  "In Assumptione Beatæ Mariæ Virginis": {
+    "croatian": "Uznesenje Blažene Djevice Marije",
+    "color": "white"
+  },
+  "Dominica vigesima per annum": {
+    "croatian": "20. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "Dominica secunda Adventus": {
+    "croatian": "2. nedjelja došašća",
+    "color": "purple"
+  },
+  "Feria secunda, hebdomada vigesima per annum": {
+    "croatian": "Ponedjeljak 20. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada vigesima per annum": {
+    "croatian": "Utorak 20. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Ioannis Eudes, presbyteri": {
+    "croatian": "Sv. Ivan Eudes, prezbiter",
+    "color": "white"
+  },
+  "S. Bernardi, abbatis et Ecclesiæ doctoris": {
+    "croatian": "Sv. Bernard, opat i crkveni naučitelj",
+    "color": "white"
+  },
+  "B. Mariæ Virginis Reginæ": {
+    "croatian": "Blažena Djevica Marija Kraljica",
+    "color": "white"
+  },
+  "Dominica vigesima prima per annum": {
+    "croatian": "21. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "S. Bartholomæi, apostoli": {
+    "croatian": "Sv. Bartolomej, apostola",
+    "color": "red"
+  },
+  "S. Ludovici": {
+    "croatian": "Sv. Ludovik",
+    "color": "white"
+  },
+  "Feria quarta, hebdomada vigesima prima per annum": {
+    "croatian": "Srijeda 21. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Monicæ": {
+    "croatian": "Sv. Monice",
+    "color": "white"
+  },
+  "S. Augustini, episcopi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Augustin, biskup i crkveni naučitelj",
+    "color": "white"
+  },
+  "In Passione S. Ioannis Baptistæ": {
+    "croatian": "Mučeništvo Svetog Ivana Krstitelja",
+    "color": "red"
+  },
+  "Dominica vigesima secunda per annum": {
+    "croatian": "22. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada vigesima secunda per annum": {
+    "croatian": "Ponedjeljak 22. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada vigesima secunda per annum": {
+    "croatian": "Utorak 22. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quarta, hebdomada vigesima secunda per annum": {
+    "croatian": "Srijeda 22. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Gregorii Magni, papæ et Ecclesiæ doctoris": {
+    "croatian": "Sv. Grgur Veliki, papa i crkveni naučitelj",
+    "color": "white"
+  },
+  "Feria sexta, hebdomada vigesima secunda per annum": {
+    "croatian": "Petak 22. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Sabbato, hebdomada vigesima secunda per annum": {
+    "croatian": "Subota 22. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Dominica vigesima tertia per annum": {
+    "croatian": "23. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "S. Marci Crisini, presbyteri et martyris": {
+    "croatian": "Sv. Marko Križevčanin, prezbiter i mučenik",
+    "color": "red"
+  },
+  "In Nativitate B. Mariæ Virginis": {
+    "croatian": "Rođenje Blažene Djevice Marije",
+    "color": "white"
+  },
+  "S. Petri Claver, presbyteri": {
+    "croatian": "Sv. Petar Klaver, prezbiter",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada vigesima tertia per annum": {
+    "croatian": "Četvrtak 23. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada vigesima tertia per annum": {
+    "croatian": "Petak 23. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Ss.mi Nominis Mariæ": {
+    "croatian": "Presveto Ime Marijino,",
+    "color": "white"
+  },
+  "Dominica vigesima quarta per annum": {
+    "croatian": "24. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "In Exaltatione Sanctæ Crucis": {
+    "croatian": "Uzvišenje Svetoga Križa",
+    "color": "red"
+  },
+  "B. Mariæ Virginis Perdolentis": {
+    "croatian": "Žalosna Gospa",
+    "color": "white"
+  },
+  "Ss. Cornelii, papæ, et Cypriani, episcopi, martyrum": {
+    "croatian": "Sv. Kornelije, papa, i Ciprijan, biskup, mučenik",
+    "color": "red"
+  },
+  "S. Roberti Bellarmini, episcopi et Ecclesiæ doctoris": {
+    "croatian": "Sv. Robert Bellarmino, biskup i crkveni naučitelj",
+    "color": "white"
+  },
+  "Feria sexta, hebdomada vigesima quarta per annum": {
+    "croatian": "Petak 24. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Ianuarii, episcopi et martyris": {
+    "croatian": "Sv. Januarije, biskup i mučenik",
+    "color": "red"
+  },
+  "Dominica vigesima quinta per annum": {
+    "croatian": "25. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "S. Matthæi, apostoli et evangelistæ": {
+    "croatian": "Sv. Matej, apostol i evanđelist",
+    "color": "red"
+  },
+  "Feria tertia, hebdomada vigesima quinta per annum": {
+    "croatian": "Utorak 25. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Pii de Pietrelcina, presbyteri": {
+    "croatian": "Sv. Pio iz Pietrelcine , prezbiter",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada vigesima quinta per annum": {
+    "croatian": "Četvrtak 25. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada vigesima quinta per annum": {
+    "croatian": "Petak 25. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Ss. Cosmæ et Damiani, martyrum": {
+    "croatian": "Sv. Kuzma i Damjan, mučenici",
+    "color": "red"
+  },
+  "Dominica vigesima sexta per annum": {
+    "croatian": "26. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "S. Venceslai, martyris": {
+    "croatian": "Sv. Vjenceslav, mučenik",
+    "color": "red"
+  },
+  "Ss. Michaelis, Gabrielis et Raphaelis, archangelorum": {
+    "croatian": "Sv. Mihael, Gabrijel i Rafael, arkanđeli",
+    "color": "white"
+  },
+  "S. Hieronymi, presbyteri et Ecclesiæ doctoris": {
+    "croatian": "Sv. Jeronim, prezbiter i crkveni naučitelj",
+    "color": "white"
+  },
+  "S. Teresiæ a Iesu Infante, virginis et Ecclesiæ doctoris": {
+    "croatian": "Sv. Terezija od Djeteta Isusa, djevica i crkvena naučiteljica",
+    "color": "white"
+  },
+  "Ss. Angelorum Custodum": {
+    "croatian": "Sv. Anđeli Čuvara",
+    "color": "white"
+  },
+  "Sabbato, hebdomada vigesima sexta per annum": {
+    "croatian": "Subota 26. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Dominica vigesima septima per annum": {
+    "croatian": "27. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "S. Faustinæ Kowalska, virginis": {
+    "croatian": "Sv. Faustine Kovalska, djevica",
+    "color": "white"
+  },
+  "S. Brunonis, presbyteri": {
+    "croatian": "Sv. Bruno, prezbiter",
+    "color": "white"
+  },
+  "B. Mariæ Virginis a Rosario": {
+    "croatian": "Blažena Djevica Marija od Krunice",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada vigesima septima per annum": {
+    "croatian": "Četvrtak 27. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Ioannis Leonardi, presbyteri": {
+    "croatian": "Sv. Ivan Leonardi, prezbiter",
+    "color": "white"
+  },
+  "Sabbato, hebdomada vigesima septima per annum": {
+    "croatian": "Subota 27. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Dominica vigesima octava per annum": {
+    "croatian": "28. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada vigesima octava per annum": {
+    "croatian": "Ponedjeljak 28. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada vigesima octava per annum": {
+    "croatian": "Utorak 28. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Callisti I, papæ et martyris": {
+    "croatian": "Sv. Kalist I, papa i mučenik",
+    "color": "red"
+  },
+  "S. Teresiæ a Iesu, virginis et Ecclesiæ doctoris": {
+    "croatian": "Sv. Terezija Avilska, djevica i crkvenog naučiteljica",
+    "color": "white"
+  },
+  "S. Margaritæ Mariæ Alacoque, virginis": {
+    "croatian": "Sv. Margareta Marija Alacoque , dejvica",
+    "color": "white"
+  },
+  "S. Ignatii Antiocheni, episcopi et martyris": {
+    "croatian": "Sv. Ignacije Antiohijski, biskup i mučenik",
+    "color": "red"
+  },
+  "Dominica vigesima nona per annum": {
+    "croatian": "29. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "S. Pauli a Cruce, presbyteri": {
+    "croatian": "Sv. Pavao od Križa, prezbiter",
+    "color": "white"
+  },
+  "Feria tertia, hebdomada vigesima nona per annum": {
+    "croatian": "Utorak 29. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria quarta, hebdomada vigesima nona per annum": {
+    "croatian": "Srijeda 29. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Ioannis Pauli II, papæ": {
+    "croatian": "Sv. Ivan Pavao II, papa",
+    "color": "white"
+  },
+  "S. Ioannis de Capestrano, presbyteri": {
+    "croatian": "Sv. Ivan Kapistran, prezbiter",
+    "color": "white"
+  },
+  "S. Antonii Mariæ Claret, episcopi": {
+    "croatian": "Sv. Antun Marija Klaret, biskup",
+    "color": "white"
+  },
+  "Dominica trigesima per annum": {
+    "croatian": "30. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "Feria secunda, hebdomada trigesima per annum": {
+    "croatian": "Ponedjeljak 30. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria tertia, hebdomada trigesima per annum": {
+    "croatian": "Utorak 30. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Ss. Simonis et Iudæ, apostolorum": {
+    "croatian": "Sv. Šimun i Juda Tadej, apostoli",
+    "color": "red"
+  },
+  "Feria quinta, hebdomada trigesima per annum": {
+    "croatian": "Četvrtak 30. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada trigesima per annum": {
+    "croatian": "Petak 30. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Sabbato, hebdomada trigesima per annum": {
+    "croatian": "Subota 30. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Omnium Sanctorum": {
+    "croatian": "Svi sveti",
+    "color": "white"
+  },
+  "In Commemoratione omnium fidelium defunctorum": {
+    "croatian": "Spomena svih vjernih mrtvih (Dušni dan)",
+    "color": "purple"
+  },
+  "S. Martini de Porres, religiosi": {
+    "croatian": "Sv. Martin de Porres, redovnica",
+    "color": "white"
+  },
+  "S. Caroli Borromeo, episcopi": {
+    "croatian": "Sv. Karlo Boromejski, biskup",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada trigesima prima per annum": {
+    "croatian": "Četvrtak 31. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada trigesima prima per annum": {
+    "croatian": "Petak 31. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Sabbato, hebdomada trigesima prima per annum": {
+    "croatian": "Subota 31. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Dominica trigesima secunda per annum": {
+    "croatian": "32. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "In Dedicatione Basilicæ Lateranensis": {
+    "croatian": "Posveta Lateranske bazilike",
+    "color": "white"
+  },
+  "S. Leonis Magni, papæ et Ecclesiæ doctoris": {
+    "croatian": "Sv. Leon Veliki, papa i crkveni naučitelj",
+    "color": "white"
+  },
+  "S. Martini Turonensis, episcopi": {
+    "croatian": "Sv. Martin Tourski, biskup",
+    "color": "white"
+  },
+  "S. Iosaphat, episcopi et martyris": {
+    "croatian": "Sv. Jozafat, biskup i mučenik",
+    "color": "red"
+  },
+  "Feria sexta, hebdomada trigesima secunda per annum": {
+    "croatian": "Petak 32. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "S. Nicolai Tavelić, presbyteri et martyris": {
+    "croatian": "Sv. Nikola Tavelić, prezbiter i mučenik",
+    "color": "red"
+  },
+  "Dominica trigesima tertia per annum": {
+    "croatian": "33. nedjelja kroz godinu",
+    "color": "green"
+  },
+  "S. Margaritæ Scotiæ": {
+    "croatian": "Sv. Margareta Škotska",
+    "color": "white"
+  },
+  "S. Elisabeth Hungariæ, religiosæ": {
+    "croatian": "Sv. Elizabeta Ugarska, redovnica",
+    "color": "white"
+  },
+  "In Dedicatione basilicarum Ss. Petri et Pauli, apostolorum": {
+    "croatian": "Posveta bazilika svetih apostola Petra i Pavla",
+    "color": "white"
+  },
+  "Feria quinta, hebdomada trigesima tertia per annum": {
+    "croatian": "Četvrtak 33. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada trigesima tertia per annum": {
+    "croatian": "Petak 33. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "In Præsentatione B. Mariæ Virginis": {
+    "croatian": "Prikazanje Blažene Djevice Marije u Hramu - Gospda od Zdravlja",
+    "color": "white"
+  },
+  "D. N. I. C. universorum regis": {
+    "croatian": "Krist Kralj",
+    "color": "white"
+  },
+  "S. Columbani, abbatis": {
+    "croatian": "Sv. Kolumban, opat",
+    "color": "white"
+  },
+  "Ss. Andreæ Dũng Lạc, presbyteri, et sociorum, martyrum": {
+    "croatian": "Sv. Andrija Dũng-Lạc, prezbiter, i drugovi, mučenici",
+    "color": "red"
+  },
+  "S. Catharinæ Alexandrinæ, virginis et martyris": {
+    "croatian": "Sv. Katarina Aleksandrijska, djevica i mučenica",
+    "color": "red"
+  },
+  "Feria quinta, hebdomada trigesima quarta per annum": {
+    "croatian": "Četvrtak 34. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Feria sexta, hebdomada trigesima quarta per annum": {
+    "croatian": "Petak 34. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Sabbato, hebdomada trigesima quarta per annum": {
+    "croatian": "Subota 34. tjedna vremena kroz godinu",
+    "color": "green"
+  },
+  "Dominica prima Adventus": {
+    "croatian": "1. nedjelja došašća",
+    "color": "purple"
+  },
+  "Feria secunda, hebdomada prima Adventus": {
+    "croatian": "Ponedjeljak 1. tjedna došašća",
+    "color": "purple"
+  },
+  "Feria tertia, hebdomada prima Adventus": {
+    "croatian": "Utorak 1. tjedna došašća",
+    "color": "purple"
+  },
+  "Feria quarta, hebdomada prima Adventus": {
+    "croatian": "Srijeda 1. tjedna došašća",
+    "color": "purple"
+  },
+  "Feria quinta, hebdomada prima Adventus": {
+    "croatian": "Četvrtak 1. tjedna došašća",
+    "color": "purple"
+  },
+  "Feria sexta, hebdomada prima Adventus": {
+    "croatian": "Petak 1. tjedna došašća",
+    "color": "purple"
+  },
+  "Sabbato, hebdomada prima Adventus": {
+    "croatian": "Subota 1. tjedna došašća",
+    "color": "purple"
+  },
+  "Feria secunda, hebdomada secunda Adventus": {
+    "croatian": "Ponedjeljak 2. tjedna došašća",
+    "color": "purple"
+  },
+  "Feria tertia, hebdomada secunda Adventus": {
+    "croatian": "Utorak 2. tjedna došašća",
+    "color": "purple"
+  },
+  "Feria quarta, hebdomada secunda Adventus": {
+    "croatian": "Srijeda 2. tjedna došašća",
+    "color": "purple"
+  },
+  "Feria quinta, hebdomada secunda Adventus": {
+    "croatian": "Četvrtak 2. tjedna došašća",
+    "color": "purple"
+  },
+  "Feria sexta, hebdomada secunda Adventus": {
+    "croatian": "Petak 2. tjedna došašća",
+    "color": "purple"
+  },
+  "Sabbato, hebdomada secunda Adventus": {
+    "croatian": "Subota 2. tjedna došašća",
+    "color": "purple"
+  },
+  "Dominica tertia Adventus": {
+    "croatian": "3. nedjelja došašća",
+    "color": "rose"
+  },
+  "Feria secunda, hebdomada tertia Adventus": {
+    "croatian": "Ponedjeljak 3. tjedna došašća",
+    "color": "purple"
+  },
+  "Feria tertia, hebdomada tertia Adventus": {
+    "croatian": "Utorak 3. tjedna došašća",
+    "color": "purple"
+  },
+  "Feria quarta, hebdomada tertia Adventus": {
+    "croatian": "Srijeda 3. tjedna došašća",
+    "color": "purple"
+  },
+  "Dia 17 decembris": {
+    "croatian": "Četvrtak 3. tjedna došašća",
+    "color": "purple"
+  },
+  "Dia 18 decembris": {
+    "croatian": "Petak 3. tjedna došašća",
+    "color": "purple"
+  },
+  "Dia 19 decembris": {
+    "croatian": "Subota 3. tjedna došašća",
+    "color": "purple"
+  },
+  "Dominica quarta Adventus": {
+    "croatian": "4. nedjelja došašća",
+    "color": "purple"
+  },
+  "Dia 21 decembris": {
+    "croatian": "Ponedjeljak 4. tjedna došašća",
+    "color": "purple"
+  },
+  "Dia 22 decembris": {
+    "croatian": "Utorak 4. tjedna došašća",
+    "color": "purple"
+  },
+  "Dia 23 decembris": {
+    "croatian": "Srijeda 4. tjedna došašća",
+    "color": "purple"
+  },
+  "Dia 24 decembris": {
+    "croatian": "Četvrtak 4. tjedna došašća",
+    "color": "purple"
+  },
+  "In Nativitate Domini": {
+    "croatian": "Božić — Rođenje Gospodinovo",
+    "color": "white"
+  },
+  "De die 2 infra octavam Nativitatis": {
+    "croatian": "Subota 1. tjedna božićnog vremena",
+    "color": "white"
+  },
+  "Sanctæ Familiæ Iesu, Mariæ et Ioseph": {
+    "croatian": "Sveta Obitelj Isusa, Marije i Josipa",
+    "color": "white"
+  },
+  "De die 4 infra octavam Nativitatis": {
+    "croatian": "Ponedjeljak 1. tjedna božićnog vremena",
+    "color": "white"
+  },
+  "De die 5 infra octavam Nativitatis": {
+    "croatian": "Utorak 1. tjedna božićnog vremena",
+    "color": "white"
+  },
+  "De die 6 infra octavam Nativitatis": {
+    "croatian": "Srijeda 1. tjedna božićnog vremena",
+    "color": "white"
+  },
+  "De die 7 infra octavam Nativitatis": {
+    "croatian": "Četvrtak 1. tjedna božićnog vremena",
+    "color": "white"
+  }
+}

@@ -9,10 +9,13 @@ Zadani razvojni tenant je **Župa Blažene Djevice Marije**, Slavonski Brod.
 
 ## Lokalno pokretanje
 
-Za razvoj je dovoljan Python; lokalne postavke koriste SQLite, lokalnu
-memoriju za cache i izvršavaju Celery zadatke sinkrono.
+Lokalne postavke koriste PostgreSQL (isti kontejner `db` kao u
+`docker-compose.yml`: baza/korisnik/lozinka `zupa`, port 5432). Cache i
+Celery mogu ostati sinkroni; Mailhog i Redis trebaju se ako šaljete mail
+ili pokrećete worker.
 
 ```bash
+docker compose up -d db
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -22,8 +25,7 @@ python manage.py runserver
 ```
 
 `manage.py`, WSGI i ASGI u razvoju zadano koriste `zupa.settings.local`.
-Mailhog i Redis potrebni su samo ako lokalnim varijablama uključite stvarni
-SMTP, Redis cache ili asinkroni Celery.
+Izvan Dockera Django spaja se na `127.0.0.1:5432`.
 
 | Što | URL |
 |-----|-----|
@@ -81,11 +83,10 @@ Lozinka za Django admin je `pastoral-demo`.
 
 ## Docker razvojno okruženje
 
-`docker-compose.yml` pokreće web, PostgreSQL, Redis, Celery i Mailhog. Prije
+`docker-compose.yml` pokreće web, PostgreSQL, Redis, Celery worker, Celery beat i Mailhog. Prije
 pokretanja izradite lokalni `.env` te odaberite settings modul i vjerodajnice
-za bazu. Za PostgreSQL koristite `DJANGO_SETTINGS_MODULE=zupa.settings.production`
-i obavezno postavite barem `SECRET_KEY`, `ALLOWED_HOSTS`, `DB_NAME`, `DB_USER`
-i `DB_PASS`.
+za bazu (`DB_NAME`, `DB_USER`, `DB_PASS`; zadano je `zupa` / `zupa` / `zupa`).
+Lokalni i produkcijski settings koriste PostgreSQL.
 
 ```bash
 docker compose up -d --build
@@ -105,27 +106,9 @@ python manage.py test
 
 ## Liturgijski kalendar
 
-Romcal `croatia` radi lokalno. Zadani provider `hybrid` koristi Romcal za
-glavno slavlje i rang, a postojeći LitCal/HILP sloj za dopunu liturgijskog
-vremena i čitanja. `LITURGICAL_PRIMARY_PROVIDER` podržava vrijednosti
-`hybrid`, `romcal` i `litcal`.
+Romcal `croatia` radi lokalno (latinski locale). Pri uvozu godine hrvatski
+naziv i liturgijska boja dolaze iz `liturgija/config/liturgical_days.json`
+(ključ je latinski naziv slavlja). HILP i dalje dopunjuje čitanja.
 
-```bash
-python manage.py test liturgija.tests.test_liturgical_romcal
-python manage.py liturgical_day 2026-08-03
-python manage.py liturgical_day 2026-08-03 --provider romcal --json
-python manage.py liturgical_audit 2026 --month 8
-```
-
-Opcija `liturgical_day --with-hilp` dohvaća hrvatska čitanja i može
-zahtijevati mrežu. Bez nje Romcal provjera radi lokalno.
-
-Dijagnostički endpointi nakon prijave:
-
-- `/api/liturgical/romcal/day/2026-08-03/`
-- `/api/liturgical/compare/2026-08-03/`
-- `/api/liturgical/v1/day/2026-08-03/`
-
-Razlika između providera nije nužno pogreška: mjesečni audit posebno izdvaja
-razlike u naslovu, rangu i boji, neprevedene zapise, više dopuštenih slavlja
-te datume za koje jedan izvor nema podatke.
+Aktivni prikaz i API (`/api/liturgical/day/`, `/year/`, `/month/`) čitaju
+retke `LiturgicalCalendarEntry` nakon uvoza u adminu.

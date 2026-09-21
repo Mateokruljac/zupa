@@ -1,23 +1,22 @@
-"""Abstract SCD / DIM / FACT bases shared by every parish model.
+"""Zajedničke SCD/FACT baze za sve poslovne modele župe.
 
-Physical primary key is `id` (the `record_id` of the source SCD pattern).
-FCTA and SCD types use UUID; FCTB uses a big integer. `unified_key` is the
-business key. Open SCD2 rows use `date_to = OPEN_ENDED_VALID_TO`.
+Ovaj modul je jedino mjesto na kojem žive `unified_key`, `date_from`/`date_to`
+i `save_new`. Domenske aplikacije nasljeđuju tipove; ne smiju ponovno
+implementirati verziranje.
+
+Fizički PK je `id` (record_id uzorka). Otvoreni SCD2 red ima
+`date_to = OPEN_ENDED_VALID_TO` (9999-12-31). SCD2 ažuriranje otkriva
+promjenu usporedbom polja, ne hashom.
 """
 from __future__ import annotations
 
-import hashlib
-import json
 import uuid
 from datetime import date, timedelta
-from decimal import Decimal
-
 from django.db import IntegrityError, models, transaction
 from django.utils import timezone
 
 UNIFIED_KEY_SEPARATOR = '::'
 OPEN_ENDED_VALID_TO = date(9999, 12, 31)
-CONTENT_HASH_LENGTH = 64
 
 ACTIVE_FLAG_CHOICES = (
     (True, 'Aktivno'),
@@ -32,18 +31,20 @@ SCD2_TECHNICAL_FIELD_NAMES = frozenset({
     'updated_at',
     'date_from',
     'date_to',
-    'content_hash',
 })
 
 
-def _json_ready(value):
-    if isinstance(value, Decimal):
-        return str(value)
-    if isinstance(value, uuid.UUID):
-        return str(value)
-    if isinstance(value, date):
-        return value.isoformat()
-    return value
+def current_version_unique(*field_names, name: str) -> models.UniqueConstraint:
+    """Parcijalni UNIQUE: najviše jedan otvoreni SCD2 red za zadana polja.
+
+    Povijesne verzije smiju dijeliti isti poslovni identifikator.
+    Bez ovog ograničenja `save_new` bi mogao ostaviti dva trenutačna reda.
+    """
+    return models.UniqueConstraint(
+        fields=field_names,
+        condition=models.Q(date_to=OPEN_ENDED_VALID_TO),
+        name=name,
+    )
 
 
 def build_unified_key(instance, origin_field_names: list[str] | tuple[str, ...] | None) -> str:
@@ -80,75 +81,8 @@ def _concrete_tracked_field_names(model_class, extra_excluded_names=None) -> lis
     return tracked_names
 
 
-class ContentHashedModel(models.Model):
-    """SHA-256 of canonical business fields. Not unique."""
-
-    content_hash = models.CharField(
-        'Sadržajni hash',
-        max_length=CONTENT_HASH_LENGTH,
-        blank=True,
-        editable=False,
-        db_index=True,
-    )
-
-    class Meta:
-        abstract = True
-
-    def content_hash_field_names(self) -> tuple[str, ...]:
-        return tuple(
-            field.name
-            for field in self._meta.concrete_fields
-            if field.name not in {
-                'id',
-                'content_hash',
-                'created_at',
-                'updated_at',
-                'date_from',
-                'date_to',
-            }
-        )
-
-    def build_content_hash(self) -> str:
-        payload = {}
-        for field_name in self.content_hash_field_names():
-            payload[field_name] = _json_ready(getattr(self, field_name, None))
-        encoded = json.dumps(payload, sort_keys=True, ensure_ascii=True, default=str)
-        return hashlib.sha256(encoded.encode('utf-8')).hexdigest()
-
-    def save(self, *args, **kwargs):
-        self.content_hash = self.build_content_hash()
-        return super().save(*args, **kwargs)
-
-
-class SCDD(models.Model):
-    """Draft / staging row before it becomes a dimension or fact."""
-
-    class Action(models.TextChoices):
-        NEW = 'new', 'Novi'
-        CLONE = 'cln', 'Klon'
-        CHANGE = 'chg', 'Izmjena'
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    action_id = models.CharField(
-        'Akcija nacrta',
-        max_length=3,
-        choices=Action.choices,
-        default=Action.NEW,
-    )
-
-    class Meta:
-        abstract = True
-
-
-class SCDR(models.Model):
-    """Report / projection row. Do not treat as an office write model."""
-
-    class Meta:
-        abstract = True
-
-
-class SCD1(ContentHashedModel):
-    """Type-1 dimension: overwrite in place. DIM SCD1."""
+class SCD1(models.Model):
+    """Dimenzija tipa 1: overwrite u mjestu (osoba, vijeće, šifrarnici)."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     unified_key = models.CharField(
@@ -165,7 +99,6 @@ class SCD1(ContentHashedModel):
     )
     created_at = models.DateTimeField('Kreirano', auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField('Ažurirano', auto_now=True)
-    unified_key_origin_fields: tuple[str, ...] = ()
 
     class Meta:
         abstract = True
@@ -190,8 +123,24 @@ class SCD1(ContentHashedModel):
         return self.unified_key
 
 
-class SCD2(ContentHashedModel):
-    """Type-2 dimension: close the current row and insert a new version. DIM SCD2."""
+class CurrentSCD2Manager(models.Manager):
+    """Manager koji vraća samo otvorene SCD2 redove.
+
+    `objects` i dalje vidi cijelu povijest. UI i operativni store moraju
+    čitati ovaj manager; inače bi se ista ulica/obitelj pojavila više puta.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(date_to=OPEN_ENDED_VALID_TO)
+
+
+class SCD2(models.Model):
+    """Dimenzija tipa 2: materijalna izmjena zatvara stari red i otvara novi.
+
+    Ne koristi se za osobe (to je SCD1) niti za činjenice poput krštenja.
+    Djeca koja FK-om drže `id` roditelja moraju se nakon verzije preusmjeriti
+    na novi otvoreni red — vidi `upsert_current_household`.
+    """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     unified_key = models.CharField(
@@ -210,6 +159,8 @@ class SCD2(ContentHashedModel):
     )
     unified_key_origin_fields: tuple[str, ...] = ()
     scd2_save_exclude_fields: tuple[str, ...] = ()
+    objects = models.Manager()
+    current = CurrentSCD2Manager()
 
     class Meta:
         abstract = True
@@ -234,6 +185,12 @@ class SCD2(ContentHashedModel):
         return super().save(*args, **kwargs)
 
     def save_new(self, exclude=None, unified_key_origin_fields=None, *args, **kwargs):
+        """Spremi SCD2 zapis po pravilu verzije, ne običnim overwriteom.
+
+        Novi identitet: zabranjuje drugi otvoreni red s istim `unified_key`.
+        Postojeći otvoreni red: ako su se poslovna polja promijenila, zatvara
+        ga (`date_to = jučer`) i umeće novi PK s istim `unified_key`.
+        """
         model_class = type(self)
         if not self._state.adding:
             excluded = tuple(exclude or ()) + self.scd2_save_exclude_fields
@@ -259,6 +216,11 @@ class SCD2(ContentHashedModel):
 
     @transaction.atomic
     def _close_and_version_if_changed(self, extra_excluded_names=None):
+        """Zaključava trenutačni red pa ga zatvara ako je sadržaj stvarno drugačiji.
+
+        Polja u `scd2_save_exclude_fields` (npr. telefon, bilješke) namjerno
+        ne pokreću novu verziju — to su ispravci tipfelera, ne povijest adrese.
+        """
         model_class = type(self)
         stored_row = model_class.objects.select_for_update().get(pk=self.pk)
         if stored_row.date_to != OPEN_ENDED_VALID_TO:
@@ -274,7 +236,7 @@ class SCD2(ContentHashedModel):
         if not has_business_change:
             return
         stored_row.date_to = timezone.localdate() - timedelta(days=1)
-        stored_row.save(update_fields=['date_to', 'updated_at', 'content_hash'])
+        stored_row.save(update_fields=['date_to', 'updated_at'])
         self.pk = None
         self.id = uuid.uuid4()
         self.unified_key = stored_row.unified_key
@@ -285,8 +247,55 @@ class SCD2(ContentHashedModel):
         return self.unified_key
 
 
+def upsert_current_scd2(model_class, lookup: dict, defaults: dict):
+    """Nađe otvoreni SCD2 red ili ga kreira; materijalnu izmjenu verzira.
+
+    Args:
+        lookup:
+            Poslovni identitet (npr. parish + public_identifier), nikad fizički `id`.
+        defaults:
+            Polja koja se upisuju na otvoreni red.
+
+    Returns:
+        Tuple (instancija, created). Ako je verzija zatvorila stari red,
+        vraćena instanca ima novi `id`.
+
+    Side effects:
+        Može zatvoriti prethodni otvoreni red. Ne preusmjerava djecu s FK-om
+        na stari `id` — to rade pozivatelji (`upsert_current_household`).
+    """
+    current_row = model_class.current.filter(**lookup).first()
+    if current_row is None:
+        instance = model_class(**lookup, **defaults)
+        instance.save_new()
+        return instance, True
+    for field_name, field_value in defaults.items():
+        setattr(current_row, field_name, field_value)
+    current_row.save_new()
+    return current_row, False
+
+
+def close_current_scd2_rows(queryset) -> int:
+    """Zatvara otvorene redove umjesto DELETE.
+
+    Povijest ostaje čitljiva. SCD2A dodatno gasi `is_active`.
+    Fizikalno brisanje bi prekinulo FK-ove i izgubilo trag adrese/članstva.
+    """
+    yesterday = timezone.localdate() - timedelta(days=1)
+    closed = 0
+    for row in queryset.filter(date_to=OPEN_ENDED_VALID_TO).iterator():
+        row.date_to = yesterday
+        if hasattr(row, 'is_active'):
+            row.is_active = False
+            row.save(update_fields=['date_to', 'is_active', 'updated_at'])
+        else:
+            row.save(update_fields=['date_to', 'updated_at'])
+        closed += 1
+    return closed
+
+
 class SCD2A(SCD2):
-    """SCD2 dimension that can be deactivated without dropping history."""
+    """SCD2 dimenzija koju možemo deaktivirati bez brisanja povijesti (ulica, kućanstvo)."""
 
     is_active = models.BooleanField(
         'Aktivno',
@@ -299,8 +308,8 @@ class SCD2A(SCD2):
         abstract = True
 
 
-class FCTA(ContentHashedModel):
-    """Fact table with a UUID primary key."""
+class FCTA(models.Model):
+    """Činjenica s UUID primarnim ključem (sakramenti, blagajna, zadaci)."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField('Kreirano', auto_now_add=True, null=True, blank=True)
@@ -310,8 +319,8 @@ class FCTA(ContentHashedModel):
         abstract = True
 
 
-class FCTB(ContentHashedModel):
-    """Fact table with a big-integer primary key."""
+class FCTB(models.Model):
+    """Činjenica s integer PK — samo kad je visok volumen opravdan (npr. liturgijski kalendar)."""
 
     id = models.BigAutoField(primary_key=True, editable=False)
     created_at = models.DateTimeField('Kreirano', auto_now_add=True, null=True, blank=True)

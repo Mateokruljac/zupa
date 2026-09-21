@@ -336,8 +336,7 @@ def synchronize_baptism_record(
     event.event_date = parse_iso_date(baptism_record.get('baptismDate'))
     event.minister_name = baptism_record.get('celebrant') or ''
     event.liturgical_tradition = parish.default_liturgical_tradition
-    if parish.church_sui_iuris_id:
-        event.canonical_tradition = parish.church_sui_iuris.canonical_tradition
+    event.canonical_tradition = parish.canonical_tradition_for_events()
     if event.status == SacramentalEvent.Status.CANCELLED:
         event.status = SacramentalEvent.Status.DRAFT
     event.updated_by = actor if getattr(actor, 'is_authenticated', False) else None

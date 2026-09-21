@@ -1,8 +1,14 @@
-"""Pretvorba Council / osnivački dekret ↔ legacy API dict."""
+"""
+Župno vijeće i osnivački dekret ↔ camelCase dict stranice Vijeća.
+
+`Council` je SCD1 (jedan red po vrsti u župi). Članstvo je SCD2 i veže se
+na `Person` kad ime to dopušta. Osnivački dekret nije spremište datoteka.
+"""
 from __future__ import annotations
 
 from datetime import date
 
+from core.models import close_current_scd2_rows, upsert_current_scd2
 from ured.models import Council, CouncilMembership, ParishFoundingDecree
 from zupa_vjernici.services.person_identity import find_or_create_person
 
@@ -36,7 +42,7 @@ def membership_as_legacy_record(membership: CouncilMembership) -> dict:
 def council_as_legacy_record(council: Council) -> dict:
     members = [
         membership_as_legacy_record(membership)
-        for membership in council.memberships.all()
+        for membership in CouncilMembership.current.filter(council=council)
     ]
     if council.council_type == Council.CouncilType.ECONOMIC:
         return {
@@ -65,6 +71,11 @@ def decree_as_legacy_record(decree: ParishFoundingDecree | None) -> dict:
 
 
 def sync_council_from_legacy(parish, council_type: str, payload) -> None:
+    """Spremi vijeće i otvorena članstva iz UI dicta.
+
+    `payload is None` briše SCD1 vijeće. Članstva kojih više nema zatvaraju
+    se umjesto DELETE, da ostane trag mandata.
+    """
     if payload is None:
         Council.objects.filter(parish=parish, council_type=council_type).delete()
         return
@@ -108,10 +119,13 @@ def sync_council_from_legacy(parish, council_type: str, payload) -> None:
             full_name=full_name,
             relation=str(member_record.get('role') or ''),
         )
-        CouncilMembership.objects.update_or_create(
-            council=council,
-            public_identifier=public_identifier,
-            defaults={
+        upsert_current_scd2(
+            CouncilMembership,
+            {
+                'council': council,
+                'public_identifier': public_identifier,
+            },
+            {
                 'person': person,
                 'member_name': full_name,
                 'role': str(member_record.get('role') or ''),
@@ -119,7 +133,9 @@ def sync_council_from_legacy(parish, council_type: str, payload) -> None:
                 'is_confirmed': bool(member_record.get('confirmed')),
             },
         )
-    council.memberships.exclude(public_identifier__in=keep_identifiers).delete()
+    close_current_scd2_rows(
+        council.memberships.exclude(public_identifier__in=keep_identifiers),
+    )
 
 
 def sync_founding_decree_from_legacy(parish, payload) -> None:

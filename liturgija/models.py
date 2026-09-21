@@ -1,13 +1,25 @@
-"""ORM modeli liturgijskog kalendara."""
-import uuid
+"""
+ORM modeli liturgije: kalendar slavlja i župni raspored misa.
 
-from core.models import FCTA, FCTB, SCD1, ContentHashedModel
-from django.conf import settings
+Dva sloja:
+- globalni kalendar (tradicija, slavlje dana po izvoru) — nije tenant
+- operativni zapisi župe (raspored, iznimke, nakane, listić) — bivši Parish.data
+
+Što se slavi kojeg dana vidi se iz `LiturgicalCalendarEntry`, ne iz zasebne
+tablice „misa koja se dogodila”. Raspored kaže *kad župa služi*; kalendar
+kaže *što je liturgijski dan*. Imena tablica još su `pastoral_*`.
+"""
+from core.models import FCTA, FCTB, SCD1
 from django.db import models
 
 
 class LiturgicalTradition(SCD1):
-    """Kontrolirani globalni popis liturgijskih tradicija."""
+    """Obred slavlja (rimski, bizantski…), ne kanonska pripadnost.
+
+    Latinska župa obično ima rimski obred; župa Križevačke eparhije bizantski.
+    Kanonska linija (`latin` / `eastern`) živi na župi, ne ovdje.
+    Sakrament može snimiti FK na ovaj red.
+    """
 
     unified_key_origin_fields = ('code',)
 
@@ -24,52 +36,20 @@ class LiturgicalTradition(SCD1):
         return self.name
 
 
-class LiturgicalCalendarImport(FCTB):
-    """Provjereni godišnji kalendar koji je uvezen kroz Django admin."""
+class LiturgicalCalendarEntry(FCTB):
+    """Jedno slavlje na jednom datumu (svagdan, svetac, blagdan…).
+
+    Isti datum smije imati više redaka: npr. ponedjeljak vremena kroz godinu
+    i usporedni svetac. Izvor uvoza je `romcal-croatia`; ostaje i ručni unos.
+    Ponovni uvoz preskače red koji već postoji za isti izvor, datum i
+    identifikator slavlja. Bitna polja: datum, naziv, prioritet, boja.
+    `is_primary` je slavlje s najvišim prioritetom toga dana.
+    """
 
     class Provider(models.TextChoices):
         LITCAL_VATICAN = 'litcal-va', 'LitCal — opći rimski kalendar'
-
-    year = models.PositiveSmallIntegerField('Godina')
-    provider = models.CharField(
-        'Izvor',
-        max_length=30,
-        choices=Provider.choices,
-        default=Provider.LITCAL_VATICAN,
-    )
-    events = models.JSONField('Uvezeni događaji', default=list, editable=False)
-    event_count = models.PositiveIntegerField('Broj događaja', default=0, editable=False)
-    source_file_name = models.CharField('Izvorna datoteka', max_length=255, blank=True, editable=False)
-    checksum = models.CharField('SHA-256 kontrolni zbroj', max_length=64, blank=True, editable=False)
-    imported_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        verbose_name='Uvezao',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        editable=False,
-        related_name='liturgical_calendar_imports',
-    )
-    imported_at = models.DateTimeField('Vrijeme uvoza', null=True, blank=True, editable=False)
-
-    class Meta:
-        db_table = 'pastoral_liturgicalcalendarimport'
-        ordering = ['-year', 'provider']
-        constraints = [
-            models.UniqueConstraint(
-                fields=('year', 'provider'),
-                name='unique_liturgical_calendar_import',
-            ),
-        ]
-        verbose_name = 'Uvoz liturgijskog kalendara'
-        verbose_name_plural = 'Uvozi liturgijskog kalendara'
-
-    def __str__(self):
-        return f'{self.get_provider_display()} — {self.year}'
-
-
-class LiturgicalCalendarEntry(FCTB):
-    """Globalno liturgijsko slavlje dobiveno iz kontroliranog importa."""
+        ROMCAL_CROATIA = 'romcal-croatia', 'Romcal — kalendar za Hrvatsku'
+        MANUAL = 'manual', 'Ručni unos'
 
     class LiturgicalColor(models.TextChoices):
         WHITE = 'white', 'Bijela'
@@ -80,11 +60,12 @@ class LiturgicalCalendarEntry(FCTB):
         BLACK = 'black', 'Crna'
         OTHER = 'other', 'Druga / nepoznata'
 
-    calendar_import = models.ForeignKey(
-        LiturgicalCalendarImport,
-        verbose_name='Kalendarski import',
-        on_delete=models.CASCADE,
-        related_name='calendar_entries',
+    provider = models.CharField(
+        'Izvor',
+        max_length=30,
+        choices=Provider.choices,
+        default=Provider.LITCAL_VATICAN,
+        db_index=True,
     )
     date = models.DateField('Datum', db_index=True)
     name = models.CharField('Svetac ili slavlje', max_length=255)
@@ -99,25 +80,24 @@ class LiturgicalCalendarEntry(FCTB):
     priority = models.PositiveSmallIntegerField(
         'Prioritet',
         default=0,
-        help_text='LitCal stupanj slavlja; veći broj znači viši prioritet.',
+        help_text='Stupanj slavlja; veći broj znači viši prioritet.',
     )
     priority_label = models.CharField('Naziv prioriteta', max_length=120, blank=True)
     is_primary = models.BooleanField(
         'Glavno slavlje dana',
-        default=False,
+        default=True,
         db_index=True,
     )
     external_identifier = models.CharField('Identifikator izvora', max_length=160, blank=True)
-    source_position = models.PositiveIntegerField('Redni broj u importu')
     raw_data = models.JSONField('Izvorni podaci', default=dict, editable=False)
 
     class Meta:
         db_table = 'pastoral_liturgicalcalendarentry'
-        ordering = ['date', '-is_primary', '-priority', 'name']
+        ordering = ['date', '-priority', 'name']
         constraints = [
             models.UniqueConstraint(
-                fields=('calendar_import', 'source_position'),
-                name='unique_liturgical_entry_source_position',
+                fields=('provider', 'date', 'external_identifier'),
+                name='unique_liturgical_entry_source_celebration',
             ),
         ]
         indexes = [
@@ -133,10 +113,14 @@ class LiturgicalCalendarEntry(FCTB):
         return f'{self.date:%d.%m.%Y.} — {self.name}'
 
 
-# --- Operativni liturgijski zapisi (bivši Parish.data) ---
-
-
 class MassScheduleSlot(SCD1):
+    """Redoviti termin mise u župi (npr. nedjelja 10:00).
+
+    Predložak tjedna, ne zapis da je misa održana. Liturgijski dan
+    (svetac, boja) čita se iz kalendara za taj datum. `no_mass` znači
+    da u tom terminu nema mise. `payload` je ostavština starog JSON-a.
+    """
+
     unified_key_origin_fields = ('parish_id', 'public_identifier')
 
     parish = models.ForeignKey(
@@ -161,6 +145,12 @@ class MassScheduleSlot(SCD1):
 
 
 class MassException(FCTA):
+    """Iznimka rasporeda za jedan datum (blagdan, sprovod, otkaz).
+
+    Ne mijenja tjedni predložak. `cancel_all` / `cancel_times` / `add_slots`
+    opisuju što tog dana odstupa od `MassScheduleSlot`.
+    """
+
     parish = models.ForeignKey(
         'pastoral.Parish',
         on_delete=models.CASCADE,
@@ -179,6 +169,11 @@ class MassException(FCTA):
 
 
 class MassScheduleLogEntry(FCTA):
+    """Kratka poruka uz izmjenu rasporeda, nije kalendarski događaj.
+
+    `logged_at` je naslijeđeni tekst, ne DateTime.
+    """
+
     parish = models.ForeignKey(
         'pastoral.Parish',
         on_delete=models.CASCADE,
@@ -194,6 +189,12 @@ class MassScheduleLogEntry(FCTA):
 
 
 class MassIntention(FCTA):
+    """Jedna naručena nakana (za koga, tko traži, koji termin).
+
+    Status je pastoralni tijek, ne knjiga računa. Stipend i `is_paid`
+    ovdje su operativni; primitak novca knjiži se u knjigu misnih obveza.
+    """
+
     class Status(models.TextChoices):
         REQUESTED = 'requested', 'Zatraženo'
         SCHEDULED = 'scheduled', 'Raspoređeno'
@@ -227,7 +228,14 @@ class MassIntention(FCTA):
         unique_together = [('parish', 'public_identifier')]
 
 
-class BulletinLayout(ContentHashedModel):
+class BulletinLayout(models.Model):
+    """Raspored župnog listića: jedna župa, jedan red (PK = parish).
+
+    Sadržaj još nije tipiziran (`payload` / `template_payload`).
+    Nakane i slavlja dana listić čita iz nakana i liturgijskog kalendara
+    pri ispisu, ne kopira ih ovdje.
+    """
+
     parish = models.OneToOneField(
         'pastoral.Parish',
         on_delete=models.CASCADE,
@@ -247,6 +255,11 @@ class BulletinLayout(ContentHashedModel):
 
 
 class BulletinIssue(FCTA):
+    """Jedan izdani broj župnog listića.
+
+    Tijelo je još u `payload`. Nije arhiva održanih misa.
+    """
+
     parish = models.ForeignKey(
         'pastoral.Parish',
         on_delete=models.CASCADE,
@@ -257,4 +270,3 @@ class BulletinIssue(FCTA):
 
     class Meta:
         unique_together = [('parish', 'public_identifier')]
-

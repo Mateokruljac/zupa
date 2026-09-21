@@ -52,7 +52,7 @@
       <span class="lit-readings-chev" aria-hidden="true"></span>
       <span class="lit-readings-title">Čitanja</span>
       <span class="badge">{{ lit_day.readings|length }}</span>
-      {% if lit_day.readingsSource == 'hilp' %}<small class="card-sub">(HILP)</small>{% elif lit_day.readingsSource == 'litcal-va' %}<small class="card-sub">(LitCal VA)</small>{% endif %}
+      {% if lit_day.readingsSource == 'hilp' %}<small class="card-sub">(HILP)</small>{% endif %}
     </summary>
     <div class="lit-readings-body">
       {% for r in lit_day.readings %}

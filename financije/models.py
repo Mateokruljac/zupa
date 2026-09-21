@@ -1,10 +1,27 @@
-"""Financijski operativni zapisi (bivši Parish.data)."""
-from core.models import FCTA, ContentHashedModel
+"""
+Financijski operativni zapisi župe (bivši ključevi u Parish.data).
+
+Četiri tablice: zadani iznos lukna, ručni dugovi, računi, retci blagajne.
+Sakramentalni stipend i lukno obitelji nisu ovdje — žive na članstvu
+kućanstva odnosno nakanama; ekran dugovanja ih samo agregira.
+
+UI i dalje vidi camelCase dictove koje `operational_store` slaže preko
+`finance_records`. `public_identifier` je id za UI; fizički PK je `id`.
+`payload` je ostavština JSON-a, pri spremanju se prazni.
+"""
+from core.models import FCTA
 from django.db import models
 
 
-class FinanceSettings(ContentHashedModel):
-    """Skalarni financijski parametri župe. SCD1 without a UUID PK."""
+class FinanceSettings(models.Model):
+    """
+    Skalarni financijski parametri jedne župe.
+
+    Zrno: jedna župa, jedan red (`OneToOne`, PK = parish id). Nije SCD2 —
+    zadani iznos lukna se overwritea. Nije UUID SCD1 jer je PK već parish.
+
+    Ne drži knjige ni retke blagajne.
+    """
 
     parish = models.OneToOneField(
         'pastoral.Parish',
@@ -16,6 +33,7 @@ class FinanceSettings(ContentHashedModel):
         max_digits=10,
         decimal_places=2,
         default=0,
+        help_text='Iznos lukna kad obiteljska godina nema vlastiti iznos.',
     )
     unified_key = models.CharField(
         'Jedinstveni ključ',
@@ -28,11 +46,23 @@ class FinanceSettings(ContentHashedModel):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
+        """`unified_key` je id župe — nema drugog poslovnog ključa postavki."""
         self.unified_key = str(self.parish_id or self.unified_key)
         return super().save(*args, **kwargs)
 
 
 class ParishDebt(FCTA):
+    """
+    Ručna financijska stavka: župa duguje ili joj se duguje.
+
+    Zrno: jedna stavka po `public_identifier` unutar župe. Nije lukno,
+    nakana ni račun — samo unos koji nema drugi izvorni zapis
+    (`parishDebts` u starom JSON-u). FCTA: ispravak je novi događaj ili
+    zastavica `is_paid`, ne nova verzija dimenzije.
+
+    `direction`: `payable` (župa duguje) ili `receivable`.
+    """
+
     parish = models.ForeignKey(
         'pastoral.Parish',
         on_delete=models.CASCADE,
@@ -55,6 +85,17 @@ class ParishDebt(FCTA):
 
 
 class Invoice(FCTA):
+    """
+    Račun župe (ulazni od dobavljača ili izlazni, `direction`).
+
+    Zrno: jedan račun po `public_identifier`. `payer_name` drži i naziv
+    dobavljača i naziv platitelja — UI i dalje šalje `supplierName` /
+    `payerName`. `linked_source` veže račun na drugi operativni zapis
+    ako postoji. Statusi su hrvatski kodovi UI-ja (`primljen`, `placen`).
+
+    Plaćanje računa ne knjiži samo od sebe red blagajne.
+    """
+
     parish = models.ForeignKey(
         'pastoral.Parish',
         on_delete=models.CASCADE,
@@ -85,6 +126,17 @@ class Invoice(FCTA):
 
 
 class CashbookEntry(FCTA):
+    """
+    Jedan red jedne od četiri knjige računa.
+
+    Zrno: jedan knjiženi iznos (`ulaz`/`izlaz`) na datum, u `ledger`.
+    Župni saldo čita samo knjigu `crkveni`. Kategorija i ledger moraju
+    proći `normalize_ledger` pri upisu. FCTA: storno je novi red ili
+    ispravak iznosa, ne SCD2 verzija.
+
+    `report_code` je oznaka za vanjsko izvješće, nije knjiga.
+    """
+
     parish = models.ForeignKey(
         'pastoral.Parish',
         on_delete=models.CASCADE,

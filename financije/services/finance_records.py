@@ -1,4 +1,16 @@
-"""Pretvorba financijskih ORM redova ↔ legacy API dict."""
+"""
+Pretvorba financijskih ORM redova ↔ legacy API dict.
+
+`operational_store` učitava `CashbookEntry`, `ParishDebt` i `Invoice`
+u camelCase liste koje UI i servisi (`cashbook`, `debts`, `invoices_page`)
+još očekuju. Obrnuti smjer (`*_field_defaults_from_legacy`) puni ORM
+polja pri spremanju. `payload` se namjerno prazni: tipizirani stupci
+su izvor istine.
+
+Ako se ovdje raspadne mapiranje iznosa ili smjera računa, ekran i baza
+pokazuju različite brojke. Novac ide kroz `Decimal` prema bazi i `float`
+prema starom UI ugovoru.
+"""
 from __future__ import annotations
 
 import copy
@@ -10,6 +22,7 @@ from financije.models import CashbookEntry, Invoice, ParishDebt
 
 
 def _parse_iso_date(value) -> date | None:
+    """Čita prvih deset znakova kao ISO datum; prazno ili smeće je None."""
     raw = str(value or '').strip()
     if not raw:
         return None
@@ -20,6 +33,12 @@ def _parse_iso_date(value) -> date | None:
 
 
 def _decimal_amount(value) -> Decimal:
+    """
+    Pretvara UI iznos u Decimal za ORM.
+
+    Neispravan unos postaje 0, ne iznimka — spremanje ne smije pasti
+    zbog praznog polja dok forma još šalje stringove.
+    """
     try:
         return Decimal(str(value if value is not None else 0))
     except (InvalidOperation, TypeError, ValueError):
@@ -27,10 +46,23 @@ def _decimal_amount(value) -> Decimal:
 
 
 def _iso_or_empty(value: date | None) -> str:
+    """ISO datum za JSON/UI, prazan string ako datum nije zadan."""
     return value.isoformat() if value else ''
 
 
 def cashbook_as_legacy_record(entry: CashbookEntry) -> dict:
+    """
+    Pretvara red blagajne u dict ekrana blagajne.
+
+    `ledger` se normalizira da stari retci bez koda knjige padnu u
+    crkvenu knjigu prema kategoriji. `id` je `public_identifier`, ne PK.
+
+    Args:
+        entry: ORM red `CashbookEntry`.
+
+    Returns:
+        CamelCase dict za `data['cashbook']`.
+    """
     return {
         'id': entry.public_identifier,
         'date': _iso_or_empty(entry.entry_date),
@@ -45,6 +77,17 @@ def cashbook_as_legacy_record(entry: CashbookEntry) -> dict:
 
 
 def cashbook_field_defaults_from_legacy(record: dict) -> dict:
+    """
+    Polja ORM-a iz jednog UI retka blagajne, za `update` / `save_new`.
+
+    Zadana knjiga je crkvena ako UI nije poslao `ledger`.
+
+    Args:
+        record: CamelCase dict s ekrana ili API-ja.
+
+    Returns:
+        Kwargs usklađeni s `CashbookEntry` (uključujući prazan `payload`).
+    """
     return {
         'entry_date': _parse_iso_date(record.get('date')),
         'entry_type': str(record.get('type') or 'ulaz'),
@@ -62,6 +105,18 @@ def cashbook_field_defaults_from_legacy(record: dict) -> dict:
 
 
 def parish_debt_as_legacy_record(debt: ParishDebt) -> dict:
+    """
+    Pretvara `ParishDebt` u dict liste `parishDebts`.
+
+    `paid` je legacy ime za `is_paid`. Koristi `collect_payables` /
+    dio `collect_receivables` za ručne stavke.
+
+    Args:
+        debt: ORM red ručnog duga.
+
+    Returns:
+        CamelCase dict.
+    """
     return {
         'id': debt.public_identifier,
         'direction': debt.direction or 'payable',
@@ -77,6 +132,17 @@ def parish_debt_as_legacy_record(debt: ParishDebt) -> dict:
 
 
 def parish_debt_field_defaults_from_legacy(record: dict) -> dict:
+    """
+    Polja ORM-a iz UI retka ručnog duga.
+
+    Godina koja nije cijeli broj postaje None, ne 0.
+
+    Args:
+        record: CamelCase dict.
+
+    Returns:
+        Kwargs za `ParishDebt`.
+    """
     year_raw = record.get('year')
     try:
         year_value = int(year_raw) if year_raw not in (None, '') else None
@@ -97,6 +163,19 @@ def parish_debt_field_defaults_from_legacy(record: dict) -> dict:
 
 
 def invoice_as_legacy_record(invoice: Invoice) -> dict:
+    """
+    Pretvara `Invoice` u dict ekrana računa.
+
+    Jedan ORM stupac `payer_name` puni i `supplierName` i `payerName`
+    jer ulazni i izlazni UI koriste različite ključeve za istu stranu.
+    Ako status nije spremljen, izvodi se iz smjera i omjera plaćeno/total.
+
+    Args:
+        invoice: ORM red računa.
+
+    Returns:
+        CamelCase dict za `data['invoices']`.
+    """
     linked_source = copy.deepcopy(invoice.linked_source or {})
     direction = invoice.direction or (
         'outgoing' if linked_source else 'incoming'
@@ -135,6 +214,19 @@ def invoice_as_legacy_record(invoice: Invoice) -> dict:
 
 
 def invoice_field_defaults_from_legacy(record: dict) -> dict:
+    """
+    Polja ORM-a iz UI retka računa.
+
+    `supplierName` ima prednost pred `payerName` pri punjenju `payer_name`.
+    `linkedSource` koji nije dict odbacuje se (prazan dict), da JSONField
+    ne dobije listu ili string.
+
+    Args:
+        record: CamelCase dict.
+
+    Returns:
+        Kwargs za `Invoice`.
+    """
     linked_source = record.get('linkedSource')
     if not isinstance(linked_source, dict):
         linked_source = {}

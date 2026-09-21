@@ -7,7 +7,7 @@ alwaysApply: true
 
 - Primary document: `MDs/DB_ARCHITECTURE_PROPOSAL.md`. `MDs/db_arhitecture.md` is the original brief only.
 - Every persisted business model must be classified as DIM (`SCD1`, `SCD2`, `SCD2A`) or FACT (`FCTA`, rarely `FCTB`), or draft/report (`SCDD`, `SCDR`).
-- Inherit those types from `core.models`. Do not copy `unified_key`, `date_from`/`date_to`, `content_hash`, or `save_new` into individual apps.
+- Inherit those types from `core.models`. Do not copy `unified_key`, `date_from`/`date_to`, or `save_new` into individual apps.
 - Physical PK is `id` (the pattern’s `record_id`). Open SCD2 rows use `date_to = 9999-12-31`.
 - SCD writes go through `save_new(unified_key_origin_fields=...)`.
 - Do not add a second SCD/FACT base module.

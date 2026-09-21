@@ -9,7 +9,8 @@ from django.contrib.auth.models import (AbstractBaseUser, BaseUserManager, Permi
 
 import uuid
 
-from core.models import FCTA, SCD1, SCD2, ContentHashedModel
+from core.models import FCTA, SCD1, SCD2, OPEN_ENDED_VALID_TO
+from zupa_vjernici.canonical import CanonicalTradition
 
 
 def otp_challenge_expiry():
@@ -41,8 +42,12 @@ class Diocese(SCD1):
         return self.name
 
 
-class Parish(ContentHashedModel):
-    """Jedna župa — podaci i postavke (struktura kao bivši localStorage)."""
+class Parish(models.Model):
+    """Jedna župa — tenant ureda.
+
+    `canonical_tradition` razlikuje latinsku župu od župe Križevačke eparhije.
+    Obred misa je `default_liturgical_tradition`, ne ovo polje.
+    """
 
     class LifecycleStatus(models.TextChoices):
         PROVISIONING = 'provisioning', 'Provisioning'
@@ -60,12 +65,15 @@ class Parish(ContentHashedModel):
         blank=True,
         related_name='parishes',
     )
-    church_sui_iuris = models.ForeignKey('zupa_vjernici.ChurchSuiIuris',
-        verbose_name='Crkva sui iuris',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='parishes',
+    canonical_tradition = models.CharField(
+        'Kanonska tradicija',
+        max_length=16,
+        choices=CanonicalTradition.choices,
+        default=CanonicalTradition.LATIN,
+        db_index=True,
+        help_text=(
+            'Latinska za hrvatske biskupije; istočna za župe Križevačke eparhije.'
+        ),
     )
     ecclesiastical_jurisdiction = models.ForeignKey('zupa_vjernici.EcclesiasticalJurisdiction',
         verbose_name='Crkvena jurisdikcija',
@@ -112,16 +120,18 @@ class Parish(ContentHashedModel):
         super().clean()
         if (
             self.ecclesiastical_jurisdiction_id
-            and self.church_sui_iuris_id
-            and self.ecclesiastical_jurisdiction.church_sui_iuris_id
-            != self.church_sui_iuris_id
+            and self.ecclesiastical_jurisdiction.canonical_tradition
+            != self.canonical_tradition
         ):
             raise ValidationError({
                 'ecclesiastical_jurisdiction': (
-                    'Jurisdikcija mora pripadati odabranoj Crkvi sui iuris.'
+                    'Jurisdikcija mora biti iste kanonske tradicije kao župa.'
                 ),
             })
 
+    def canonical_tradition_for_events(self):
+        """Vrijednost koju sakrament snima; prazno ostaje nepotvrđeno."""
+        return self.canonical_tradition or 'unconfirmed'
 
     def save(self, *args, **kwargs):
         if self.slug:
@@ -130,8 +140,11 @@ class Parish(ContentHashedModel):
         return super().save(*args, **kwargs)
 
 
-class OtpChallenge(ContentHashedModel):
-    """Jednokratni, vremenski ograničen izazov za prijavu."""
+class OtpChallenge(models.Model):
+    """Jednokratni, vremenski ograničen izazov za prijavu.
+
+    Stupac `code` drži salted hash OTP-a, nikad čitljiv kod.
+    """
 
     email = models.EmailField(db_index=True)
     # Polje zadržava postojeći naziv zbog kompatibilnosti, ali od migracije
@@ -147,9 +160,6 @@ class OtpChallenge(ContentHashedModel):
 
     class Meta:
         ordering = ['-created_at']
-
-    def content_hash_field_names(self) -> tuple[str, ...]:
-        return ('email', 'role', 'used', 'failed_attempts', 'locked_at')
 
 
 class UserManager(BaseUserManager):
@@ -175,7 +185,7 @@ class UserManager(BaseUserManager):
         return user
 
 
-class User(ContentHashedModel, AbstractBaseUser, PermissionsMixin):
+class User(AbstractBaseUser, PermissionsMixin):
     objects = UserManager()
 
     ROLE_CHOICES = [
@@ -281,6 +291,7 @@ class ParishMembership(SCD2):
         constraints = (
             models.UniqueConstraint(
                 fields=('parish', 'user'),
+                condition=Q(date_to=OPEN_ENDED_VALID_TO),
                 name='control_unique_parish_user_membership',
             ),
             models.CheckConstraint(

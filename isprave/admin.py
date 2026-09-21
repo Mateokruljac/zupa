@@ -7,10 +7,16 @@ from pastoral.admin_mixins import ProtectedReferenceAdminMixin
 
 @admin.register(RegisterTemplate)
 class RegisterTemplateAdmin(ProtectedReferenceAdminMixin, admin.ModelAdmin):
-    list_display = ('name', 'event_type', 'owner_scope', 'is_official', 'is_active')
-    list_filter = ('event_type', 'owner_scope', 'is_official', 'is_active')
+    list_display = (
+        'name', 'event_type', 'owner_scope', 'canonical_tradition',
+        'is_official', 'is_active',
+    )
+    list_filter = (
+        'event_type', 'owner_scope', 'canonical_tradition',
+        'is_official', 'is_active',
+    )
     search_fields = ('name', 'code')
-    autocomplete_fields = ('church_sui_iuris', 'ecclesiastical_jurisdiction')
+    autocomplete_fields = ('ecclesiastical_jurisdiction',)
     readonly_fields = ('id',)
 
     def save_model(self, request, register_template, form, change):

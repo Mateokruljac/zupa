@@ -1,15 +1,24 @@
-"""ORM modeli župe i vjernika (osobe, crkvena pripadnost)."""
+"""ORM modeli župe i vjernika.
+
+Ovdje žive osoba, kanonska pripadnost (latinska / istočna), ulica, kućanstvo i posjete.
+Sakramenti, matice i prijava na ured nisu u ovom paketu — samo FK prema njima.
+
+`Person` je identitet. `HouseholdMembership` je razdoblje pripadnosti kućanstvu.
+Latinska župa i Križevačka eparhija razlikuju se enumeracijom `CanonicalTradition`
+i jurisdikcijom, ne katalogom Crkava sui iuris.
+"""
 import unicodedata
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
-from core.models import FCTA, SCD1, SCD2, SCD2A
+from core.models import FCTA, SCD1, SCD2, SCD2A, OPEN_ENDED_VALID_TO, current_version_unique
+from zupa_vjernici.canonical import CanonicalTradition
 
 
 def normalize_person_search_text(value: str) -> str:
-    """Return a predictable accent-insensitive value used only for searching."""
+    """Uklanja dijakritiku i suvišne razmake za pretragu, ne za ispis imena."""
     decomposed_value = unicodedata.normalize('NFKD', value or '')
     characters_without_accents = (
         character
@@ -19,44 +28,13 @@ def normalize_person_search_text(value: str) -> str:
     return ' '.join(''.join(characters_without_accents).casefold().split())
 
 
-class ChurchSuiIuris(SCD1):
-    """Katolička Crkva sui iuris kojoj osoba ili župa pripada."""
-
-    unified_key_origin_fields = ('code',)
-
-    class CanonicalTradition(models.TextChoices):
-        LATIN = 'latin', 'Latinska'
-        EASTERN = 'eastern', 'Istočna'
-
-    code = models.SlugField('Stabilni kod', max_length=60, unique=True)
-    official_name = models.CharField('Službeni naziv', max_length=200)
-    short_name = models.CharField('Kratki naziv', max_length=120, blank=True)
-    canonical_tradition = models.CharField(
-        'Kanonska tradicija',
-        max_length=16,
-        choices=CanonicalTradition.choices,
-        db_index=True,
-    )
-    default_liturgical_tradition = models.ForeignKey('liturgija.LiturgicalTradition',
-        verbose_name='Zadana liturgijska tradicija',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='churches_sui_iuris',
-    )
-
-    class Meta:
-        db_table = 'pastoral_churchsuiiuris'
-        ordering = ('official_name',)
-        verbose_name = 'Crkva sui iuris'
-        verbose_name_plural = 'Crkve sui iuris'
-
-    def __str__(self):
-        return self.official_name
-
-
 class EcclesiasticalJurisdiction(SCD1):
-    """Biskupija, eparhija ili druga kontrolirana crkvena jurisdikcija."""
+    """Biskupija ili eparhija kojoj župa pripada.
+
+    Latinska hrvatska biskupija ima `canonical_tradition=latin`.
+    Križevačka eparhija ima `canonical_tradition=eastern`.
+    Obred (rimski, bizantski) nije ovdje — to je `LiturgicalTradition` na župi.
+    """
 
     unified_key_origin_fields = ('code',)
 
@@ -75,10 +53,11 @@ class EcclesiasticalJurisdiction(SCD1):
         choices=JurisdictionType.choices,
         db_index=True,
     )
-    church_sui_iuris = models.ForeignKey('zupa_vjernici.ChurchSuiIuris',
-        verbose_name='Crkva sui iuris',
-        on_delete=models.PROTECT,
-        related_name='jurisdictions',
+    canonical_tradition = models.CharField(
+        'Kanonska tradicija',
+        max_length=16,
+        choices=CanonicalTradition.choices,
+        db_index=True,
     )
     parent_jurisdiction = models.ForeignKey(
         'self',
@@ -107,25 +86,29 @@ class EcclesiasticalJurisdiction(SCD1):
             )
         elif (
             self.parent_jurisdiction_id
-            and self.parent_jurisdiction.church_sui_iuris_id
-            != self.church_sui_iuris_id
+            and self.parent_jurisdiction.canonical_tradition
+            != self.canonical_tradition
         ):
             validation_errors['parent_jurisdiction'] = (
-                'Nadređena jurisdikcija mora pripadati istoj Crkvi sui iuris.'
+                'Nadređena jurisdikcija mora biti iste kanonske tradicije.'
             )
         if validation_errors:
             raise ValidationError(validation_errors)
 
 
 class Person(SCD1):
-    """Jedinstvena osoba unutar provjerenog tenant opsega jedne župe."""
+    """Jedinstvena osoba u opsegu jedne župe.
+
+    Ime se overwritea (SCD1). Povijesni ispis sakramenta živi na
+    `EventParticipant` snapshotima, ne ovdje. Brisanje je zabranjeno
+    dok postoje sakramenti (`PROTECT`).
+    """
 
     unified_key_origin_fields = ('parish_id', 'normalized_surname', 'normalized_given_names')
 
     class Sex(models.TextChoices):
         FEMALE = 'female', 'Ženski'
         MALE = 'male', 'Muški'
-        UNKNOWN = 'unknown', 'Nepoznato / nepotvrđeno'
 
     class Status(models.TextChoices):
         ACTIVE = 'active', 'Aktivna'
@@ -144,7 +127,7 @@ class Person(SCD1):
         'Spol',
         max_length=12,
         choices=Sex.choices,
-        default=Sex.UNKNOWN,
+        default=Sex.MALE,
     )
     date_of_birth = models.DateField('Datum rođenja', null=True, blank=True)
     place_of_birth = models.CharField('Mjesto rođenja', max_length=180, blank=True)
@@ -228,9 +211,13 @@ class Person(SCD1):
 
 
 class ChurchEnrollment(SCD2):
-    """Verzionirana i dokaziva pripadnost osobe Crkvi sui iuris."""
+    """Pripadnost osobe latinskoj ili istočnoj kanonskoj tradiciji.
 
-    unified_key_origin_fields = ('person_id', 'church_sui_iuris_id', 'valid_from')
+    Treba se kad vjernik Križevačke eparhije živi u latinskoj župi (ili obrnuto).
+    Događaj drugog obreda ne smije sam promijeniti ovaj zapis.
+    """
+
+    unified_key_origin_fields = ('person_id', 'canonical_tradition', 'valid_from')
 
     class Status(models.TextChoices):
         UNCONFIRMED = 'unconfirmed', 'Nepotvrđeno'
@@ -246,10 +233,11 @@ class ChurchEnrollment(SCD2):
         on_delete=models.PROTECT,
         related_name='church_enrollments',
     )
-    church_sui_iuris = models.ForeignKey('zupa_vjernici.ChurchSuiIuris',
-        verbose_name='Crkva sui iuris',
-        on_delete=models.PROTECT,
-        related_name='person_enrollments',
+    canonical_tradition = models.CharField(
+        'Kanonska tradicija',
+        max_length=16,
+        choices=CanonicalTradition.choices,
+        db_index=True,
     )
     valid_from = models.DateField('Vrijedi od', null=True, blank=True)
     valid_until = models.DateField('Vrijedi do', null=True, blank=True)
@@ -300,11 +288,11 @@ class ChurchEnrollment(SCD2):
                 name='enrollment_parish_status',
             ),
         )
-        verbose_name = 'Pripadnost Crkvi sui iuris'
-        verbose_name_plural = 'Pripadnosti Crkvi sui iuris'
+        verbose_name = 'Kanonska pripadnost'
+        verbose_name_plural = 'Kanonske pripadnosti'
 
     def __str__(self):
-        return f'{self.person} · {self.church_sui_iuris}'
+        return f'{self.person} · {self.get_canonical_tradition_display()}'
 
     def clean(self):
         super().clean()
@@ -329,7 +317,11 @@ class ChurchEnrollment(SCD2):
 
 
 class Street(SCD2A):
-    """Ulica u teritoriju župe."""
+    """Imenovana ulica u teritoriju župe.
+
+    Promjena naziva otvara novu verziju. Sakramenti snimaju tekst mjesta,
+    ne živi FK na ovaj red, da matica ne prati kasnije preimenovanje.
+    """
 
     unified_key_origin_fields = ('parish_id', 'public_identifier')
     scd2_save_exclude_fields = ('notes', 'sort_order', 'payload')
@@ -347,7 +339,13 @@ class Street(SCD2A):
     payload = models.JSONField(default=dict, blank=True)
 
     class Meta:
-        unique_together = [('parish', 'public_identifier')]
+        constraints = (
+            current_version_unique(
+                'parish',
+                'public_identifier',
+                name='street_one_current_public_id',
+            ),
+        )
         ordering = ['sort_order', 'name']
 
     def __str__(self):
@@ -355,7 +353,12 @@ class Street(SCD2A):
 
 
 class Household(SCD2A):
-    """Kućanstvo / obitelj (legacy families)."""
+    """Kućanstvo / obiteljski karton župe.
+
+    Jedan zapis je jedna verzija adrese, prezimena, ulice i statusa.
+    Osobe nisu djeca ovog modela — pripadnost je `HouseholdMembership`.
+    Telefon, e-mail i pastoralne bilješke ne otvaraju novu verziju.
+    """
 
     unified_key_origin_fields = ('parish_id', 'public_identifier')
     scd2_save_exclude_fields = (
@@ -396,7 +399,13 @@ class Household(SCD2A):
     payload = models.JSONField(default=dict, blank=True)
 
     class Meta:
-        unique_together = [('parish', 'public_identifier')]
+        constraints = (
+            current_version_unique(
+                'parish',
+                'public_identifier',
+                name='household_one_current_public_id',
+            ),
+        )
         ordering = ['surname', 'public_identifier']
 
     def __str__(self):
@@ -404,7 +413,12 @@ class Household(SCD2A):
 
 
 class HouseholdMembership(SCD2):
-    """Razdoblje pripadnosti osobe kućanstvu — nije identitet osobe."""
+    """Razdoblje pripadnosti osobe kućanstvu — nije identitet osobe.
+
+    Grain: jedna osoba u jednom kućanstvu u jednom otvorenom razdoblju.
+    Sakramenti žive na `SacramentalEvent`, ne ovdje. Rodbina izvan kuće
+    je isti model s `lives_in_household=False`.
+    """
 
     unified_key_origin_fields = ('household_id', 'public_identifier')
 
@@ -438,8 +452,12 @@ class HouseholdMembership(SCD2):
         choices=SpouseSide.choices,
         blank=True,
         default=SpouseSide.NONE,
+        help_text='Označava muža/ženu na kartonu; nije zamjena za sakrament vjenčanja.',
     )
-    lives_in_household = models.BooleanField(default=True)
+    lives_in_household = models.BooleanField(
+        default=True,
+        help_text='False = rodbina / veza izvan kuće, i dalje Person.',
+    )
     is_head = models.BooleanField(default=False)
     recorded_birth_year = models.CharField(max_length=20, blank=True)
     pastoral_roles = models.JSONField(default=list, blank=True)
@@ -447,7 +465,18 @@ class HouseholdMembership(SCD2):
     sort_order = models.PositiveIntegerField(default=0)
 
     class Meta:
-        unique_together = [('household', 'public_identifier')]
+        constraints = (
+            current_version_unique(
+                'household',
+                'public_identifier',
+                name='householdmembership_one_current_id',
+            ),
+            models.UniqueConstraint(
+                fields=('person',),
+                condition=Q(date_to=OPEN_ENDED_VALID_TO, person__isnull=False),
+                name='householdmembership_one_current_person',
+            ),
+        )
         ordering = ['sort_order', 'historical_name']
         verbose_name = 'Članstvo u kućanstvu'
         verbose_name_plural = 'Članstva u kućanstvu'

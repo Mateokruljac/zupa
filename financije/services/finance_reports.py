@@ -1,4 +1,12 @@
-"""MVP financijski pregled — župni saldo iz knjige crkvenih računa."""
+"""
+MVP financijski pregled — župni saldo iz knjige crkvenih računa.
+
+Spaja blagajnu, otvorena dugovanja i sažetak ulaznih računa u jedan
+kontekst nadzorne ploče. Ne računa vlastiti saldo: zove `summarize_year`
+s `PARISH_BALANCE_LEDGER` da pregled i knjiga crkvenih računa govore
+istu brojku. Ostale knjige (`LEDGERS` osim salda) prikazuju se samo
+kao broj redaka i stanje, bez kategorija.
+"""
 from __future__ import annotations
 
 from datetime import date
@@ -10,6 +18,25 @@ from financije.services.invoices_page import summarize_invoices
 
 
 def finance_reports_context(data: dict, request) -> dict:
+    """
+    Kontekst stranice financijskog pregleda za odabranu godinu.
+
+    Godina dolazi iz GET `year`; neispravna vrijednost pada na tekuću.
+    Otvorena potraživanja i obveze zbrajaju se iz `collect_*` s
+    `only_unpaid=True` — plaćene stavke ne ulaze u „što još visimo”.
+    Sažetak računa ide kroz `summarize_invoices` za istu godinu.
+
+    Poziva je `financije.page_contexts`. Ne piše u `data`.
+
+    Args:
+        data: Legacy parish dict (blagajna, dugovi, računi, obitelji).
+        request: Django request; bitan je samo GET `year`.
+
+    Returns:
+        Dict za predložak: `year_summary`, `invoice_summary`,
+        `finance_obligations`, raspored po kategorijama blagajne i
+        `other_account_books`.
+    """
     today = date.today()
     try:
         year = int(request.GET.get('year') or today.year)

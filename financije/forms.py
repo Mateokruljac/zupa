@@ -1,4 +1,13 @@
-"""Obrasci za dugovanja, blagajnu i ulazne račune."""
+"""
+HTML obrasci financija — validacija POST unosa, ne ORM.
+
+Koristi ih `financije.page_actions`. Iznos mora biti barem 0,01 €.
+Kategorije obveza (`_PAYABLE_CATEGORY_CHOICES`) nisu iste kao kategorije
+blagajne (`CASHBOOK_CATEGORY_CHOICES`): dug je režije/DŽ, knjiga je
+lukno/donacija/kolekta.
+
+Ne pripada ovdje: JSON API payload, ni izlazni računi.
+"""
 from decimal import Decimal
 
 from django import forms
@@ -21,6 +30,13 @@ _PAYABLE_CATEGORY_CHOICES = [
 
 
 class ParishDebtForm(forms.Form):
+    """
+    Ručna obveza župe (ekran dugovanja, smjer uvijek `payable` u akciji).
+
+    Nije lukno ni stipend — to se plaća na izvornom zapisu. Kontakt i rok
+    nisu obavezni jer stari papirnati dug često nema datum.
+    """
+
     label = forms.CharField(
         label='Opis',
         max_length=200,
@@ -57,6 +73,14 @@ class ParishDebtForm(forms.Form):
 
 
 class CashbookEntryForm(forms.Form):
+    """
+    Jedan red blagajne: ulaz ili izlaz u odabranoj knjizi.
+
+    `ledger` i `category` zajedno idu u `normalize_ledger` pri spremanju:
+    kategorija misnog priloga prebacit će red u knjigu misnih obveza
+    čak i ako je korisnik ostavio crkvenu knjigu.
+    """
+
     date = forms.DateField(
         label='Datum',
         widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}),
@@ -103,6 +127,15 @@ class CashbookEntryForm(forms.Form):
 
 
 class DonationForm(forms.Form):
+    """
+    Brzi unos donacije kao ulaz u odabranu knjigu (`purpose`).
+
+    Namjena nije slobodan tekst — samo crkvena knjiga, gradnja ili
+    dijecezanska kolekta. Misne obveze ovdje nisu opcija: donacija nije
+    misni prilog. Opis u blagajni slaže se od riječi Donacija, darovatelja
+    i napomene.
+    """
+
     date = forms.DateField(
         label='Datum',
         widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}),
@@ -152,6 +185,13 @@ class DonationForm(forms.Form):
 
 
 class InvoiceForm(forms.Form):
+    """
+    Ulazni račun dobavljača. PDV se na ovom obrascu ne unosi (0 u akciji).
+
+    `total` se pri spremanju izjednačuje s `amount`. Status novog retka je
+    `primljen`, nije plaćen.
+    """
+
     number = forms.CharField(
         label='Broj računa',
         max_length=60,
@@ -191,6 +231,7 @@ class InvoiceForm(forms.Form):
     )
 
     def clean(self):
+        """Rok ne smije biti prije datuma izdavanja, ako su oba unesena."""
         cleaned_data = super().clean()
         issue_date = cleaned_data.get('issue_date')
         due_date = cleaned_data.get('due_date')

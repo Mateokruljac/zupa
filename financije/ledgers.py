@@ -1,7 +1,13 @@
-"""Župne knjige računa — partikularna praksa, bez neslužbenih nadimaka.
+"""
+Župne knjige računa — četiri službene knjige, bez neslužbenih nadimaka.
 
-Župni saldo (pregled) računa se samo iz knjige crkvenih računa.
-Misni prilozi i obveze vode se u zasebnoj knjizi.
+Župni saldo na pregledu (`PARISH_BALANCE_LEDGER`) računa se samo iz
+knjige crkvenih računa. Dijecezanske kolekte, gradnja i misne obveze
+imaju vlastite knjige da se namjenski novac ne pomiješa s redovitom
+blagajnom.
+
+Ovaj modul ne čita bazu. Kodove knjiga koriste forme, blagajna,
+`operational_store` i normalizacija pri upisu.
 """
 from __future__ import annotations
 
@@ -48,6 +54,7 @@ DONATION_PURPOSE_CHOICES = [
 ]
 LEDGER_BY_ID = {book['id']: book for book in LEDGERS}
 
+# Stari UI koristio je boje umjesto službenih naziva knjiga.
 _LEGACY_LEDGER = {
     'plavi': LEDGER_CRKVENI,
     'crveni': LEDGER_KOLEKTE,
@@ -76,6 +83,22 @@ CASHBOOK_CATEGORY_LABELS = dict(CASHBOOK_CATEGORY_CHOICES)
 
 
 def normalize_ledger(value, category: str | None = None) -> str:
+    """
+    Svodi kod knjige na jedan od četiri službena id-a.
+
+    Pravila: `plavi`/`crveni` mapiraju se na crkvenu odnosno kolekte.
+    Nepoznat ili prazan kod pada na crkvenu knjigu, osim ako kategorija
+    pripada misnim prilozima — tada je knjiga `misne`. Ako je korisnik
+    izričito odabrao crkvenu knjigu uz misnu kategoriju, red se ipak
+    prebacuje u misne obveze da saldo župe ne nabubri stipendijima.
+
+    Args:
+        value: Kod knjige s forme, API-ja ili starog retka.
+        category: Kategorija retka; smije biti None.
+
+    Returns:
+        Jedan od `LEDGER_IDS`.
+    """
     raw = str(value or '').strip().lower()
     mapped = _LEGACY_LEDGER.get(raw, raw)
     if mapped in LEDGER_IDS:
@@ -88,10 +111,17 @@ def normalize_ledger(value, category: str | None = None) -> str:
 
 
 def _is_mass_category(category: str | None) -> bool:
+    """True ako kategorija retka spada u misni prilog / stipendij / milostinju."""
     return str(category or '').strip().lower() in _MASS_CATEGORIES
 
 
 def ledger_label(value, *, short: bool = False) -> str:
+    """
+    Hrvatski naziv knjige za poruke i predloške.
+
+    Nepoznat kod nakon normalizacije i dalje pokazuje crkvene račune,
+    nikad prazan string.
+    """
     book = LEDGER_BY_ID.get(normalize_ledger(value))
     if not book:
         return 'Crkveni računi' if short else 'Knjiga crkvenih računa'
@@ -99,4 +129,5 @@ def ledger_label(value, *, short: bool = False) -> str:
 
 
 def entry_ledger(entry: dict) -> str:
+    """Knjiga legacy retka blagajne: polje `ledger` uz korekciju prema `category`."""
     return normalize_ledger(entry.get('ledger'), entry.get('category'))

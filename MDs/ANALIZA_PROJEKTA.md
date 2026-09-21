@@ -206,7 +206,7 @@ GDPR checkbox se provjerava u obrascu, ali se zatim uklanja iz spremljenog paylo
 
 ### 4.5. Liturgijski podaci
 
-Lokalne LitCal datoteke pokrivaju 2025., 2026. i 2027. godinu. Servis koristi vanjski LitCal, HILP i prijevod te rezultate sprema u cache na 12 ili 24 sata. Postoji fallback na lokalne podatke, ali dugoročno treba:
+Lokalne LitCal datoteke pokrivaju 2025., 2026. i 2027. godinu. Servis koristi vanjski LitCal, HILP i lokalni katalog hrvatskih naziva te rezultate sprema u cache na 12 ili 24 sata. Postoji fallback na lokalne podatke, ali dugoročno treba:
 
 - automatizirano godišnje osvježavanje;
 - bilježiti izvor i vrijeme dohvaćanja;

@@ -1,13 +1,12 @@
 # Liturgija
 
-Django aplikacija za: nakane / mise / zupni-listic i liturgijski kalendar.
+Django aplikacija za nakane, mise, župni listić i liturgijski kalendar.
 
-## Vlasništvo
+## Kalendar
 
-- raspored misa, misne nakane, župni listić
-- liturgijski kalendar (LitCal / Romcal / HILP), API `/api/liturgical/*`
-- management naredbe `liturgical_day`, `liturgical_audit`
-- predlošci stranica i `partials/liturgical_day.html`
-
-ORM modeli liturgijskog kalendara trenutno ostaju u `pastoral.models`
-dok se ne izdvoji zasebna migracija.
+- uvoz: lokalni Romcal (`croatia`, locale `la`) + katalog
+  `liturgija/config/liturgical_days.json`
+- prikaz i API: retci `LiturgicalCalendarEntry`
+- HILP: čitanja i poveznica na puni tekst
+- naredba `liturgical_day`
+- predložak `partials/liturgical_day.html`

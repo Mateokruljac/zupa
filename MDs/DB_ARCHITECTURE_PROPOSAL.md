@@ -14,7 +14,7 @@ Every persisted business model is one of:
 | Draft | `SCDD` | Staging before a DIM/FACT row exists |
 | Report | `SCDR` | Read model / projection, not office writes |
 
-`id` is the physical `record_id`. Do not invent a second PK. `content_hash` lives on SCD1, SCD2, FCTA, and FCTB. Call `save_new(...)` for SCD inserts/updates so unified keys and versioning stay consistent.
+`id` is the physical `record_id`. Do not invent a second PK. Call `save_new(...)` for SCD inserts/updates so unified keys and versioning stay consistent. SCD2 detects material change by comparing business fields, not a content hash.
 
 ---
 
@@ -52,8 +52,8 @@ Referenced models: church/jurisdiction/tradition FKs owned elsewhere.
 Why: authentication and tenant scope are not parishioner data.
 
 ### Module: `zupa_vjernici`
-Responsibility: people, households, streets, pastoral visits, church sui iuris enrollment.
-Owned models: `ChurchSuiIuris`, `EcclesiasticalJurisdiction`, `Person`, `ChurchEnrollment`, `Street`, `Household`, `HouseholdMembership`, `HouseholdContributionYear`, `PastoralVisit`.
+Responsibility: people, households, streets, pastoral visits, latin/eastern enrollment.
+Owned models: `EcclesiasticalJurisdiction`, `Person`, `ChurchEnrollment`, `Street`, `Household`, `HouseholdMembership`, `HouseholdContributionYear`, `PastoralVisit`.
 Referenced models: `Parish`.
 Why: the card file of the parish.
 
@@ -71,7 +71,7 @@ Why: the book can exist without the operational workflow, and vice versa.
 
 ### Module: `liturgija`
 Responsibility: Mass timetable, intentions, bulletin, imported liturgical calendar.
-Owned models: `LiturgicalTradition`, `LiturgicalCalendarImport`, `LiturgicalCalendarEntry`, `MassScheduleSlot`, `MassException`, `MassScheduleLogEntry`, `MassIntention`, `BulletinLayout`, `BulletinIssue`.
+Owned models: `LiturgicalTradition`, `LiturgicalCalendarEntry`, `MassScheduleSlot`, `MassException`, `MassScheduleLogEntry`, `MassIntention`, `BulletinLayout`, `BulletinIssue`.
 Referenced models: `Parish`.
 Why: weekly liturgy is not the civil calendar of parish events.
 
@@ -131,7 +131,6 @@ Shared conventions (all business tables unless noted):
 - Tenant: required `parish_id` (FK `Parish`, `PROTECT` on historical/sacramental/finance; `CASCADE` only for pure children of a disposable parent)
 - UI key: `public_identifier` unique per parish (or per parent) where the screen already uses string ids
 - Audit: `created_at`, `updated_at`; `created_by` / `updated_by` on registers, sacraments, cashbook, invoices
-- `content_hash` — see section O
 - Money: `Numeric(12,2)`, EUR implied, no currency column
 - Do not use `payload` for new fields; retire existing payload as columns are typed
 
@@ -159,7 +158,7 @@ Important fields:
 | `status` | Status | enum | yes | yes | no | `active\|merged\|archived` |
 | `father_id` / `mother_id` | Otac / majka | FK Person | no | yes | no | Convenience; baptism snapshots win historically |
 
-Keep `ChurchEnrollment` as dated sui iuris belonging (already SCD2-lite). Do not duplicate it.
+Keep `ChurchEnrollment` as dated latin/eastern belonging (already SCD2). Do not duplicate it. There is no `ChurchSuiIuris` table: Croatian Latin parishes and Križevačka eparchy share `canonical_tradition` plus jurisdiction.
 
 **`Household`** — Kućanstvo / obitelj  
 Purpose: current parish household card (what the priest calls obitelj).  
@@ -336,7 +335,7 @@ Four **meanings**, one **movement table**, four **ledger codes** (already in `fi
 
 **Share:** `CashbookEntry` — grain: one dated inflow or outflow on one ledger.
 
-Fields: `entry_date`, `entry_type` (`inflow\|outflow` — replace `ulaz` as stored English code with HR labels in UI), `ledger`, `category` (configurable-ish but start with current enum: lukno, donacija, rezije, …), `amount` > 0 CHECK, `payment_method`, `description`, optional `household_id`, optional `mass_intention_id`, `content_hash`.
+Fields: `entry_date`, `entry_type` (`inflow\|outflow` — replace `ulaz` as stored English code with HR labels in UI), `ledger`, `category` (configurable-ish but start with current enum: lukno, donacija, rezije, …), `amount` > 0 CHECK, `payment_method`, `description`, optional `household_id`, optional `mass_intention_id`.
 
 **Keep separate:**
 
@@ -475,7 +474,7 @@ Every model uses a `core` base. Mapping:
 
 | Base | Used for |
 |---|---|
-| **SCD1** | `Person`, `Parish`, `Diocese`, `User`, `ChurchSuiIuris`, `EcclesiasticalJurisdiction`, `LiturgicalTradition`, `FinanceSettings`, `Council`, `BulletinLayout`, `RegisterTemplate`, `RegisterBook`, `RegisterBookYear`, `FormationProgramYear`, `MassScheduleSlot` |
+| **SCD1** | `Person`, `Parish`, `Diocese`, `User`, `EcclesiasticalJurisdiction`, `LiturgicalTradition`, `FinanceSettings`, `Council`, `BulletinLayout`, `RegisterTemplate`, `RegisterBook`, `RegisterBookYear`, `FormationProgramYear`, `MassScheduleSlot` |
 | **SCD2** | `HouseholdMembership`, `ChurchEnrollment`, `CouncilMembership`, `ParishMembership` |
 | **SCD2A** | `Household`, `Street` |
 | **FCTA** | Sacraments, participants, details, candidates, register entries, cashbook, invoices, debts, calendar, tasks, visits, intentions, exceptions, bulletin issues, public submissions, announcements, audit events, OTP (no secret fields in hash) |
@@ -491,27 +490,11 @@ Open SCD2 row: `date_to = OPEN_ENDED_VALID_TO` (`9999-12-31`). Unique current: `
 
 ---
 
-## O. Hash Strategy
+## O. Change detection (no content hash)
 
-Field name: `content_hash` (varchar 64). The brief’s `hash` is this column.
+SCD2 versioning compares business fields in `save_new` (`_close_and_version_if_changed`). Fields in `scd2_save_exclude_fields` do not open a new row. Duplicate open rows are blocked by partial UNIQUE on `date_to = 9999-12-31`.
 
-**Purpose:** detect accidental or concurrent change of business content; support later sync/export; integrity of locked register rows. Not encryption, not deduplication primary key, not OTP.
-
-**Generation:** SHA-256 hex of canonical JSON, implemented on `ContentHashedModel.save()` in `core/models.py`. Override `content_hash_field_names()` per model when the default is wrong.
-
-**Included:** business attributes and stable FK ids that define meaning (`person_id`, `event_date`, amounts, names).
-
-**Excluded:** `id`, `created_at`, `updated_at`, `created_by`, `updated_by`, `content_hash` itself, search `normalized_*`, `payload` leftovers, `public_identifier` if it is only a UI handle (include it if it is printed as a business reference).
-
-**Relations:** include FK ids, not nested related hashes (avoids cascade recomputes). Participant rows hash themselves; the event hash includes participant ids + their hashes only if we need a rollup — **recommend event hash = event columns only**; participants hash separately.
-
-**SCD:** membership rows hash their own period fields. Do not hash “the family through time”.
-
-**Index:** btree index optional; **not unique**. Collisions are not the point; equality checks are.
-
-**Required on:** Person, Household, HouseholdMembership, Street, sacramental events/details/participants, register books/entries, cashbook, invoice, debt, mass intention, public submission, formation year/candidate, council membership.
-
-**Skip:** none of the DIM/FACT tables. Only omit **fields** that are secrets (`OtpChallenge.code`) or dump JSON (`raw_data`).
+There is no `content_hash` column. Do not add SHA hashes on DIM/FACT bases for save-dedup. OTP secrets stay out of any future integrity digest.
 
 ---
 
@@ -579,7 +562,7 @@ Removed vs current code (target): `Household.husband`/`wife` JSON, `HouseholdMem
 - OtpChallenge — **FCTA** (exclude `code` from hash)
 
 ### zupa_vjernici
-- ChurchSuiIuris, EcclesiasticalJurisdiction — **SCD1**
+- EcclesiasticalJurisdiction — **SCD1**
 - Person — **SCD1**
 - ChurchEnrollment — **SCD2**
 - Street — **SCD2A**
@@ -601,7 +584,7 @@ Removed vs current code (target): `Household.husband`/`wife` JSON, `HouseholdMem
 
 ### liturgija
 - LiturgicalTradition — **SCD1**
-- LiturgicalCalendarImport, LiturgicalCalendarEntry — **FCTA**
+- LiturgicalCalendarEntry — **FCTB** (više slavlja po datumu; izvori LitCal, Romcal i ručni unos; ponovni uvoz preskače postojeće)
 - MassScheduleSlot — **SCD1**
 - MassException, MassScheduleLogEntry, MassIntention, BulletinIssue — **FCTA**
 - BulletinLayout — **SCD1**
@@ -614,6 +597,7 @@ Removed vs current code (target): `Household.husband`/`wife` JSON, `HouseholdMem
 - ParishCalendarEvent, OfficeTask, PublicSubmission, Announcement, DocumentBinding — **FCTA**
 - Council — **SCD1**
 - CouncilMembership — **SCD2**
+- ParishFoundingDecree — **SCD1** (kanonski identitet, ne DMS)
 
 ### pregled
 - none yet; future dashboards are **SCDR**
@@ -628,7 +612,7 @@ Removed vs current code (target): `Household.husband`/`wife` JSON, `HouseholdMem
 | Decision | Recommendation | Reason |
 |---|---|---|
 | Primary architecture file | `MDs/DB_ARCHITECTURE_PROPOSAL.md` | Mandatory source of truth |
-| SCD/FACT DRY | `core/models.py` only | One `save_new` / hash / validity contract |
+| SCD/FACT DRY | `core/models.py` only | One `save_new` / validity contract |
 | Person vs FamilyMember | `Person` SCD1 + `HouseholdMembership` SCD2 | Stable human vs dated belonging |
 | SCD2 Family | **Yes, SCD2A `Household`** | Address/surname history without a second history table |
 | Street history | **SCD2A** + name snapshot on sacraments | Book text must not follow a later rename |
@@ -640,7 +624,7 @@ Removed vs current code (target): `Household.husband`/`wife` JSON, `HouseholdMem
 | Document model | Postpone | Certificates generate |
 | Public applications | One FCTA `PublicSubmission` | Convert to Person/event |
 | Councils | Council SCD1 + membership SCD2 | Queryable history |
-| Hash | `content_hash` on SCD/FACT bases | Implemented in `ContentHashedModel` |
+| Change detection | SCD2 field compare + partial UNIQUE | Hash on every row was unused |
 | PK | UUID `id` as `record_id`; FCTB only if needed | Matches existing parish tables |
 | Marriage | Required FCTA | Already in the product |
 | Mass occurrences | Do not add | Template SCD1 + exception FACT |
@@ -659,6 +643,8 @@ Removed vs current code (target): `Household.husband`/`wife` JSON, `HouseholdMem
 7. Stop writing new attributes into `payload`.
 8. PROTECT historical FKs.
 
-`Diocese` and `ParishMembership` already inherit `FCTA` timestamps/`content_hash` via `UUIDTimestampedModel`. They still need the remaining SCD1/SCD2 columns in a later migration.
+`Diocese` is SCD1. `Parish` and `User` keep their existing primary keys (`Parish` integer/`tenant_id`, `User` UUID auth) while carrying `unified_key` / `is_active`. `FinanceSettings` and `BulletinLayout` stay 1:1 with parish as PK. `OtpChallenge` stays a fact-like row without hashing `code`.
+
+SCD2 current-row uniqueness is enforced (`date_to = 9999-12-31`) for Street, Household, HouseholdMembership, CouncilMembership, and ParishMembership. Writes go through `save_new` / `upsert_current_scd2`. Closed versions are not deleted.
 
 Existing forms remain evidence: family form stays household-shaped; member rows should pick a Person. Baptism form fields (`childName`, `parents`, `godparents`, `registryNo`) map to event + participants + register, not to one JSON blob. Do not let the camelCase UI contract dictate new columns named `childName`.

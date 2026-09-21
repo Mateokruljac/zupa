@@ -1,4 +1,18 @@
-"""API mutacije za dugovanja, račune i blagajnu."""
+"""
+JSON mutacije financija nad parish dictom (`/api/action/` ugovor).
+
+Svaki handler prima `data` (camelCase parish JSON) i `action_payload`,
+vraća `{'ok': True/False, ...}`. Ne zove ORM: spremanje radi dispatcher
+(`operational_store`) nakon uspjeha. Isti `create_cashbook_entry` /
+`upsert_invoice` / `mark_invoice_paid` koristi i HTML POST
+(`financije.page_actions`).
+
+Lukno i stipend sakramenta nisu ovdje — `mark_debt_paid` delegira na
+`debt_mutations`. Ručni `parishDebts` jesu.
+
+Kodovi grešaka (`label_required`, `not_found`) ostaju engleski jer ih
+čita postojeći klijent, ne predložak.
+"""
 from __future__ import annotations
 
 from datetime import date
@@ -13,6 +27,23 @@ from financije.services.debt_mutations import mark_debt_paid as mark_debt_paid_r
 
 
 def upsert_parish_debt(data: dict, action_payload: dict) -> dict:
+    """
+    Stvara ili ažurira ručnu stavku `parishDebts`.
+
+    Ako payload ima `id`, traži postojeći red i `update` polja; inače
+    umeće novi zapis na početak liste. Labela je obavezna. Plaćeno bez
+    datuma dobiva `today_iso`. Zadani smjer je `payable`.
+
+    Args:
+        data: Parish dict; ključ `parishDebts` se stvara po potrebi.
+        action_payload: Polja stavke; `id` označava izmjenu.
+
+    Returns:
+        `ok` i `item`, ili `ok: False` s `label_required` / `not_found`.
+
+    Side effects:
+        Mutira `data['parishDebts']`.
+    """
     payload = {
         'direction': action_payload.get('direction') or 'payable',
         'label': (action_payload.get('label') or '').strip(),
@@ -53,6 +84,18 @@ def upsert_parish_debt(data: dict, action_payload: dict) -> dict:
 
 
 def delete_parish_debt(data: dict, action_payload: dict) -> dict:
+    """
+    Uklanja ručni dug po `id`. Ne postojeći id je uspjeh (idempotentno).
+
+    Ne dira lukno ni sakramente — samo listu `parishDebts`.
+
+    Args:
+        data: Parish dict.
+        action_payload: Mora sadržavati `id`.
+
+    Returns:
+        Uvijek `{'ok': True}` nakon filtriranja liste.
+    """
     debt_id = action_payload.get('id')
     data['parishDebts'] = [
         debt
@@ -63,6 +106,19 @@ def delete_parish_debt(data: dict, action_payload: dict) -> dict:
 
 
 def mark_debt_paid(data: dict, action_payload: dict) -> dict:
+    """
+    API omotač oko `debt_mutations.mark_debt_paid`.
+
+    `source` mora biti objekt koji je collector duga stavio u redak
+    (`type` + identifikatori). Bez pronađenog zapisa vraća `not_found`.
+
+    Args:
+        data: Parish dict.
+        action_payload: `source` dict.
+
+    Returns:
+        `{'ok': True}` ili `{'ok': False, 'error': 'not_found'}`.
+    """
     source = action_payload.get('source') or {}
     if not mark_debt_paid_record(data, source):
         return {'ok': False, 'error': 'not_found'}
@@ -70,6 +126,20 @@ def mark_debt_paid(data: dict, action_payload: dict) -> dict:
 
 
 def upsert_invoice(data: dict, action_payload: dict) -> dict:
+    """
+    Stvara ili ažurira red u `invoices`.
+
+    Polja se uzimaju iz `fields` ili cijelog payload-a. Novi račun
+    dobiva `direction: incoming` ako klijent ne pošalje drugačije u
+    `fields` nakon splata (`**fields` može prebrisati smjer).
+
+    Args:
+        data: Parish dict.
+        action_payload: `id` za izmjenu; `fields` ili ravna polja.
+
+    Returns:
+        `ok` i `item`, ili `not_found`.
+    """
     fields = dict(action_payload.get('fields') or action_payload)
     invoice_id = action_payload.get('id')
     if invoice_id:
@@ -95,6 +165,19 @@ def upsert_invoice(data: dict, action_payload: dict) -> dict:
 
 
 def mark_invoice_paid(data: dict, action_payload: dict) -> dict:
+    """
+    Označava ulazni račun kao u cijelosti plaćen.
+
+    `paidAmount` postaje `total` ili, ako total nema, `amount`.
+    Status je `placen`. Ne knjiži automatski izlaz u blagajnu.
+
+    Args:
+        data: Parish dict.
+        action_payload: `id` računa (`public_identifier` u UI-ju).
+
+    Returns:
+        `ok` i ažurirani `item`, ili `not_found`.
+    """
     invoice_record = next(
         (
             invoice
@@ -114,6 +197,20 @@ def mark_invoice_paid(data: dict, action_payload: dict) -> dict:
 
 
 def create_cashbook_entry(data: dict, action_payload: dict) -> dict:
+    """
+    Dodaje red blagajne, plus opcionalne automatske pratitelje.
+
+    `auto_entries` služi kad jedan unos treba drugi red (npr. par knjiga).
+    Knjiga se normalizira kategorijom da misni prilog ne ostane u crkvenoj
+    knjizi. Novi retci idu na početak liste (najnovije gore).
+
+    Args:
+        data: Parish dict.
+        action_payload: `fields` glavnog retka; `auto_entries` lista dictova.
+
+    Returns:
+        `ok` i glavni `item` (pratitelji su u `data['cashbook']`, nisu u odgovoru).
+    """
     fields = dict(action_payload.get('fields') or action_payload)
     fields['ledger'] = normalize_ledger(fields.get('ledger'), fields.get('category'))
     item = {'id': generate_record_identifier('cb'), **fields}
@@ -126,4 +223,3 @@ def create_cashbook_entry(data: dict, action_payload: dict) -> dict:
             {'id': generate_record_identifier('cb'), **extra},
         )
     return {'ok': True, 'item': item}
-

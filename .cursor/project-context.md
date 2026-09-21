@@ -1,29 +1,45 @@
-# e-Župa — existing project context
+# e-Župa — kontekst projekta
 
-Parish office application (Django 4.2+/5.x, PostgreSQL in production, SQLite locally). UI language is Croatian; Python identifiers are English. Custom user: `pastoral.User` (`AUTH_USER_MODEL`, table `users_user`). Tenant is one `Parish` per office. Default PK: UUID.
+Aplikacija župnog ureda (Django 4.2+/5.x, PostgreSQL).
+UI je na hrvatskom; identifikatori u kodu na engleskom. Korisnik prijave:
+`pastoral.User` (`AUTH_USER_MODEL`, tablica `users_user`). Tenant je jedna
+`Parish` po uredu.
 
-## Apps
+Primarni dokument arhitekture baze: `MDs/DB_ARCHITECTURE_PROPOSAL.md`.
 
-| App | Owns |
+## Aplikacije
+
+| Aplikacija | Vlasništvo |
 |---|---|
+| `core` | Samo apstraktne SCD/FACT baze |
 | `pastoral` | Shell, auth, OTP, `Parish`, `Diocese`, `ParishMembership` |
-| `zupa_vjernici` | Person, church enrollment, street, household, visits |
-| `sakramenti` | Sacramental events, participants, details, formation |
-| `isprave` | Register books/entries, templates, certificates |
-| `liturgija` | Mass schedule, intentions, bulletin, liturgical calendar |
-| `financije` | Cashbook, invoices, debts, lukno default |
-| `ured` | Calendar, tasks, councils, public submissions |
-| `pregled` | Dashboard (no domain tables) |
+| `zupa_vjernici` | `Person`, kanonska pripadnost (latinska / istočna), ulica, kućanstvo, posjete |
+| `sakramenti` | Događaji, sudionici, details, priprava |
+| `isprave` | Matične knjige, predlošci, potvrde |
+| `liturgija` | Raspored misa, nakane, listić, kalendar |
+| `financije` | Blagajna, računi, dugovanja, lukno default |
+| `ured` | Kalendar, zadaci, vijeća, javne prijave, osnivački dekret |
+| `pregled` | Nadzorna ploča (bez vlastitih tablica) |
 
-## Persistence shape
+## Persistencija
 
-Operational data is already mostly ORM, but many tables still carry a legacy `payload` JSON and camelCase projection for the UI (`pastoral.services.operational_store`). `Parish.data` is cleared on save and must not be treated as source of truth. `Parish.settings` remains a JSON bag for parish profile.
+Izvor istine je ORM. `pastoral.services.operational_store` je adapter prema
+postojećem camelCase UI ugovoru. `Parish.data` se na spremanju prazni.
+`Parish.settings` ostaje JSON profil župe.
 
-Canonical identity (`Person`, `SacramentalEvent`, `RegisterEntry`) already exists and is **not fully wired** into household members, public forms, or finance.
+Član kućanstva je `Person` + otvoreni `HouseholdMembership`. Sakrament na
+kartonu čita se iz `SacramentalEvent`, ne iz JSON liste. Vijeća su
+`Council` + `CouncilMembership`. Prava ureda nisu `OfficeDirectoryRecord`
+— Django groups + `ParishMembership`.
 
-## Conventions
+SCD2 čitanje: samo `date_to = 9999-12-31` (`Model.current`). Materijalna
+izmjena ide kroz `save_new`. Povijest se zatvara, ne briše.
 
-- Table names often still `pastoral_*` after app splits.
-- Business uniqueness is usually `(parish, public_identifier)`.
-- Money: `DecimalField`. Timezone: `Europe/Zagreb`.
-- Do not invent a new module for a table that already has an owner app.
+## Konvencije
+
+- Imena tablica često još `pastoral_*` nakon razdvajanja aplikacija.
+- Poslovna jedinstvenost otvorenog SCD2 reda: parcijalni UNIQUE na
+  `public_identifier` (ili osoba) uz `date_to` otvoren.
+- Novac: `DecimalField`. Vremenska zona: `Europe/Zagreb`.
+- Ne izmišljati novi modul za tablicu koja već ima vlasnika.
+- Dokumenti (DMS) ostaju otvoreno pitanje; `DocumentBinding` nije spremište datoteka.

@@ -1,7 +1,10 @@
-"""Učitavanje i spremanje operativnih parish kolekcija iz ORM modela.
+"""Učitavanje i spremanje operativnih kolekcija župe iz ORM-a.
 
-Svaki legacy zapis čuva se kao red s `payload` JSON-om jednakim starom
-objektu iz Parish.data, tako da se UI ugovor (camelCase ključevi) ne mijenja.
+Ovo je adapter, ne izvor istine. UI i dalje razgovara camelCase dictom
+(bivši `Parish.data`). Čitanje SCD2 ide samo s otvorenih redova
+(`Street.current`, `Household.current`). `Parish.data` se na spremanju prazni.
+
+Nove poslovne kolone ne smiju ići u `payload`.
 """
 from __future__ import annotations
 
@@ -12,6 +15,7 @@ from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django.db.models import Prefetch
 
+from core.models import close_current_scd2_rows
 from pastoral.models import Parish
 from financije.models import (
     CashbookEntry,
@@ -68,11 +72,13 @@ from zupa_vjernici.models import Household, HouseholdMembership, PastoralVisit, 
 from zupa_vjernici.services.street_records import (
     street_as_legacy_record,
     street_field_defaults_from_legacy,
+    upsert_current_street,
 )
 from zupa_vjernici.services.household_records import (
     household_as_legacy_record,
     household_field_defaults_from_legacy,
     sync_household_nested_records,
+    upsert_current_household,
     visit_as_legacy_record,
     visit_field_defaults_from_legacy,
 )
@@ -275,18 +281,18 @@ def load_operational_collections(parish: Parish) -> dict:
 
     parish_data['streets'] = [
         street_as_legacy_record(street)
-        for street in Street.objects.filter(parish=parish).order_by(
+        for street in Street.current.filter(parish=parish).order_by(
             'sort_order',
             'name',
         )
     ]
     parish_data['families'] = [
         household_as_legacy_record(household)
-        for household in Household.objects.filter(parish=parish)
+        for household in Household.current.filter(parish=parish)
         .prefetch_related(
             Prefetch(
                 'memberships',
-                queryset=HouseholdMembership.objects.select_related(
+                queryset=HouseholdMembership.current.select_related(
                     'person',
                 ).order_by('sort_order', 'historical_name'),
             ),
@@ -328,7 +334,7 @@ def load_operational_collections(parish: Parish) -> dict:
         .prefetch_related(
             Prefetch(
                 'memberships',
-                queryset=CouncilMembership.objects.select_related('person'),
+                queryset=CouncilMembership.current.select_related('person'),
             ),
         )
     )
@@ -431,18 +437,20 @@ def save_operational_collections(parish: Parish, parish_data: dict) -> None:
             payload = copy.deepcopy(record)
             payload.setdefault('id', public_identifier)
             keep_streets.add(public_identifier)
-            Street.objects.update_or_create(
-                parish=parish,
-                public_identifier=public_identifier,
-                defaults=street_field_defaults_from_legacy(payload),
+            upsert_current_street(
+                parish,
+                public_identifier,
+                street_field_defaults_from_legacy(payload),
             )
-        Street.objects.filter(parish=parish).exclude(
-            public_identifier__in=keep_streets,
-        ).delete()
+        close_current_scd2_rows(
+            Street.objects.filter(parish=parish).exclude(
+                public_identifier__in=keep_streets,
+            ),
+        )
 
         street_by_public_id = {
             street.public_identifier: street
-            for street in Street.objects.filter(parish=parish)
+            for street in Street.current.filter(parish=parish)
         }
 
         # Families / households
@@ -456,22 +464,24 @@ def save_operational_collections(parish: Parish, parish_data: dict) -> None:
             payload.setdefault('id', public_identifier)
             keep_families.add(public_identifier)
             street_public_identifier = str(payload.get('streetId') or '')
-            household, _created = Household.objects.update_or_create(
-                parish=parish,
-                public_identifier=public_identifier,
-                defaults=household_field_defaults_from_legacy(
+            household, _created = upsert_current_household(
+                parish,
+                public_identifier,
+                household_field_defaults_from_legacy(
                     payload,
                     street=street_by_public_id.get(street_public_identifier),
                 ),
             )
             sync_household_nested_records(household, payload)
-        Household.objects.filter(parish=parish).exclude(
-            public_identifier__in=keep_families,
-        ).delete()
+        close_current_scd2_rows(
+            Household.objects.filter(parish=parish).exclude(
+                public_identifier__in=keep_families,
+            ),
+        )
 
         household_by_public_id = {
             household.public_identifier: household
-            for household in Household.objects.filter(parish=parish)
+            for household in Household.current.filter(parish=parish)
         }
 
         visit_rows = list(parish_data.get('visits') or [])

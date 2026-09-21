@@ -1,4 +1,11 @@
-"""Ulazni računi — kontekst stranice (bivši invoices-engine.js)."""
+"""
+Ulazni računi — kontekst stranice (nasljednik invoices-engine.js).
+
+Radi isključivo nad legacy listom `invoices`. Izlazni računi
+(`direction == 'outgoing'`) namjerno se izostavljaju: ovaj ekran je
+knjiga ulaznih računa (što župa duguje dobavljaču), ne izdani računi.
+Ne sprema ORM; `operational_store` već pretvara `Invoice` u dict.
+"""
 from __future__ import annotations
 
 from datetime import date
@@ -21,6 +28,18 @@ CATEGORY_LABELS = {
 
 
 def incoming_invoices(data: dict) -> list[dict]:
+    """
+    Lista ulaznih računa iz parish dicta.
+
+    Retci bez `direction` tretiraju se kao ulazni (stari unos).
+    Samo `outgoing` se odbacuje.
+
+    Args:
+        data: Parish dict s ključem `invoices`.
+
+    Returns:
+        Reference na originalne dictove, ne kopije.
+    """
     return [
         invoice for invoice in data.get('invoices', [])
         if invoice.get('direction') != 'outgoing'
@@ -28,6 +47,23 @@ def incoming_invoices(data: dict) -> list[dict]:
 
 
 def summarize_invoices(data: dict, year_filter: str) -> dict:
+    """
+    Brojači i iznosi ulaznih računa za karticu / pregled.
+
+    Godina se uspoređuje prefiksom `issueDate`. Statusi `placen` i
+    `storno` nisu „otvoreni”. Neplaćeni ostatak je `total - paidAmount`
+    (nikad ispod nule). Dospijeće je leksikografska usporedba ISO datuma
+    s današnjim danom.
+
+    Koriste je stranica računa i financijski pregled.
+
+    Args:
+        data: Parish dict.
+        year_filter: Godina kao string ili `all` za sve godine.
+
+    Returns:
+        `count`, `open`, `unpaid_sum`, `paid_sum`, `overdue`, `overdue_sum`.
+    """
     rows = incoming_invoices(data)
     if year_filter and year_filter != 'all':
         rows = [
@@ -75,6 +111,23 @@ def summarize_invoices(data: dict, year_filter: str) -> dict:
 
 
 def invoices_page_context(data: dict, request) -> dict:
+    """
+    Kontekst predloška stranice ulaznih računa.
+
+    Filtrira GET `year` i `status`. Retci se kopiraju (`dict(invoice)`)
+    da se `is_overdue` ne upiše u parish JSON. Sort je od najkasnijeg
+    dospijeća / izdavanja. Ako nema nijednog datuma, izbornik godina
+    ipak nudi tekuću godinu.
+
+    Poziva je `financije.page_contexts`.
+
+    Args:
+        data: Parish dict.
+        request: Django request s GET filterima.
+
+    Returns:
+        `invoice_rows`, filteri, godine, sažetak i labele statusa/kategorija.
+    """
     year = request.GET.get('year') or 'all'
     status = request.GET.get('status') or 'all'
 

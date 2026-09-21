@@ -8,3 +8,7 @@ Dodati role  - 3 role: ŽUPNIK, Župni vikar, suradnik - župnik određuej tko �
 rola župnik nbe može obrisati 
 
 Osmisliti kreiranje početnog naloga za župnika
+
+
+
+Trenutno se radi na procesu / modulu - litrugija

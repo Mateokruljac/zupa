@@ -1,4 +1,14 @@
-"""POST akcije za dugovanja, blagajnu i račune."""
+"""
+POST akcije HTML stranica financija.
+
+`pastoral.page_actions.dispatcher` zove `handle_finance_action` za svaki
+POST. Ako akcija pripada financijama, vraća True (dispatcher ne traži
+dalje). Validacija je na Django formama; mutacija dicta na
+`api_actions` / `debt_mutations`; persist na `ParishDataService`.
+
+Lukno i stipend nisu `save_financial` — žive u obiteljima i sakramentima,
+zato `_save_debt_change` bira `save` umjesto samo financijskog spremanja.
+"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -28,10 +38,16 @@ def _save_debt_change(
     parish_data: dict,
     debt_source: dict | None,
 ) -> None:
+    """
+    Sprema parish dict nakon oznake plaćanja.
+
+    Ručni `parishDebts` idu kroz `save_financial`. Potraživanje s
+    obitelji, nakane ili sakramenta mora proći puni `save`, inače se
+    `luknoPaid` / `stipendPaid` izgubi.
+    """
     if debt_source and debt_source.get('type') == 'parishDebts':
         parish_data_service.save_financial(parish_data)
     else:
-        # Potraživanja mogu pripadati obitelji, nakani ili sakramentu.
         parish_data_service.save(parish_data)
 
 
@@ -42,6 +58,27 @@ def handle_finance_action(
     parish_data: dict,
     parish_data_service: ParishDataService,
 ) -> bool:
+    """
+    Obrađuje POST s ekrana dugovanja, blagajne ili računa.
+
+    Akcija je vezana i uz `page_slug` da se isti naziv ne izvrši s
+    krive stranice. Nepoznata akcija vraća False. Poruke korisniku idu
+    kroz Django `messages` (hrvatski tekst).
+
+    Args:
+        request: HTTP zahtjev s POST poljima.
+        page_slug: `dugovanja`, `blagajna` ili `racuni`.
+        action_name: Naziv gumba / hidden polja akcije.
+        parish_data: Učitani parish dict (mutira se na mjestu).
+        parish_data_service: Persist u ORM.
+
+    Returns:
+        True ako je akcija prepoznata (uspjeh ili greška forme).
+        False ako dispatcher treba pokušati drugi modul.
+
+    Side effects:
+        Mutira `parish_data`, sprema bazu, postavlja flash poruke.
+    """
     if action_name == 'mark_debt_paid':
         debt_source = parse_debt_source(request.POST.get('source', ''))
         if mark_debt_paid(parish_data, debt_source):

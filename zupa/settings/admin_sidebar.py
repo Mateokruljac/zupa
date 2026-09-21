@@ -19,7 +19,6 @@ ADMIN_REORDER = [
             'Periodični referentni katalozi za dropdown i zadane vrijednosti župe.'
         ),
         'models': (
-            'zupa_vjernici.ChurchSuiIuris',
             'zupa_vjernici.EcclesiasticalJurisdiction',
             'liturgija.LiturgicalTradition',
             'pastoral.Diocese',
@@ -38,10 +37,10 @@ ADMIN_REORDER = [
     {
         'label': _('Liturgijski kalendar'),
         'description': _(
-            'Godišnji uvoz svetaca i liturgijskih događaja — ne dnevni unos nakana.'
+            'Tablica slavlja (datum, svetac, prioritet, boja). Uvoz paketa i '
+            'ručni unos rade se ovdje, ne u dnevnom pastoralu.'
         ),
         'models': (
-            'liturgija.LiturgicalCalendarImport',
             'liturgija.LiturgicalCalendarEntry',
         ),
     },

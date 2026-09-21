@@ -1,0 +1,10 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<p>{{ import_help_text }}</p>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {{ form.as_p }}
+  <input type="submit" class="default" value="Uvezi u kalendar">
+</form>
+{% endblock %}

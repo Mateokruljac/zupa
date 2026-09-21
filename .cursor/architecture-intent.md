@@ -1,12 +1,14 @@
-# Target data architecture (intent)
+# Namjera arhitekture podataka
 
-**Primary:** `MDs/DB_ARCHITECTURE_PROPOSAL.md`  
-**Bases:** `core/models.py`
+**Primarni dokument:** `MDs/DB_ARCHITECTURE_PROPOSAL.md`  
+**Baze:** `core/models.py`
 
-1. Every business model is DIM SCD1 / SCD2 / SCD2A or FACT FCTA (FCTB only if volume requires it).
-2. **Person** is SCD1. **Household** is SCD2A. **HouseholdMembership** is SCD2.
-3. Sacraments and register lines are **FCTA**. Books are **SCD1**.
-4. Finance: one cashbook **FCTA**, four ledger codes.
-5. Calendar events and tasks are two **FCTA** models.
-6. Public submissions are **FCTA** intake, never auto-locked registers.
-7. Inherit `core.models`; call `save_new` for SCD; `content_hash` is on the bases.
+1. Svaki poslovni model je DIM SCD1 / SCD2 / SCD2A ili FACT FCTA (FCTB samo uz opravdan volumen).
+2. **Person** je SCD1. **Household** je SCD2A. **HouseholdMembership** je SCD2.
+3. Sakramenti i retci matice su **FCTA**. Knjige su **SCD1**.
+4. Financije: jedna blagajna **FCTA**, četiri koda ledgera.
+5. Kalendarski događaj i zadatak su dva **FCTA** modela.
+6. Javne prijave su **FCTA** ulaz, nikad automatski zaključana matica.
+7. Naslijediti `core.models`; SCD pisati kroz `save_new`. SCD2 verziju pokreće usporedba polja, ne hash.
+8. Čitati SCD2 samo s otvorenog reda (`Model.current`). Povijest se zatvara, ne briše.
+9. Latinska župa i Križevačka eparhija: `canonical_tradition` + jurisdikcija + `LiturgicalTradition`. Nema tablice `ChurchSuiIuris`.

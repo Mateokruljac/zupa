@@ -166,10 +166,7 @@ def _synchronize_wedding(parish: Parish, wedding_record: dict) -> SacramentalEve
         wedding_record.get('celebrant') or ''
     ).strip()
     wedding_event.liturgical_tradition = parish.default_liturgical_tradition
-    if parish.church_sui_iuris_id:
-        wedding_event.canonical_tradition = (
-            parish.church_sui_iuris.canonical_tradition
-        )
+    wedding_event.canonical_tradition = parish.canonical_tradition_for_events()
     if wedding_event.status == SacramentalEvent.Status.CANCELLED:
         wedding_event.status = SacramentalEvent.Status.DRAFT
     wedding_event.save()

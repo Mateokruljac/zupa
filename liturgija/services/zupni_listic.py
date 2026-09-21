@@ -13,7 +13,7 @@ from pastoral.services.dates import fmt_hr_short as fmt_short
 from pastoral.services.dates import week_end_from, week_start_from
 from liturgija.services.liturgical import LiturgicalService
 from liturgija.services.mass_schedule import format_mass_schedule_html as format_mass_schedule
-from liturgija.zupni_listic_config_data import ZUPNI_LISTIC_CONFIG
+from liturgija.config.zupni_listic_config_data import ZUPNI_LISTIC_CONFIG
 
 _config_cache: dict | None = None
 
@@ -77,7 +77,7 @@ def migrate_listic_data(data: dict) -> dict:
 
 
 def liturgical_color_hint(iso: str) -> str:
-    day = LiturgicalService().get_day(iso)
+    day = LiturgicalService().get_day(iso, with_hilp=False)
     if day.get('colorLabel'):
         return day['colorLabel']
     if day.get('title') and day.get('source') != 'offline':

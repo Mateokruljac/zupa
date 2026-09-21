@@ -60,11 +60,7 @@ def _confirmation_event(
             celebrating_parish=parish,
             minister_name=program_year.celebrant_name,
             liturgical_tradition=parish.default_liturgical_tradition,
-            canonical_tradition=(
-                parish.church_sui_iuris.canonical_tradition
-                if parish.church_sui_iuris_id
-                else SacramentalEvent.CanonicalTradition.UNCONFIRMED
-            ),
+            canonical_tradition=parish.canonical_tradition_for_events(),
             status=SacramentalEvent.Status.DRAFT,
             source=SacramentalEvent.Source.MANUAL,
             created_by=authenticated_actor,

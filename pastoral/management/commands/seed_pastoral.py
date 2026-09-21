@@ -27,6 +27,8 @@ class Command(BaseCommand):
                 user.name = name
                 user.save()
             user.set_password('pastoral-demo')
+            user.is_staff = role in ('zupnik', 'upravitelj')
+            user.is_superuser = role == 'zupnik'
             user.save()
             self.stdout.write(f'  {email} ({role})')
 

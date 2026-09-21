@@ -29,13 +29,13 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'core.apps.CoreConfig',
     'pastoral',
-    'pregled.apps.PregledConfig',
-    'zupa_vjernici.apps.ZupaVjerniciConfig',
-    'liturgija.apps.LiturgijaConfig',
-    'sakramenti.apps.SakramentiConfig',
-    'financije.apps.FinancijeConfig',
-    'isprave.apps.IspraveConfig',
-    'ured.apps.UredConfig',
+    'pregled',
+    'zupa_vjernici',
+    'sakramenti',
+    'financije',
+    'isprave',
+    'ured',
+    'liturgija'
 ]
 
 AUTHENTICATION_BACKENDS = (
@@ -75,14 +75,19 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'zupa.wsgi.application'
 
+# Iste zadane vjerodajnice kao `db` servis u docker-compose.yml.
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': environment.str('DB_NAME', default=None),
-        'USER': environment.str('DB_USER', default=None),
-        'PASSWORD': environment.str('DB_PASS', default=None),
+        'NAME': environment.str('DB_NAME', default='zupa'),
+        'USER': environment.str('DB_USER', default='zupa'),
+        'PASSWORD': environment.str('DB_PASS', default='zupa'),
         'HOST': environment.str('DB_HOST', default='db'),
         'PORT': environment.str('DB_PORT', default='5432'),
+        'CONN_MAX_AGE': environment.int('DB_CONN_MAX_AGE', default=60),
+        'OPTIONS': {
+            'connect_timeout': 10,
+        },
     }
 }
 
@@ -161,6 +166,7 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_ALWAYS_EAGER = environment.bool('CELERY_TASK_ALWAYS_EAGER', default=False)
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 CACHES = {
     'default': environment.cache(
@@ -168,6 +174,10 @@ CACHES = {
         default='locmemcache://pastoral-default',
     ),
 }
+
+DATA_UPLOAD_MAX_NUMBER_FIELDS = None
+DATA_UPLOAD_MAX_NUMBER_FILES = None
+ADMIN_ACTION_CELERY_THRESHOLD = 10_000
 
 X_FRAME_OPTIONS = 'SAMEORIGIN'
 
@@ -177,9 +187,3 @@ SESSION_COOKIE_AGE = 8 * 60 * 60
 PARISH_DEFAULT_SLUG = 'bdm-slavonski-brod'
 TENANCY_LEGACY_FALLBACK_ENABLED = False
 LICENSE_ENFORCEMENT_ENABLED = False
-
-LITURGICAL_PRIMARY_PROVIDER = environment.str(
-    'LITURGICAL_PRIMARY_PROVIDER',
-    default='hybrid',
-).strip().lower()
-LITURGICAL_ROMCAL_ENABLED = environment.bool('LITURGICAL_ROMCAL_ENABLED', default=True)
