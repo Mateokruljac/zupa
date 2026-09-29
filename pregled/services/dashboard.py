@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from django.utils import timezone
 
 from liturgija.services.liturgical import LiturgicalService
-from liturgija.services.mass_schedule import schedule_entry_applies_on_date
+from liturgija.services.mass_schedule import get_masses_for_date
 
 if TYPE_CHECKING:
     from pastoral.services.data import ParishDataService
@@ -391,14 +391,7 @@ def build_dashboard_context(
         ),
     )
 
-    weekday = current_date.isoweekday() % 7
-    todays_masses = [
-        dict(mass)
-        for mass in parish_data.get('massSchedule', [])
-        if weekday in (mass.get('weekdays') or [])
-        and schedule_entry_applies_on_date(mass, current_date.isoformat())
-    ]
-    todays_masses.sort(key=lambda mass: mass.get('time') or '')
+    todays_masses = get_masses_for_date(parish_data, today)
     _attach_todays_intentions_to_masses(todays_masses, todays_intentions)
     next_mass = _mark_todays_mass_status(
         todays_masses,

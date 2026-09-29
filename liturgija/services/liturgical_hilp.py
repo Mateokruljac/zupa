@@ -78,15 +78,14 @@ def _is_section_boundary(header: str) -> bool:
     )
 
 
-def parse_hilp_html(html: str) -> dict:
-    """Iz HTML-a dana izvuci čitanja, misao, tjedan, boju."""
+def _parse_hilp_html(html: str) -> dict:
+    """Iz HTML-a dana izvuci čitanja, misao i tjedan."""
     blurbs = _parse_blurbs(html)
     readings: list[dict] = []
     gospel_thought = ''
     reading_refs = ''
     liturgical_week = ''
     psalter_week = ''
-    color_hr = ''
 
     i = 0
     while i < len(blurbs):
@@ -110,7 +109,6 @@ def parse_hilp_html(html: str) -> dict:
             i += 1
             continue
         if 'boja liturgijskog' in low:
-            color_hr = desc.split('\n')[0].strip()
             i += 1
             continue
 
@@ -143,7 +141,6 @@ def parse_hilp_html(html: str) -> dict:
         'readingRefs': reading_refs,
         'liturgicalWeekHr': liturgical_week,
         'psalterWeekHr': psalter_week,
-        'colorHr': color_hr,
         'readings': readings,
     }
 
@@ -163,11 +160,10 @@ def fetch_hilp_day(iso: str) -> dict | None:
     except (urllib.error.URLError, TimeoutError, OSError):
         return None
 
-    parsed = parse_hilp_html(html)
+    parsed = _parse_hilp_html(html)
     if not parsed.get('readings') and not parsed.get('gospelThought'):
         return None  # HTML se promijenio ili dan još nije objavljen
 
-    parsed['source'] = 'hilp'
     parsed['hilpUrl'] = url
     cache.set(cache_key, parsed, 60 * 60 * 24)
     return parsed

@@ -1,16 +1,13 @@
 """Lokalni Romcal kalendar za Hrvatsku — samo uvoz u tablicu.
 
-Romcal daje datum, rang i latinski naziv. Hrvatski naziv i boja dolaze
-iz kataloga liturgijskih dana.
+Romcal daje datum, rang, latinski naziv i boje. Hrvatski naziv i mapiranje
+boje rade se pri uvozu u `liturgical_imports`.
 """
 from __future__ import annotations
 
 from functools import lru_cache
 
-from liturgija.services.liturgical_day_catalog import localize_celebration
 
-
-# Romcal rank token → hrvatski natpis ranga.
 RANK_HR = {
     'solemnity': 'Svetkovina',
     'sunday': 'Nedjelja',
@@ -20,7 +17,6 @@ RANK_HR = {
     'weekday': 'Svagdan',
 }
 
-# Veći broj = važnije slavlje (za is_primary).
 RANK_PRIORITY = {
     'weekday': 0,
     'optional_memorial': 1,
@@ -53,42 +49,17 @@ def _value(value) -> str:
     return str(raw or '')
 
 
-def _display_name(event) -> str:
-    """Hrvatski naziv iz kataloga prema latinskom ``fullname``."""
-    display_name, _, _ = localize_celebration(event.fullname)
-    return display_name
-
-
-def _romcal_resolved_color(event, display_name: str) -> str:
-    """Boja kao u uvozu: katalog pa Romcal boje."""
-    from liturgija.services.liturgical_imports import _normalized_liturgical_color
-
-    rank = _value(event.rank)
-    source_colors = [_value(color.key) for color in (event.colors or [])]
-    return _normalized_liturgical_color({
-        'color': source_colors or ['green'],
-        'event_key': event.id,
-        'name': display_name,
-        'title': event.fullname,
-        'grade': RANK_PRIORITY.get(rank, 0),
-        'grade_lcl': RANK_HR.get(rank, event.rank_name),
-    })
-
-
 def romcal_calendar_events_for_year(year: int) -> list[dict]:
     """Sva Romcal slavlja godine, uključujući svagdan i usporednog sveca."""
     calendar_events = []
     for iso_date, day_events in _romcal_engine().liturgical_calendar(year).items():
         for event in day_events:
-            title = _display_name(event)
             rank = _value(event.rank)
             calendar_events.append({
                 'date': iso_date,
-                'name': title,
                 'title': event.fullname,
-                'event_key': event.id,
                 'grade': RANK_PRIORITY.get(rank, 0),
                 'grade_lcl': RANK_HR.get(rank, event.rank_name),
-                'color': _romcal_resolved_color(event, title),
+                'color': [_value(color.key) for color in (event.colors or [])],
             })
     return calendar_events

@@ -22,7 +22,7 @@ def liturgical_year_api(request, year: int):
     """JSON: svi uvezeni dani godine. Bez HILP-a (previše poziva)."""
     return JsonResponse({
         'year': year,
-        'days': LiturgicalService().get_year_days(year, with_hilp=False),
+        'days': LiturgicalService().get_year_days(year),
         'source': 'database',
     })
 

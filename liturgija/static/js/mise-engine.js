@@ -48,7 +48,11 @@
   }
 
   function todayIso() {
-    return new Date().toISOString().slice(0, 10);
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
   }
 
   function fmtDate(iso) {
@@ -479,44 +483,65 @@
     });
   }
 
+  function printCssHref() {
+    return global.PastoralBase?.asset?.("css/print-document.css") || "/static/css/print-document.css";
+  }
+
   function printDay(iso, massTimeFilter) {
     const settings = global.PastoralParish?.loadSettings?.() || {};
     const accent = settings.primaryColor || "#5c2e3a";
     const printPrimary = /^#[0-9a-f]{6}$/i.test(accent) ? accent : "#5c2e3a";
-    let list = state.intentions.filter((n) => n.date === iso);
-    if (massTimeFilter) list = list.filter((n) => n.massTime === massTimeFilter);
-    list = list.slice().sort((a, b) => String(a.massTime || "").localeCompare(String(b.massTime || "")));
+    const printAccent = /^#[0-9a-f]{6}$/i.test(settings.accentColor || "")
+      ? settings.accentColor
+      : "#b8922a";
+    const data = dataView();
+    let slots = getMassesForDate(data, iso);
+    if (massTimeFilter) {
+      slots = slots.filter((slot) => slot.time === massTimeFilter);
+    }
+
+    const times = new Set(slots.map((slot) => slot.time).filter(Boolean));
+    (data.intentions || []).forEach((n) => {
+      if (n.date !== iso) return;
+      if (massTimeFilter && n.massTime !== massTimeFilter) return;
+      if (n.massTime) times.add(n.massTime);
+    });
+    const orderedTimes = [...times].sort((a, b) => String(a).localeCompare(String(b)));
 
     const longDate = fmtLongDate(iso);
     const docTitle = massTimeFilter
-      ? `Misne nakane — ${longDate} · ${massTimeFilter}`
-      : `Misne nakane — ${longDate}`;
+      ? `Raspored misa — ${longDate} · ${massTimeFilter}`
+      : `Raspored misa — ${longDate}`;
 
     let body;
-    if (!list.length) {
-      body = '<p class="empty">Nema nakana za ispis na odabrani dan.</p>';
+    if (!orderedTimes.length) {
+      body = '<p class="empty">Nema misa ni nakana za ispis na odabrani dan.</p>';
     } else {
-      const byMass = {};
-      list.forEach((n) => {
-        const t = n.massTime || "—";
-        (byMass[t] = byMass[t] || []).push(n);
-      });
-      const blocks = Object.keys(byMass)
-        .sort()
-        .map((t) => {
-          const items = byMass[t];
-          return `<section class="mass-block"><h2>Misa ${esc(t)}</h2><ul>${items
-            .map((n) => `<li><strong>${esc(n.intentionFor)}</strong>${n.paid ? "" : " (neplaćeno)"}</li>`)
-            .join("")}</ul></section>`;
-        });
-      body = massTimeFilter ? blocks[0] || body : blocks.join("");
+      body = orderedTimes
+        .map((time) => {
+          const slot = slots.find((s) => s.time === time);
+          const items = getNakaneForSlot(data, iso, time);
+          const meta = [slot?.location, slot?.notes].filter(Boolean).join(" · ");
+          const listHtml = items.length
+            ? `<ul>${items
+                .map(
+                  (n) =>
+                    `<li><strong>${esc(n.intentionFor)}</strong>${n.paid ? "" : " (neplaćeno)"}</li>`
+                )
+                .join("")}</ul>`
+            : '<p class="empty">Nema upisanih nakana za ovu misu.</p>';
+          return `<section class="mass-block"><h2>Misa ${esc(time)}</h2>${
+            meta ? `<p>${esc(meta)}</p>` : ""
+          }${listHtml}</section>`;
+        })
+        .join("");
     }
 
     const parishLine = [settings.city, settings.diocese].filter(Boolean).join(" · ");
     const html = `<!DOCTYPE html><html lang="hr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(docTitle)}</title>
-      <link rel="stylesheet" href="/css/print-document.css"><style>:root{--print-primary:${printPrimary};--print-accent:#b8922a}</style></head><body>
+      <link rel="stylesheet" href="${esc(printCssHref())}"><style>:root{--print-primary:${printPrimary};--print-accent:${printAccent}}</style></head><body>
       <div class="print-toolbar no-print"><div class="print-toolbar__copy"><strong>${esc(docTitle)}</strong><span>Pregled A4 rasporeda prije ispisa ili spremanja u PDF</span></div><div class="print-toolbar__actions"><button type="button" onclick="window.print()">Ispis / PDF</button><button type="button" onclick="window.close()">Zatvori</button></div></div>
-      <article class="print-sheet"><header class="document-letterhead"><span class="document-mark" aria-hidden="true"></span><div class="document-parish"><strong>${esc(settings.name || "Župa")}</strong><span>${esc(parishLine)}</span></div><div class="document-meta"><strong>Misne nakane</strong><span>${esc(longDate)}</span></div></header><main class="document-content"><div class="print-doc"><h1>${esc(docTitle)}</h1>${body}</div></main><footer class="document-footer"><span>${settings.pastor ? `<strong>${esc(settings.pastor)}</strong> · ` : ""}${esc(settings.name || "Župa")}</span><span>${new Date().toLocaleDateString("hr-HR")}</span></footer></article>
+      <article class="print-sheet"><header class="document-letterhead"><span class="document-mark" aria-hidden="true"></span><div class="document-parish"><strong>${esc(settings.name || "Župa")}</strong><span>${esc(parishLine)}</span></div><div class="document-meta"><strong>Raspored misa</strong><span>${esc(longDate)}</span></div></header><main class="document-content"><div class="print-doc"><h1>${esc(docTitle)}</h1>${body}</div></main><footer class="document-footer"><span>${settings.pastor ? `<strong>${esc(settings.pastor)}</strong> · ` : ""}${esc(settings.name || "Župa")}</span><span>${new Date().toLocaleDateString("hr-HR")}</span></footer></article>
       </body></html>`;
 
     const w = window.open("", "_blank");
@@ -524,6 +549,7 @@
       showToast("Omogućite skočne prozore za ispis");
       return;
     }
+    w.document.open();
     w.document.write(html);
     w.document.close();
   }

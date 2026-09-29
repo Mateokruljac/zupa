@@ -15,27 +15,6 @@ from liturgija.services.liturgical_imports import (
     stored_calendar_days,
 )
 
-# Token boje (EN ili sinonim) → natpis na hrvatskom za UI.
-COLOR_HR = {
-    'purple': 'Ljubičasta',
-    'violet': 'Ljubičasta',
-    'white': 'Bijela',
-    'red': 'Crvena',
-    'green': 'Zelena',
-    'rose': 'Ružičasta',
-    'black': 'Crna',
-}
-
-
-def color_label(colors) -> str:
-    """Vrati hrvatski naziv boje. Prima string ili listu (uzima prvi član)."""
-    # HILP ponekad šalje listu; tablica šalje jedan token.
-    token = colors[0] if isinstance(colors, list) and colors else colors
-    if not token:
-        return ''
-    # Nepoznat token ostaje kako je došao (npr. "other").
-    return COLOR_HR.get(str(token).lower()) or str(token)
-
 
 def _enrich_with_hilp(day: dict) -> dict:
     """Nadopuni dan čitanjima s hilp.hr ako ih tablica nema.
@@ -63,8 +42,6 @@ def _enrich_with_hilp(day: dict) -> dict:
         out['seasonWeek'] = hilp['liturgicalWeekHr']
     if hilp.get('psalterWeekHr'):
         out['psalterWeekHr'] = hilp['psalterWeekHr']
-    if hilp.get('colorHr') and not out.get('colorLabel'):
-        out['colorLabel'] = color_label(hilp['colorHr'])
     out['hilpUrl'] = hilp.get('hilpUrl') or out.get('hilpUrl')
     return out
 
@@ -73,15 +50,9 @@ class LiturgicalService:
     """Jedina ulazna točka aplikacije za liturgijski dan/mjesec/godinu."""
 
     @with_tenant_schema
-    def get_year_days(self, year: int, *, with_hilp: bool = False) -> dict[str, dict]:
-        """Svi uvezeni dani godine, ključ ISO datum.
-
-        HILP je isključen po defaultu — 365 HTTP poziva bi usporilo API godine.
-        """
-        days = stored_calendar_days(date(year, 1, 1), date(year, 12, 31))
-        if with_hilp:
-            return {iso: _enrich_with_hilp(day) for iso, day in days.items()}
-        return days
+    def get_year_days(self, year: int) -> dict[str, dict]:
+        """Svi uvezeni dani godine, ključ ISO datum. Bez HILP-a."""
+        return stored_calendar_days(date(year, 1, 1), date(year, 12, 31))
 
     @with_tenant_schema
     def get_month_days(self, year: int, month: int) -> dict[str, dict]:

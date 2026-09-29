@@ -1,76 +1,42 @@
 """Raspored misa — koji termini vrijede na danom datumu.
 
 Ista pravila kao `mise-engine.js`: tjedni raspored, raspon valjanosti,
-razdoblje bez mise, iznimke (otkaz svih / pojedinih sati, dodatni termini).
+razdoblje bez mise, iznimke (otkaz svih / pojedinih sati).
 """
 from __future__ import annotations
 
-import copy
 from datetime import date
+from html import escape
 
-# Indeks kao JS ``Date.getDay()``: 0=nedjelja … 6=subota.
-DOW_LABEL = {
-    0: 'Nedjelja', 1: 'Ponedjeljak', 2: 'Utorak', 3: 'Srijeda',
-    4: 'Četvrtak', 5: 'Petak', 6: 'Subota',
+_DAY_WEEKDAYS = {
+    'Nedjelja': [0],
+    'Subota': [6],
+    'Pon–Pet': [1, 2, 3, 4, 5],
+    'Pon-Pet': [1, 2, 3, 4, 5],
 }
 
 
-def weekdays_from_entry(entry: dict) -> list[int]:
-    """Koji dani u tjednu ovaj red pokriva (JS indeksi).
-
-    Novi zapisi imaju ``weekdays`` listu. Stari imaju samo natpis ``day``.
-    """
-    if entry.get('weekdays'):
-        return list(entry['weekdays'])
+def _weekdays(entry: dict) -> list[int]:
+    """Koji dani u tjednu ovaj red pokriva (JS ``getDay`` indeksi)."""
+    raw = entry.get('weekdays')
+    if raw:
+        try:
+            return [int(day) for day in raw]
+        except (TypeError, ValueError):
+            return []
     day = entry.get('day') or ''
-    if day == 'Nedjelja':
-        return [0]
-    if day == 'Subota':
-        return [6]
-    if day in ('Pon–Pet', 'Pon-Pet'):
-        return [1, 2, 3, 4, 5]
-    if day.startswith('Pon'):
-        return [1]
-    if day.startswith('Uto'):
-        return [2]
-    if day.startswith('Sri'):
-        return [3]
-    if day.startswith('Čet') or day.startswith('Cet'):
-        return [4]
-    if day.startswith('Pet'):
-        return [5]
+    if day in _DAY_WEEKDAYS:
+        return list(_DAY_WEEKDAYS[day])
+    for prefix, weekday in (
+        ('Pon', 1), ('Uto', 2), ('Sri', 3),
+        ('Čet', 4), ('Cet', 4), ('Pet', 5),
+    ):
+        if day.startswith(prefix):
+            return [weekday]
     return []
 
 
-def day_label_from_weekdays(weekdays: list[int]) -> str:
-    """Lista indeksa → kratki natpis za UI (Pon–Pet, Nedjelja, …)."""
-    w = sorted(set(weekdays))
-    if w == [1, 2, 3, 4, 5]:
-        return 'Pon–Pet'
-    if w == [0]:
-        return 'Nedjelja'
-    if w == [6]:
-        return 'Subota'
-    return ', '.join(DOW_LABEL.get(d, '?')[:3] for d in w)
-
-
-def normalize_schedule_entry(entry: dict) -> dict:
-    """Popuni ``weekdays``, ``day`` i prazna polja da UI i API dijele isti oblik."""
-    weekdays = weekdays_from_entry(entry)
-    out = copy.deepcopy(entry)
-    out['weekdays'] = weekdays
-    out['day'] = entry.get('day') or day_label_from_weekdays(weekdays)
-    out.setdefault('location', '')
-    out.setdefault('notes', '')
-    out.setdefault('validFrom', '')
-    out.setdefault('validUntil', '')
-    out['noMass'] = bool(entry.get('noMass'))
-    if out['noMass']:
-        out['time'] = entry.get('time') or ''  # razdoblje bez mise nema sat
-    return out
-
-
-def schedule_entry_applies_on_date(entry: dict, iso_date: str) -> bool:
+def _applies_on_date(entry: dict, iso_date: str) -> bool:
     """Je li red unutar ``validFrom``–``validUntil`` (prazno = bez granice)."""
     valid_from = entry.get('validFrom') or ''
     valid_until = entry.get('validUntil') or ''
@@ -81,104 +47,70 @@ def schedule_entry_applies_on_date(entry: dict, iso_date: str) -> bool:
     return True
 
 
-def no_mass_period_applies_on_date(data: dict, iso: str, js_dow: int) -> bool:
-    """True ako taj dan pada u razdoblje „nema mise” za taj dan u tjednu."""
-    for raw in data.get('massSchedule') or []:
-        entry = normalize_schedule_entry(raw)
-        if not entry.get('noMass'):
-            continue
-        if not schedule_entry_applies_on_date(entry, iso):
-            continue
-        if js_dow not in weekdays_from_entry(entry):
-            continue
-        return True
-    return False
-
-
-def migrate_mass_schedule(data: dict) -> None:
-    """Osiguraj liste rasporeda i normaliziraj stare retke (in-place)."""
-    if not isinstance(data.get('massSchedule'), list):
-        data['massSchedule'] = []
-    data['massSchedule'] = [normalize_schedule_entry(e) for e in data['massSchedule']]
-    if not isinstance(data.get('massExceptions'), list):
-        data['massExceptions'] = []
-
-
 def get_masses_for_date(data: dict, iso: str) -> list[dict]:
     """Termini mise tog datuma, sortirani po satu.
 
-    Redoslijed: ako vrijedi „nema mise” → prazno; inače tjedni raspored
-    minus otkazi iznimke.
+    Ako vrijedi „nema mise” ili otkaz svih → prazno; inače tjedni raspored
+    minus otkazani sati.
     """
-    exc = next((e for e in data.get('massExceptions') or [] if e.get('date') == iso), None)
-    dow = date.fromisoformat(iso).weekday()  # Pon=0 … Ned=6
-    js_dow = (dow + 1) % 7  # uskladiti s JS getDay()
-    slots: list[dict] = []
+    js_dow = (date.fromisoformat(iso).weekday() + 1) % 7
+    schedule = data.get('massSchedule') or []
+    if any(
+        entry.get('noMass')
+        and _applies_on_date(entry, iso)
+        and js_dow in _weekdays(entry)
+        for entry in schedule
+    ):
+        return []
 
-    if no_mass_period_applies_on_date(data, iso, js_dow):
-        return slots
+    exception = next(
+        (row for row in (data.get('massExceptions') or []) if row.get('date') == iso),
+        None,
+    )
+    if exception and exception.get('cancelAll'):
+        return []
+    cancelled_times = set(exception.get('cancelTimes') or []) if exception else set()
 
-    if not exc or not exc.get('cancelAll'):
-        for raw in data.get('massSchedule') or []:
-            entry = normalize_schedule_entry(raw)
-            if entry.get('noMass'):
-                continue
-            if not schedule_entry_applies_on_date(entry, iso):
-                continue
-            if js_dow not in weekdays_from_entry(entry):
-                continue
-            if exc and entry.get('time') in (exc.get('cancelTimes') or []):
-                continue
-            slots.append({
-                'time': entry.get('time'),
-                'location': entry.get('location', ''),
-                'notes': entry.get('notes', ''),
-                'scheduleId': entry.get('id'),
-                'kind': 'regular',
-            })
-
-    slots.sort(key=lambda s: str(s.get('time') or ''))
+    slots = []
+    for entry in schedule:
+        if entry.get('noMass'):
+            continue
+        if not _applies_on_date(entry, iso) or js_dow not in _weekdays(entry):
+            continue
+        time = entry.get('time') or ''
+        if time in cancelled_times:
+            continue
+        slots.append({
+            'time': time,
+            'location': entry.get('location') or '',
+            'notes': entry.get('notes') or '',
+            'scheduleId': entry.get('id'),
+            'kind': 'regular',
+        })
+    slots.sort(key=lambda slot: slot['time'])
     return slots
 
 
 def format_mass_schedule_html(data: dict) -> str:
     """HTML popis stalnog rasporeda za župni listić."""
-    from html import escape
     rows = data.get('massSchedule') or []
     if not rows:
         return '<p>Raspored misa nije unesen.</p>'
     items = []
-    for raw in rows:
-        e = normalize_schedule_entry(raw)
-        if e.get('noMass'):
-            slot_label = 'nema mise'
-        else:
-            slot_label = e.get('time') or ''
-        extra = e.get('notes') or ''
+    for entry in rows:
+        slot_label = 'nema mise' if entry.get('noMass') else (entry.get('time') or '')
+        extras = [entry.get('notes') or '']
+        valid_from = entry.get('validFrom') or ''
+        valid_until = entry.get('validUntil') or ''
+        if valid_from or valid_until:
+            extras.append(f'{valid_from or "…"} – {valid_until or "trajno"}')
+        extra = ' · '.join(part for part in extras if part)
         line = (
-            f'<li><strong>{escape(e.get("day") or "")}</strong>'
+            f'<li><strong>{escape(entry.get("day") or "")}</strong>'
             f' — {escape(slot_label)}'
         )
-        valid_from = e.get('validFrom') or ''
-        valid_until = e.get('validUntil') or ''
-        if valid_from or valid_until:
-            validity = f'{valid_from or "…"} – {valid_until or "trajno"}'
-            extra = ' · '.join(value for value in (extra, validity) if value)
         if extra:
             line += f' <span class="card-sub">({escape(extra)})</span>'
         line += '</li>'
         items.append(line)
     return f'<ul class="listic-ul">{"".join(items)}</ul>'
-
-
-def week_intentions(data: dict, start_iso: str | None = None) -> list[dict]:
-    """Nakane u tjednu koji sadrži ``start_iso`` (ili tjedan današnjeg dana)."""
-    from pastoral.services.dates import week_end_from, week_start_from
-    start = week_start_from(start_iso)
-    end = week_end_from(start)
-    rows = [
-        n for n in data.get('intentions') or []
-        if start <= (n.get('date') or '') <= end
-    ]
-    rows.sort(key=lambda n: (n.get('date') or '', n.get('massTime') or ''))
-    return rows

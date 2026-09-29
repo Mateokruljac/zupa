@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import copy
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from django.db.models import Prefetch
 
 from core.models import close_current_scd2_rows
-from core.utils import _parse_iso_date, _decimal_amount
+from core.utils import _parse_iso_date, _iso_or_empty
 from pastoral.models import Parish
 from financije.models import (
     CashbookEntry,
@@ -32,14 +32,15 @@ from liturgija.models import (
     MassIntention,
     MassScheduleSlot,
 )
-from liturgija.services.bulletin_records import (
-    bulletin_issue_as_legacy_record,
-    bulletin_issue_field_defaults_from_legacy,
-)
+
+
 from liturgija.services.mass_records import (
     mass_exception_as_legacy_record,
+    mass_exception_field_defaults_from_legacy,
     mass_intention_as_legacy_record,
+    mass_intention_field_defaults_from_legacy,
     mass_schedule_slot_as_legacy_record,
+    mass_schedule_slot_field_defaults_from_legacy,
 )
 from ured.services.office_records import (
     announcement_as_legacy_record,
@@ -90,6 +91,45 @@ from financije.services.finance_records import (
     parish_debt_field_defaults_from_legacy,
 )
 
+
+
+def bulletin_issue_field_defaults_from_legacy(record: dict) -> dict:
+    """JS dict → kwargs za ``BulletinIssue`` (bez PK)."""
+    layout = record.get('layoutSnapshot')
+    if not isinstance(layout, dict):
+        layout = {}
+    status = str(record.get('status') or BulletinIssue.Status.PUBLISHED)
+    if status not in BulletinIssue.Status.values:
+        status = BulletinIssue.Status.PUBLISHED
+    week_start = _parse_iso_date(record.get('weekStart'))
+    week_end = _parse_iso_date(record.get('weekEnd'))
+    if week_start is not None and week_end is None:
+        week_end = week_start + timedelta(days=6)
+    return {
+        'week_start': week_start,
+        'week_end': week_end,
+        'title': str(record.get('title') or '')[:255],
+        'status': status,
+        'layout': copy.deepcopy(layout),
+        'rendered_html': str(record.get('renderedHtml') or ''),
+    }
+
+
+def bulletin_issue_as_legacy_record(issue: BulletinIssue) -> dict:
+    """Red tablice listića → dict koji čita JS i povijest izdanja."""
+    layout = issue.layout if isinstance(issue.layout, dict) else {}
+    return {
+        'id': str(issue.id),
+        'weekStart': _iso_or_empty(issue.week_start),
+        'weekEnd': _iso_or_empty(issue.week_end),
+        'title': issue.title or '',
+        'status': issue.status or BulletinIssue.Status.PUBLISHED,
+        'layoutSnapshot': copy.deepcopy(layout),
+        'renderedHtml': issue.rendered_html or '',
+        'createdAt': issue.created_at.isoformat() if issue.created_at else '',
+        'updatedAt': issue.updated_at.isoformat() if issue.updated_at else '',
+    }
+
 # Kolekcije koje više ne smiju ostati u Parish.data nakon cutovera.
 ORM_BACKED_COLLECTION_KEYS = frozenset({
     'streets',
@@ -113,57 +153,6 @@ ORM_BACKED_COLLECTION_KEYS = frozenset({
     'massExceptions',
     'zupniListicIssues',
 })
-
-
-def _weekdays_list(value) -> list[int]:
-    """JSON lista dana → intovi; nebrojčane stavke se preskaču."""
-    if not isinstance(value, list):
-        return []
-    weekdays = []
-    for item in value:
-        try:
-            weekdays.append(int(item))
-        except (TypeError, ValueError):
-            continue
-    return weekdays
-
-
-def mass_schedule_slot_field_defaults_from_legacy(record: dict) -> dict:
-    """JS dict → kwargs za ``MassScheduleSlot``."""
-    return {
-        'day_label': str(record.get('day') or ''),
-        'mass_time': str(record.get('time') or ''),
-        'weekdays': _weekdays_list(record.get('weekdays')),
-        'location': str(record.get('location') or ''),
-        'notes': str(record.get('notes') or ''),
-        'valid_from': _parse_iso_date(record.get('validFrom')),
-        'valid_until': _parse_iso_date(record.get('validUntil')),
-        'no_mass': bool(record.get('noMass')),
-    }
-
-
-def mass_intention_field_defaults_from_legacy(record: dict) -> dict:
-    """JS dict → kwargs za ``MassIntention``."""
-    return {
-        'intention_date': _parse_iso_date(record.get('date')),
-        'mass_time': str(record.get('massTime') or ''),
-        'intention_for': str(record.get('intentionFor') or ''),
-        'stipend': _decimal_amount(record.get('stipend')),
-        'is_paid': bool(record.get('paid')),
-        'notes': str(record.get('notes') or ''),
-    }
-
-
-def mass_exception_field_defaults_from_legacy(record: dict) -> dict:
-    """JS dict → kwargs za iznimku mise."""
-    return {
-        'exception_date': _parse_iso_date(record.get('date')),
-        'cancel_all': bool(record.get('cancelAll')),
-        'cancel_times': list(record.get('cancelTimes') or [])
-        if isinstance(record.get('cancelTimes'), list)
-        else [],
-        'note': str(record.get('note') or ''),
-    }
 
 
 def _record_identifier(record: dict, fallback_prefix: str, index: int) -> str:

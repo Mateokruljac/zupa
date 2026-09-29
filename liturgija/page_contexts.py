@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 
-from liturgija.services.mass_schedule import migrate_mass_schedule
 from liturgija.services.zupni_listic import (
     load_config,
     migrate_listic_data,
@@ -43,8 +42,7 @@ def build_nakane_context(request, parish_data: dict, parish_data_service: Parish
     subtitle='Stalni termini i veza na misne nakane',
 )
 def build_mise_context(request, parish_data: dict, parish_data_service: ParishDataService) -> dict:
-    """Normaliziraj raspored pa ga predaj JS-u mise-engine."""
-    migrate_mass_schedule(parish_data)
+    """Bootstrap rasporeda za JS mise-engine."""
     return {
         'mise_bootstrap': {
             'massSchedule': parish_data.get('massSchedule', []),

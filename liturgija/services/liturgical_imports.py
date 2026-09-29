@@ -68,9 +68,10 @@ def _source_color_tokens(source_value) -> list[str]:
 
 def _map_color_token(color_token: str) -> str:
     """Jedan token → enum baze, ili ``other`` ako nije poznat."""
-    Color = LiturgicalCalendarEntry.LiturgicalColor
-    alias = LITURGICAL_COLOR_ALIASES.get((color_token or '').casefold())
-    return alias or Color.OTHER
+    return LITURGICAL_COLOR_ALIASES.get(
+        (color_token or '').casefold(),
+        LiturgicalCalendarEntry.LiturgicalColor.OTHER,
+    )
 
 
 def _latin_event_name(calendar_event: dict) -> str:
@@ -96,25 +97,16 @@ def _mapped_source_colors(calendar_event: dict) -> list[str]:
 
 def _normalized_liturgical_color(calendar_event: dict) -> str:
     """Boja iz kataloga (latinski ključ); inače prva boja izvora."""
-    Color = LiturgicalCalendarEntry.LiturgicalColor
     _, catalog_color, found_in_catalog = localize_celebration(
         _latin_event_name(calendar_event),
     )
     if found_in_catalog and catalog_color:
         return _map_color_token(catalog_color)
     mapped_colors = _mapped_source_colors(calendar_event)
-    return mapped_colors[0] if mapped_colors else Color.OTHER
+    return mapped_colors[0] if mapped_colors else LiturgicalCalendarEntry.LiturgicalColor.OTHER
 
 
-def liturgical_color_for_entry(calendar_entry: LiturgicalCalendarEntry) -> str:
-    """Boja retka iz stupca tablice."""
-    return (
-        calendar_entry.liturgical_color
-        or LiturgicalCalendarEntry.LiturgicalColor.OTHER
-    )
-
-
-def color_view(color: str) -> dict:
+def _color_view(color: str) -> dict:
     """Par token + hrvatski natpis za JSON frontenda."""
     lookup = dict(LiturgicalCalendarEntry.LiturgicalColor.choices)
     resolved_color = color or LiturgicalCalendarEntry.LiturgicalColor.OTHER
@@ -138,35 +130,15 @@ def _event_date(calendar_event: dict) -> date:
 
 
 def _celebration_key(calendar_entry: LiturgicalCalendarEntry) -> tuple:
-    """Ključ preskoka uvoza: isti izvor, datum i prikazani naziv."""
+    """Ključ preskoka uvoza: isti datum i prikazani naziv."""
     return (calendar_entry.date, calendar_entry.name)
 
 
-def _display_names(calendar_event: dict) -> tuple[str, str]:
-    """(hrvatski naziv iz kataloga, latinski izvornik)."""
+def _display_names(calendar_event: dict) -> tuple[str, str, bool]:
+    """(hrvatski naziv, latinski izvornik, je li ključ u katalogu)."""
     original_name = _latin_event_name(calendar_event) or 'Liturgijsko slavlje'
-    display_name, _, _ = localize_celebration(original_name)
-    return display_name or original_name, original_name
-
-
-def _entry_from_event(provider: str, calendar_event: dict) -> LiturgicalCalendarEntry:
-    """Sastavi ORM instancu (još nije spremljena). ``is_primary`` kasnije."""
-    name, original_name = _display_names(calendar_event)
-    resolved_color = _normalized_liturgical_color(calendar_event)
-    return LiturgicalCalendarEntry(
-        provider=provider,
-        date=_event_date(calendar_event),
-        name=name,
-        original_name=original_name,
-        liturgical_color=resolved_color,
-        priority=_event_priority(calendar_event),
-        priority_label=str(
-            calendar_event.get('grade_lcl')
-            or calendar_event.get('grade_display')
-            or ''
-        ),
-        is_primary=False,
-    )
+    display_name, _, found_in_catalog = localize_celebration(original_name)
+    return display_name or original_name, original_name, found_in_catalog
 
 
 @with_tenant_schema
@@ -204,7 +176,7 @@ def refresh_primary_flags(entry_dates) -> None:
 
 
 @with_tenant_schema
-def insert_calendar_entries(
+def _insert_calendar_entries(
     *,
     provider: str,
     calendar_events: list[dict],
@@ -217,17 +189,30 @@ def insert_calendar_entries(
         (broj unesenih, broj preskočenih).
     """
     prepared_entries = []
-    seen_in_batch = set()  # duplikat unutar istog uvoza
+    seen_in_batch = set()
     skipped_count = 0
     missing_catalog_names = set()
     for calendar_event in calendar_events:
         event_date = _event_date(calendar_event)
         if event_date < date_from or event_date > date_to:
             continue
-        calendar_entry = _entry_from_event(provider, calendar_event)
-        _, _, found_in_catalog = localize_celebration(calendar_entry.original_name)
-        if not found_in_catalog and calendar_entry.original_name:
-            missing_catalog_names.add(calendar_entry.original_name)
+        name, original_name, found_in_catalog = _display_names(calendar_event)
+        calendar_entry = LiturgicalCalendarEntry(
+            provider=provider,
+            date=event_date,
+            name=name,
+            original_name=original_name,
+            liturgical_color=_normalized_liturgical_color(calendar_event),
+            priority=_event_priority(calendar_event),
+            priority_label=str(
+                calendar_event.get('grade_lcl')
+                or calendar_event.get('grade_display')
+                or ''
+            ),
+            is_primary=False,
+        )
+        if not found_in_catalog and original_name:
+            missing_catalog_names.add(original_name)
         celebration_key = _celebration_key(calendar_entry)
         if celebration_key in seen_in_batch:
             skipped_count += 1
@@ -254,8 +239,7 @@ def insert_calendar_entries(
         )
         entries_to_create = []
         for calendar_entry in prepared_entries:
-            celebration_key = _celebration_key(calendar_entry)
-            if celebration_key in existing_identities:
+            if _celebration_key(calendar_entry) in existing_identities:
                 skipped_count += 1
                 continue
             entries_to_create.append(calendar_entry)
@@ -279,16 +263,15 @@ def import_romcal_package_year(year: int) -> tuple[int, int]:
         raise ValidationError(
             f'Romcal nije vratio slavlja za godinu {year}.'
         )
-    created_count, skipped_count = insert_calendar_entries(
+    return _insert_calendar_entries(
         provider=LiturgicalCalendarEntry.Provider.ROMCAL_CROATIA,
         calendar_events=calendar_events,
         date_from=date(year, 1, 1),
         date_to=date(year, 12, 31),
     )
-    return created_count, skipped_count
 
 
-def empty_stored_calendar_day(iso: str) -> dict:
+def _empty_stored_calendar_day(iso: str) -> dict:
     """Dan bez redaka — frontend vidi poruku umjesto praznog ekrana."""
     return {
         'source': 'offline',
@@ -303,28 +286,27 @@ def empty_stored_calendar_day(iso: str) -> dict:
         'celebrations': [],
         'readings': [],
         'hilpUrl': hilp_url(iso),
-        'translated': True,
         'empty': True,
     }
 
 
-def map_stored_calendar_day(
+def _map_stored_calendar_day(
     iso: str,
     calendar_entries: list[LiturgicalCalendarEntry],
 ) -> dict:
     """Jedan dan za frontend iz retaka tablice (glavno + ostala slavlja)."""
     if not calendar_entries:
-        return empty_stored_calendar_day(iso)
+        return _empty_stored_calendar_day(iso)
     primary_entry = next(
         (
             calendar_entry
             for calendar_entry in calendar_entries
             if calendar_entry.is_primary
         ),
-        calendar_entries[0],  # stari redovi možda još nemaju zastavicu
+        calendar_entries[0],
     )
     observances = []
-    celebrations = []  # naslovi sporednih slavlja (kratki popis)
+    celebrations = []
     for calendar_entry in calendar_entries:
         rank_label = (
             calendar_entry.priority_label
@@ -332,26 +314,19 @@ def map_stored_calendar_day(
         )
         observances.append({
             'title': calendar_entry.name,
-            'titleOriginal': calendar_entry.original_name,
             'rank': calendar_entry.priority,
             'rankLabel': rank_label,
-            **color_view(liturgical_color_for_entry(calendar_entry)),
+            **_color_view(calendar_entry.liturgical_color),
             'primary': calendar_entry.id == primary_entry.id,
-            'provider': calendar_entry.provider,
-            'translated': True,
         })
         if calendar_entry.id != primary_entry.id:
             celebrations.append(calendar_entry.name)
     return {
         'source': 'database',
-        'providers': sorted({
-            calendar_entry.provider for calendar_entry in calendar_entries
-        }),
         'date': iso,
         'title': primary_entry.name,
-        'titleOriginal': primary_entry.original_name,
         'subtitle': '',
-        **color_view(liturgical_color_for_entry(primary_entry)),
+        **_color_view(primary_entry.liturgical_color),
         'rank': primary_entry.priority,
         'rankLabel': (
             primary_entry.priority_label
@@ -361,7 +336,6 @@ def map_stored_calendar_day(
         'celebrations': celebrations,
         'readings': [],
         'hilpUrl': hilp_url(iso),
-        'translated': True,
         'empty': False,
     }
 
@@ -377,7 +351,7 @@ def stored_calendar_days(date_from: date, date_to: date) -> dict[str, dict]:
     ):
         entries_by_date.setdefault(calendar_entry.date, []).append(calendar_entry)
     return {
-        entry_date.isoformat(): map_stored_calendar_day(
+        entry_date.isoformat(): _map_stored_calendar_day(
             entry_date.isoformat(),
             day_entries,
         )
@@ -394,4 +368,4 @@ def stored_calendar_day(iso: str) -> dict:
         .filter(date=entry_date)
         .order_by('-priority', 'name')
     )
-    return map_stored_calendar_day(iso, calendar_entries)
+    return _map_stored_calendar_day(iso, calendar_entries)

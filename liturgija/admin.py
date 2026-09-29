@@ -27,7 +27,7 @@ class LiturgicalTraditionAdmin(ProtectedReferenceAdminMixin, admin.ModelAdmin):
     list_filter = ('is_active',)
     search_fields = ('name',)
     readonly_fields = ('id', 'created_at', 'updated_at')
-    fields = ('id', 'name', 'description', 'is_active', 'created_at', 'updated_at')
+    fields = ('id', 'namovaj e', 'description', 'is_active', 'created_at', 'updated_at')
 
 
 @admin.register(BulletinIssue)
@@ -57,8 +57,7 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
         'admin/liturgija/liturgicalcalendarentry/change_list.html'
     )
     list_display = (
-        'date', 'name', 'liturgical_color', 'priority', 'is_primary',
-        'provider',
+        'date', 'name', 'liturgical_color', 'priority', 'is_primary', 'provider',
     )
     list_display_links = ('date', 'name')
     list_filter = ('is_primary', 'liturgical_color', 'provider')
