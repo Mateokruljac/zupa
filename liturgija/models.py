@@ -13,6 +13,7 @@ kaže *što je liturgijski dan*. Imena tablica još su `pastoral_*`.
 """
 from core.models import FCTA, FCTB, SCD1
 from django.db import models
+from django_jsonform.models.fields import JSONField
 
 
 class LiturgicalTradition(SCD1):
@@ -44,8 +45,8 @@ class LiturgicalCalendarEntry(FCTB):
     Isti datum smije imati više redaka: npr. ponedjeljak vremena kroz godinu
     i usporedni svetac. Izvor uvoza je `romcal-croatia`; ostaje i ručni unos.
     Ponovni uvoz preskače red koji već postoji za isti izvor, datum i naziv.
-    Bitna polja: datum, naziv, prioritet, boja. `is_primary` je slavlje s
-    najvišim prioritetom toga dana.
+    `is_primary` je glavno slavlje dana (najviše jedno po datumu).
+    `priority` je Romcal rang samo za auto-odabir pri uvozu.
     """
 
     class Provider(models.TextChoices):
@@ -60,6 +61,33 @@ class LiturgicalCalendarEntry(FCTB):
         ROSE = 'rose', 'Ružičasta'
         BLACK = 'black', 'Crna'
         OTHER = 'other', 'Druga / nepoznata'
+
+    class PriorityLabel(models.TextChoices):
+        SVETKOVINA = 'Svetkovina', 'Svetkovina'
+        BLAGDAN = 'Blagdan', 'Blagdan'
+        SPOMENDAN = 'Spomendan', 'Spomendan'
+        SVAGDAN = 'Svagdan', 'Svagdan'
+        OSTALO = 'Ostalo', 'Ostalo'
+
+    READINGS_SCHEMA = {
+        'type': 'array',
+        'title': 'Čitanja',
+        'items': {
+            'type': 'dict',
+            'keys': {
+                'label': {
+                    'type': 'string',
+                    'title': 'Naziv',
+                    'default': '',
+                },
+                'value': {
+                    'type': 'string',
+                    'title': 'Kratica',
+                    'default': '',
+                },
+            },
+        },
+    }
 
     provider = models.CharField(
         'Izvor',
@@ -79,15 +107,31 @@ class LiturgicalCalendarEntry(FCTB):
         db_index=True,
     )
     priority = models.PositiveSmallIntegerField(
-        'Prioritet',
+        'Rang (Romcal)',
         default=0,
-        help_text='Stupanj slavlja; veći broj znači viši prioritet.',
+        help_text='Stupanj iz Romcala; koristi se samo za auto-odabir glavnog slavlja.',
     )
-    priority_label = models.CharField('Naziv prioriteta (svetkovina, blagdan, svagdan)', max_length=120, blank=True)
+    priority_label = models.CharField(
+        'Vrsta slavlja',
+        max_length=120,
+        blank=True,
+        choices=PriorityLabel.choices,
+    )
     is_primary = models.BooleanField(
         'Glavno slavlje dana',
         default=True,
         db_index=True,
+        help_text=(
+            'Ako označite ovo slavlje kao glavno, drugo glavno slavlje '
+            'na isti dan bit će odznačeno.'
+        ),
+    )
+    readings = JSONField(
+        'Čitanja (kratice)',
+        schema=READINGS_SCHEMA,
+        default=list,
+        blank=True,
+        help_text='Npr. Prvo čitanje → Pnz 7,14-22. Drugo čitanje je opcionalno.',
     )
 
     class Meta:

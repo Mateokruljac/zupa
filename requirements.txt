@@ -12,3 +12,9 @@ django-celery-beat==2.8.1
 redis==6.4.0
 romcal==4.0.0b6
 django-tenants==3.10.1
+django-ninja==1.4.5
+django-ninja-extra==0.30.2
+django-ninja-jwt==5.4.0
+django-jsonform==2.23.2
+
+django-jsonform==2.23.2

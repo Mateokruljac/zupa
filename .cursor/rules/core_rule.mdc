@@ -1,0 +1,215 @@
+---
+description: Primary database architecture and SCD/FACT model bases
+alwaysApply: true
+---
+
+
+# Python / Django Development Rules
+
+You are working on a production Python/Django codebase.
+
+Your highest priority is to produce code that is simple, readable, idiomatic, maintainable, and easy to review.
+
+## Core principles
+
+- Always follow Python and Django best practices.
+- Prefer the simplest correct solution.
+- Prefer standard Python and Django functionality over custom abstractions.
+- Write boring, predictable, conventional code.
+- Do not over-engineer.
+- Do not add complexity unless it is clearly justified by the requirement.
+- Optimize for readability and maintainability, not cleverness.
+- Make the smallest reasonable change needed to solve the task.
+
+## Before writing code
+
+Always inspect the existing codebase first.
+
+Before implementing anything:
+
+1. Find similar existing functionality.
+2. Understand the current architecture and conventions.
+3. Reuse existing patterns where appropriate.
+4. Check whether Python or Django already provides the required functionality.
+5. Consider whether the problem can be solved with fewer moving parts.
+
+Do not invent a new architecture when the existing project already has a reasonable pattern.
+
+## Avoid unnecessary abstractions
+
+Do not introduce:
+
+- unnecessary service classes
+- unnecessary repository layers
+- unnecessary factories
+- unnecessary wrappers
+- unnecessary helper classes
+- unnecessary DTOs
+- unnecessary generic abstractions
+- unnecessary interfaces
+- unnecessary design patterns
+- unnecessary dependencies
+
+Do not create an abstraction for a single simple use case.
+
+Only introduce an abstraction when it solves a real current problem, such as meaningful duplication, clear separation of responsibilities, or an established architectural requirement.
+
+Do not design for hypothetical future requirements.
+
+## Python
+
+Write idiomatic Python.
+
+Prefer:
+
+- clear control flow
+- descriptive names
+- small focused functions
+- standard library functionality
+- simple data structures
+- explicit behavior
+
+Avoid:
+
+- clever one-liners
+- deeply nested logic
+- excessive comprehensions
+- unnecessary metaprogramming
+- unnecessary inheritance
+- unnecessary decorators
+- premature optimization
+
+Use type hints when they improve clarity.
+
+Do not add typing complexity that makes simple code harder to understand.
+
+## Django
+
+Use Django the way Django is intended to be used.
+
+Prefer built-in Django functionality over custom implementations.
+
+Use:
+
+- Django ORM idiomatically
+- model methods when behavior naturally belongs to a model
+- QuerySets and managers when query logic genuinely benefits from reuse
+- forms and serializers according to their intended responsibilities
+- Django validation mechanisms
+- Django authentication and permissions
+- Django transactions where needed
+
+Avoid recreating functionality already provided by Django.
+
+Do not introduce repository patterns or custom persistence layers unless the project already uses them or there is a strong technical reason.
+
+Avoid raw SQL unless the ORM cannot reasonably solve the problem.
+
+Avoid unnecessary database queries and obvious N+1 problems.
+
+## Code structure
+
+Keep code close to where it belongs.
+
+Do not move logic into another file merely to make a function shorter.
+
+A helper function should exist because it improves clarity or reuse, not simply because code can be extracted.
+
+Avoid creating files containing only tiny abstractions with no meaningful value.
+
+Do not split simple logic across many layers.
+
+Prefer fewer well-designed components over many small indirections.
+
+## Existing code
+
+Respect the existing project architecture, naming conventions, style, and patterns.
+
+Do not refactor unrelated code.
+
+Do not rename unrelated variables, methods, files, or classes.
+
+Do not perform cleanup unrelated to the requested change.
+
+Do not rewrite working code solely because you prefer another style.
+
+Preserve backward compatibility unless explicitly instructed otherwise.
+
+## Error handling
+
+Handle errors at the appropriate level.
+
+Do not add broad `try/except` blocks unnecessarily.
+
+Do not silently swallow exceptions.
+
+Catch specific exceptions when recovery or meaningful handling is possible.
+
+Do not add defensive code for unrealistic situations unless required.
+
+## Comments and documentation
+
+Prefer self-explanatory code over excessive comments.
+
+Comments should explain why something exists, not describe obvious code.
+
+Do not generate verbose docstrings for trivial methods.
+
+Add documentation where behavior, assumptions, or business rules are not obvious.
+
+## Tests
+
+When tests are required:
+
+- test behavior, not implementation details
+- keep tests simple and readable
+- use existing project test conventions
+- avoid unnecessary mocking
+- prefer realistic test data and Django test utilities
+- do not create large test frameworks for simple behavior
+
+Do not add tests unrelated to the requested change.
+
+## Dependencies
+
+Do not add a new dependency if the problem can be reasonably solved using:
+
+1. Python standard library
+2. Django
+3. an existing project dependency
+
+New dependencies must provide clear value.
+
+## Decision rule
+
+If multiple implementations are possible, choose the one with:
+
+1. fewer moving parts
+2. less code
+3. fewer abstractions
+4. lower cognitive complexity
+5. stronger alignment with standard Python/Django conventions
+6. easier future maintenance
+
+If a solution becomes significantly larger or more complicated than the problem appears to require, stop and reconsider the approach.
+
+There is probably a simpler solution.
+
+## Final quality check
+
+Before finishing any implementation, verify:
+
+- Is this the simplest reasonable solution?
+- Is every new class, function, file, or abstraction necessary?
+- Did I use built-in Python or Django functionality where possible?
+- Did I follow existing project patterns?
+- Did I avoid changing unrelated code?
+- Is the code immediately understandable to an experienced Python/Django developer?
+- Would this code still be easy to modify six months from now?
+- Can anything be removed without reducing correctness or clarity?
+
+If code can be made simpler without sacrificing correctness, simplify it before finishing.
+
+The goal is not to generate more code.
+
+The goal is to generate the smallest amount of high-quality code necessary to solve the problem correctly.

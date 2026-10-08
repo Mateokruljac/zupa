@@ -20,10 +20,10 @@ logger = logging.getLogger(__name__)
 
 # Brojčani rang izvora → natpis ako red nema `priority_label`.
 GRADE_HR = {
-    0: 'Radni dan',
-    1: 'Izborni spomen',
-    2: 'Spomen',
-    3: 'Spomen',
+    0: 'Svagdan',
+    1: 'Spomendan',
+    2: 'Spomendan',
+    3: 'Spomendan',
     4: 'Blagdan',
     5: 'Blagdan',
     6: 'Svetkovina',
@@ -83,27 +83,26 @@ def _latin_event_name(calendar_event: dict) -> str:
     ).strip()
 
 
-def _mapped_source_colors(calendar_event: dict) -> list[str]:
-    """Boje izvora, već mapirane na enum, bez duplikata (rezerva kad nema kataloga)."""
-    mapped_colors = []
+def _fallback_source_color(calendar_event: dict) -> str:
+    """Prva poznata boja izvora, ili ``other``."""
     for token in _source_color_tokens(
         calendar_event.get('color') or calendar_event.get('color_lcl')
     ):
         alias = LITURGICAL_COLOR_ALIASES.get(token)
-        if alias and alias not in mapped_colors:
-            mapped_colors.append(alias)
-    return mapped_colors
+        if alias:
+            return alias
+    return LiturgicalCalendarEntry.LiturgicalColor.OTHER
 
 
-def _normalized_liturgical_color(calendar_event: dict) -> str:
-    """Boja iz kataloga (latinski ključ); inače prva boja izvora."""
-    _, catalog_color, found_in_catalog = localize_celebration(
-        _latin_event_name(calendar_event),
-    )
+def _localized_event(calendar_event: dict) -> tuple[str, str, str, bool]:
+    """(hrvatski naziv, latinski izvornik, boja enum, je li u katalogu)."""
+    original_name = _latin_event_name(calendar_event) or 'Liturgijsko slavlje'
+    display_name, catalog_color, found_in_catalog = localize_celebration(original_name)
     if found_in_catalog and catalog_color:
-        return _map_color_token(catalog_color)
-    mapped_colors = _mapped_source_colors(calendar_event)
-    return mapped_colors[0] if mapped_colors else LiturgicalCalendarEntry.LiturgicalColor.OTHER
+        color = _map_color_token(catalog_color)
+    else:
+        color = _fallback_source_color(calendar_event)
+    return display_name or original_name, original_name, color, found_in_catalog
 
 
 def _color_view(color: str) -> dict:
@@ -134,13 +133,6 @@ def _celebration_key(calendar_entry: LiturgicalCalendarEntry) -> tuple:
     return (calendar_entry.date, calendar_entry.name)
 
 
-def _display_names(calendar_event: dict) -> tuple[str, str, bool]:
-    """(hrvatski naziv, latinski izvornik, je li ključ u katalogu)."""
-    original_name = _latin_event_name(calendar_event) or 'Liturgijsko slavlje'
-    display_name, _, found_in_catalog = localize_celebration(original_name)
-    return display_name or original_name, original_name, found_in_catalog
-
-
 @with_tenant_schema
 def refresh_primary_flags(entry_dates) -> None:
     """Na datumu je glavno slavlje red s najvišim prioritetom.
@@ -157,7 +149,6 @@ def refresh_primary_flags(entry_dates) -> None:
         )
     entries_to_update = []
     for calendar_entries in calendar_entries_by_date.values():
-        # Isti prioritet: veći ``id`` pobjeđuje (stabilan izbor).
         primary_entry = max(
             calendar_entries,
             key=lambda calendar_entry: (calendar_entry.priority, calendar_entry.id),
@@ -173,6 +164,78 @@ def refresh_primary_flags(entry_dates) -> None:
             ['is_primary'],
             batch_size=500,
         )
+
+
+@with_tenant_schema
+def set_as_primary(calendar_entry: LiturgicalCalendarEntry) -> None:
+    """Označi red kao glavno slavlje; ostale na istom datumu demotiraj."""
+    LiturgicalCalendarEntry.objects.filter(date=calendar_entry.date).exclude(
+        pk=calendar_entry.pk,
+    ).update(is_primary=False)
+    if not calendar_entry.is_primary:
+        calendar_entry.is_primary = True
+        calendar_entry.save(update_fields=['is_primary', 'updated_at'])
+
+
+def readings_refs_from_hilp(hilp: dict | None) -> list[dict]:
+    """HILP scrape → lista ``{label, value}`` (samo kratice, bez punog teksta)."""
+    if not hilp:
+        return []
+    refs: list[dict] = []
+    for item in hilp.get('readings') or []:
+        label = str(item.get('label') or '').strip()
+        value = str(item.get('reference') or '').strip()
+        if label and value:
+            refs.append({'label': label, 'value': value})
+    return refs
+
+
+@with_tenant_schema
+def fill_primary_readings_from_hilp(entry_dates) -> int:
+    """Na primary zapisima bez čitanja upiši kratice s HILP-a.
+
+    Returns:
+        Broj ažuriranih zapisa.
+    """
+    from liturgija.services.liturgical_hilp import fetch_hilp_day
+
+    unique_dates = {entry_date for entry_date in entry_dates if entry_date}
+    if not unique_dates:
+        return 0
+    primary_entries = list(
+        LiturgicalCalendarEntry.objects.filter(
+            date__in=unique_dates,
+            is_primary=True,
+        )
+    )
+    entries_to_update = []
+    for primary_entry in primary_entries:
+        if primary_entry.readings:
+            continue
+        hilp = fetch_hilp_day(primary_entry.date.isoformat())
+        refs = readings_refs_from_hilp(hilp)
+        if not refs:
+            continue
+        primary_entry.readings = refs
+        entries_to_update.append(primary_entry)
+    if entries_to_update:
+        LiturgicalCalendarEntry.objects.bulk_update(
+            entries_to_update,
+            ['readings'],
+            batch_size=100,
+        )
+    return len(entries_to_update)
+
+
+@with_tenant_schema
+def fill_year_primary_readings_from_hilp(year: int) -> int:
+    """Upiši HILP kratice za sva primary slavlja godine bez čitanja."""
+    primary_dates = (
+        LiturgicalCalendarEntry.objects
+        .filter(date__year=year, is_primary=True)
+        .values_list('date', flat=True)
+    )
+    return fill_primary_readings_from_hilp(primary_dates)
 
 
 @with_tenant_schema
@@ -196,13 +259,15 @@ def _insert_calendar_entries(
         event_date = _event_date(calendar_event)
         if event_date < date_from or event_date > date_to:
             continue
-        name, original_name, found_in_catalog = _display_names(calendar_event)
+        name, original_name, liturgical_color, found_in_catalog = _localized_event(
+            calendar_event,
+        )
         calendar_entry = LiturgicalCalendarEntry(
             provider=provider,
             date=event_date,
             name=name,
             original_name=original_name,
-            liturgical_color=_normalized_liturgical_color(calendar_event),
+            liturgical_color=liturgical_color,
             priority=_event_priority(calendar_event),
             priority_label=str(
                 calendar_event.get('grade_lcl')
@@ -334,7 +399,7 @@ def _map_stored_calendar_day(
         ),
         'observances': observances,
         'celebrations': celebrations,
-        'readings': [],
+        'readings': list(primary_entry.readings or []),
         'hilpUrl': hilp_url(iso),
         'empty': False,
     }

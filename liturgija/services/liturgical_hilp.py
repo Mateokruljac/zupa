@@ -5,10 +5,22 @@ import html as html_lib
 import re
 import urllib.error
 import urllib.request
+from datetime import date
 
 from django.core.cache import cache
 
 HILP_BASE = 'https://hilp.hr/liturgija-dana/'
+
+# Slug bez dijakritike (WordPress permalink).
+WEEKDAY_SLUG = (
+    'ponedjeljak',
+    'utorak',
+    'srijeda',
+    'cetvrtak',
+    'petak',
+    'subota',
+    'nedjelja',
+)
 
 # (prefix u HTML naslovu, natpis koji ide u JSON)
 READING_KEYS = (
@@ -21,9 +33,21 @@ READING_KEYS = (
 
 
 def hilp_url(iso: str) -> str:
-    """Javni URL za datum (link u UI i za fetch)."""
-    y, m, d = iso.split('-')
-    return f'{HILP_BASE}?god={y}&mj={int(m)}&dan={int(d)}'
+    """Javni URL za datum: ``…/cetvrtak-25-12-2025/``.
+
+    Query ``?god=&mj=&dan=`` HILP više ne poštuje (preusmjerava na danas).
+    """
+    year, month, day = (int(part) for part in iso.split('-')[:3])
+    entry_date = date(year, month, day)
+    slug = f'{WEEKDAY_SLUG[entry_date.weekday()]}-{day}-{month}-{year}'
+    return f'{HILP_BASE}{slug}/'
+
+
+def _page_matches_date(html: str, iso: str) -> bool:
+    """Je li u HTML-u naslov traženog datuma (npr. ``25. 12. 2025``)."""
+    year, month, day = (int(part) for part in iso.split('-')[:3])
+    needle = f'{day}. {month}. {year}'
+    return needle in html
 
 
 def _strip_html(fragment: str) -> str:
@@ -34,9 +58,12 @@ def _strip_html(fragment: str) -> str:
 
 
 def _parse_blurbs(html: str) -> list[tuple[str, str]]:
-    """Divi Divi themesa: par (naslov h4, opis)."""
+    """Divi Divi themesa: par (naslov h4, opis).
+
+    Stari HTML ima ``<span>`` unutar h4; noviji često nema.
+    """
     pattern = re.compile(
-        r'<h4 class="et_pb_module_header"><span>(.*?)</span></h4>\s*'
+        r'<h4 class="et_pb_module_header">(?:<span>)?(.*?)(?:</span>)?</h4>\s*'
         r'<div class="et_pb_blurb_description">(.*?)</div>',
         re.S | re.I,
     )
@@ -147,7 +174,7 @@ def _parse_hilp_html(html: str) -> dict:
 
 def fetch_hilp_day(iso: str) -> dict | None:
     """Dohvati i parsiraj dan; 24 h cache. None ako mreža ili prazna stranica."""
-    cache_key = f'hilp_day_v1_{iso}'
+    cache_key = f'hilp_day_v3_{iso}'
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -157,7 +184,10 @@ def fetch_hilp_day(iso: str) -> dict | None:
         req = urllib.request.Request(url, headers={'User-Agent': 'Pastoral/1.0 (+zupa)'})
         with urllib.request.urlopen(req, timeout=25) as resp:
             html = resp.read().decode('utf-8', errors='replace')
-    except (urllib.error.URLError, TimeoutError, OSError):
+    except (urllib.error.URLError, TimeoutError, OSError, UnicodeEncodeError):
+        return None
+
+    if not _page_matches_date(html, iso):
         return None
 
     parsed = _parse_hilp_html(html)

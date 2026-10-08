@@ -25,10 +25,10 @@
           day.readings
             .map(
               (r) =>
-                `<details class="lit-reading-item">` +
-                `<summary class="lit-reading-summary">${esc(r.label)}</summary>` +
-                `<div class="lit-reading-text">${esc(r.text)}</div>` +
-                `</details>`
+                `<div class="lit-reading-item">` +
+                `<span class="lit-reading-summary">${esc(r.label)}</span>` +
+                `<div class="lit-reading-text">${esc(r.value || r.text || "")}</div>` +
+                `</div>`
             )
             .join("") +
           `</div>`;

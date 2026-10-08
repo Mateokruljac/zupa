@@ -23,6 +23,7 @@ SHARED_APPS = [
     'django.contrib.auth',
     'admin_interface',
     'colorfield',
+    'django_jsonform',
     'django.contrib.admin',
     'django.contrib.sessions',
     'django.contrib.messages',

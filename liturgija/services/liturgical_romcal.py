@@ -10,10 +10,10 @@ from functools import lru_cache
 
 RANK_HR = {
     'solemnity': 'Svetkovina',
-    'sunday': 'Nedjelja',
+    'sunday': 'Ostalo',
     'feast': 'Blagdan',
-    'memorial': 'Spomen',
-    'optional_memorial': 'Izborni spomen',
+    'memorial': 'Spomendan',
+    'optional_memorial': 'Spomendan',
     'weekday': 'Svagdan',
 }
 

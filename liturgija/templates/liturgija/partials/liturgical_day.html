@@ -52,20 +52,19 @@
       <span class="lit-readings-chev" aria-hidden="true"></span>
       <span class="lit-readings-title">Čitanja</span>
       <span class="badge">{{ lit_day.readings|length }}</span>
-      {% if lit_day.readingsSource == 'hilp' %}<small class="card-sub">(HILP)</small>{% endif %}
     </summary>
     <div class="lit-readings-body">
       {% for r in lit_day.readings %}
-      <details class="lit-reading-item">
-        <summary class="lit-reading-summary">{{ r.label }}</summary>
-        <div class="lit-reading-text">{{ r.text }}</div>
-      </details>
+      <div class="lit-reading-item">
+        <span class="lit-reading-summary">{{ r.label }}</span>
+        <div class="lit-reading-text">{{ r.value }}</div>
+      </div>
       {% endfor %}
     </div>
   </details>
   {% elif lit_day.source == 'offline' %}
   <p class="empty-state" style="margin-top:12px">Liturgijski podaci trenutno nisu dostupni. Pokušajte osvježiti stranicu ili otvorite HILP.</p>
   {% else %}
-  <p class="card-sub" style="margin-top:12px">Čitanja nisu učitana — <a href="{{ lit_day.hilpUrl }}" target="_blank" rel="noopener">otvori HILP</a>.</p>
+  <p class="card-sub" style="margin-top:12px">Čitanja nisu unesena — <a href="{{ lit_day.hilpUrl }}" target="_blank" rel="noopener">otvori HILP</a>.</p>
   {% endif %}
 </section>

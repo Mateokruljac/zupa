@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from django.utils import timezone
 
-from liturgija.services.liturgical import LiturgicalService
+from liturgija.services.liturgical import get_day
 from liturgija.services.mass_schedule import get_masses_for_date
 
 if TYPE_CHECKING:
@@ -412,5 +412,5 @@ def build_dashboard_context(
         'today_masses': todays_masses,
         'next_mass': next_mass,
         'today': today,
-        'liturgical_day': LiturgicalService().get_day(today),
+        'liturgical_day': get_day(today),
     }

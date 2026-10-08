@@ -223,7 +223,7 @@
     const readings = day.readings || [];
     const readingsHtml = readings.length
       ? `<ul class="lit-readings">${readings
-          .map((r) => `<li><span class="lit-readings-label">${esc(r.label)}</span> ${esc(r.text)}</li>`)
+          .map((r) => `<li><span class="lit-readings-label">${esc(r.label)}</span> ${esc(r.value || r.text || "")}</li>`)
           .join("")}</ul>`
       : `<p class="card-sub">Puni tekst čitanja i časoslov na <a href="${esc(day.hilpUrl)}" target="_blank" rel="noopener">HILP — Liturgija dana</a> (hrvatski).</p>`;
 

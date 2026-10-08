@@ -2,7 +2,7 @@
  * Misne nakane — klijentski prikaz (Danas / Kalendar / Sve nakane).
  *
  * Podaci dolaze iz Django bootstrap JSON-a (#nakane-bootstrap-data),
- * a CRUD ide preko PastoralApi.action() (server vraća osvježene podatke).
+ * a CRUD ide preko PastoralApi.create/update/deleteIntention().
  * Liturgijski sadržaj puni PastoralLiturgical iz baze (HILP je poveznica).
  */
 (function (global) {
@@ -91,22 +91,42 @@
     }
   }
 
-  function syncFromData(data) {
-    if (!data) return;
-    if (Array.isArray(data.intentions)) state.intentions = data.intentions;
-    if (Array.isArray(data.massSchedule)) state.massSchedule = data.massSchedule;
-    if (Array.isArray(data.massExceptions)) state.massExceptions = data.massExceptions;
+  function upsertLocalIntention(item) {
+    const remaining = state.intentions.filter((intention) => intention.id !== item.id);
+    remaining.push(item);
+    state.intentions = remaining;
   }
 
-  async function runAction(name, payload) {
+  async function createIntention(fields) {
     const Api = global.PastoralApi;
-    if (!Api?.action) {
+    if (!Api?.createIntention) {
       showToast("API nije učitan");
       throw new Error("no_api");
     }
-    const res = await Api.action(name, payload);
-    if (res?.data) syncFromData(res.data);
-    return res;
+    const item = await Api.createIntention(fields);
+    upsertLocalIntention(item);
+    return item;
+  }
+
+  async function updateIntention(intentionId, fields) {
+    const Api = global.PastoralApi;
+    if (!Api?.updateIntention) {
+      showToast("API nije učitan");
+      throw new Error("no_api");
+    }
+    const item = await Api.updateIntention(intentionId, fields);
+    upsertLocalIntention(item);
+    return item;
+  }
+
+  async function deleteIntention(intentionId) {
+    const Api = global.PastoralApi;
+    if (!Api?.deleteIntention) {
+      showToast("API nije učitan");
+      throw new Error("no_api");
+    }
+    await Api.deleteIntention(intentionId);
+    state.intentions = state.intentions.filter((intention) => intention.id !== intentionId);
   }
 
   function dayIntentions(iso) {
@@ -831,7 +851,7 @@
         const id = btn.dataset.delIntent;
         const doDelete = async () => {
           try {
-            await runAction("delete_intention", id);
+            await deleteIntention(id);
             showToast("Nakana obrisana");
             refresh();
           } catch {
@@ -910,7 +930,7 @@
     };
   }
 
-  /** Modal nove nakane; sprema create_intention preko PastoralApi. */
+  /** Modal nove nakane; POST /api/intentions/. */
   function openAddModal(iso) {
     const M = global.PastoralModal;
     if (!M?.openForm) return;
@@ -929,7 +949,7 @@
         if (!fields) return false;
         (async () => {
           try {
-            await runAction("create_intention", fields);
+            await createIntention(fields);
             M.close();
             showToast(fields.paid ? "Nakana i stipendij su evidentirani" : "Nakana spremljena");
             refresh();
@@ -947,7 +967,7 @@
     });
   }
 
-  /** Modal uređivanja; update_intention na server. */
+  /** Modal uređivanja; PATCH /api/intentions/:id/. */
   function openEditModal(id) {
     const M = global.PastoralModal;
     if (!M?.openForm) return;
@@ -968,7 +988,7 @@
         if (!fields) return false;
         (async () => {
           try {
-            await runAction("update_intention", { id: record.id, data: fields });
+            await updateIntention(record.id, fields);
             M.close();
             showToast("Nakana ažurirana");
             refresh();

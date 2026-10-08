@@ -13,7 +13,10 @@ from liturgija.models import (
     LiturgicalTradition,
 )
 from django_multitenant.schema import with_tenant_schema
-from liturgija.services.liturgical_imports import refresh_primary_flags
+from liturgija.services.liturgical_imports import (
+    refresh_primary_flags,
+    set_as_primary,
+)
 from liturgija.tasks import delete_calendar_entries_task, import_calendar_package_task
 from pastoral.admin_mixins import (
     ParishTechnicalAdminMixin,
@@ -27,7 +30,7 @@ class LiturgicalTraditionAdmin(ProtectedReferenceAdminMixin, admin.ModelAdmin):
     list_filter = ('is_active',)
     search_fields = ('name',)
     readonly_fields = ('id', 'created_at', 'updated_at')
-    fields = ('id', 'namovaj e', 'description', 'is_active', 'created_at', 'updated_at')
+    fields = ('id', 'name', 'description', 'is_active', 'created_at', 'updated_at')
 
 
 @admin.register(BulletinIssue)
@@ -65,11 +68,12 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
     date_hierarchy = 'date'
     ordering = ('-date', '-priority', 'name')
     readonly_fields = (
-        'provider', 'is_primary', 'created_at', 'updated_at',
+        'provider', 'created_at', 'updated_at',
     )
     fields = (
         'date', 'name', 'original_name', 'liturgical_color',
-        'priority', 'priority_label', 'is_primary', 'provider',
+        'priority', 'priority_label', 'is_primary',
+        'readings', 'provider',
         'created_at', 'updated_at',
     )
 
@@ -116,7 +120,7 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
                         request,
                         f'Uneseno {payload["created"]} redaka, preskočeno '
                         f'{payload["skipped"]} jer već postoje za taj izvor, '
-                        'datum i slavlje.',
+                        'datum i slavlje. Čitanja s HILP-a se uvoze u pozadini.',
                     )
                 else:
                     form.add_error('year', payload.get('error') or 'Uvoz nije uspio.')
@@ -129,8 +133,8 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
             else:
                 messages.info(
                     request,
-                    f'Uvoz {year}. godine je pokrenut u pozadini. Osvježite '
-                    'popis kad worker završi.',
+                    f'Uvoz {year}. godine je pokrenut u pozadini (Romcal, zatim '
+                    'HILP čitanja). Osvježite popis kad worker završi.',
                 )
             return HttpResponseRedirect(
                 reverse('admin:liturgija_liturgicalcalendarentry_changelist')
@@ -159,7 +163,7 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
 
     @with_tenant_schema
     def save_model(self, request, calendar_entry, form, change):
-        """Ručni red: provider MANUAL pri kreiranju; pa ``is_primary`` na starom i novom datumu."""
+        """Ručni red: MANUAL; jedan primary po danu (ostalo se odznači)."""
         previous_date = None
         if change:
             previous_date = (
@@ -170,8 +174,32 @@ class LiturgicalCalendarEntryAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
             )
         else:
             calendar_entry.provider = LiturgicalCalendarEntry.Provider.MANUAL
-        super().save_model(request, calendar_entry, form, change)
-        refresh_primary_flags({calendar_entry.date, previous_date})
+
+        want_primary = bool(form.cleaned_data.get('is_primary'))
+        if want_primary:
+            other = (
+                LiturgicalCalendarEntry.objects
+                .filter(date=calendar_entry.date, is_primary=True)
+            )
+            if calendar_entry.pk:
+                other = other.exclude(pk=calendar_entry.pk)
+            other_name = other.values_list('name', flat=True).first()
+            calendar_entry.is_primary = True
+            super().save_model(request, calendar_entry, form, change)
+            set_as_primary(calendar_entry)
+            if other_name:
+                messages.info(
+                    request,
+                    f'„{other_name}” više nije označeno kao glavno slavlje '
+                    f'za {calendar_entry.date:%d.%m.%Y.}.',
+                )
+        else:
+            calendar_entry.is_primary = False
+            super().save_model(request, calendar_entry, form, change)
+            refresh_primary_flags({calendar_entry.date})
+
+        if previous_date and previous_date != calendar_entry.date:
+            refresh_primary_flags({previous_date})
 
     def has_delete_permission(self, request, obj=None):
         return bool(request.user.is_active and request.user.is_staff)

@@ -45,6 +45,55 @@
     return body;
   }
 
+  async function jsonRequest(url, { method, body } = {}) {
+    const headers = { "X-CSRFToken": csrfToken() };
+    const options = { method: method || "GET", credentials: "same-origin", headers };
+    if (body !== undefined) {
+      headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(body);
+    }
+    const res = await fetch(url, options);
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || payload.ok === false) {
+      const err = new Error(payload.error || payload.detail || "request_failed");
+      err.details = payload;
+      throw err;
+    }
+    return payload;
+  }
+
+  function upsertCachedIntention(item) {
+    if (!cache || !item) return;
+    const list = Array.isArray(cache.intentions) ? cache.intentions : [];
+    cache.intentions = list.filter((intention) => intention.id !== item.id).concat(item);
+  }
+
+  async function createIntention(fields) {
+    const response = await jsonRequest("/api/intentions/", {
+      method: "POST",
+      body: fields,
+    });
+    upsertCachedIntention(response.item);
+    return response.item;
+  }
+
+  async function updateIntention(intentionId, fields) {
+    const response = await jsonRequest(`/api/intentions/${intentionId}/`, {
+      method: "PATCH",
+      body: fields,
+    });
+    upsertCachedIntention(response.item);
+    return response.item;
+  }
+
+  async function deleteIntention(intentionId) {
+    const response = await jsonRequest(`/api/intentions/${intentionId}/`, { method: "DELETE" });
+    if (cache && Array.isArray(cache.intentions)) {
+      cache.intentions = cache.intentions.filter((intention) => intention.id !== intentionId);
+    }
+    return response;
+  }
+
   function getCache() {
     return cache ? JSON.parse(JSON.stringify(cache)) : null;
   }
@@ -69,6 +118,9 @@
 
   global.PastoralApi = {
     action,
+    createIntention,
+    updateIntention,
+    deleteIntention,
     load,
     getCache,
     ensureLoaded,

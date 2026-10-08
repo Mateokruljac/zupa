@@ -1,6 +1,7 @@
 """Pozadinski uvoz/brisanje liturgijskog kalendara (Celery).
 
-Generiranje Romcala je CPU-teško; worker drži posao izvan HTTP zahtjeva.
+Generiranje Romcala je CPU-teško; HILP čitanja su mrežno teška (po danu).
+Oba idu u worker, odvojeno, da HTTP admin zahtjev ne čeka.
 ``schema_name`` bira PostgreSQL shemu župe.
 """
 from __future__ import annotations
@@ -10,21 +11,18 @@ import logging
 from celery import shared_task
 from django.core.exceptions import ValidationError
 
+from django_multitenant.schema import run_in_tenant_schema
 from liturgija.models import LiturgicalCalendarEntry
-from django_multitenant.schema import with_tenant_schema
 
 logger = logging.getLogger(__name__)
 
 
 @shared_task
 def import_calendar_package_task(provider: str, year: int, schema_name: str | None = None) -> dict:
-    """Uvezi Romcal paket za godinu u tablicu trenutne sheme."""
-    from django_multitenant.schema import run_in_tenant_schema
+    """Uvezi Romcal paket za godinu, pa u pozadini pokreni HILP čitanja."""
     from liturgija.services.liturgical_imports import import_romcal_package_year
 
     with run_in_tenant_schema(schema_name):
-        if provider != LiturgicalCalendarEntry.Provider.ROMCAL_CROATIA:
-            raise ValueError(f'Nepoznat izvor uvoza: {provider}')
         try:
             created_count, skipped_count = import_romcal_package_year(year)
         except ValidationError as validation_error:
@@ -35,20 +33,37 @@ def import_calendar_package_task(provider: str, year: int, schema_name: str | No
                 'year': year,
                 'error': str(validation_error),
             }
-        return {
-            'ok': True,
-            'provider': provider,
-            'year': year,
-            'created': created_count,
-            'skipped': skipped_count,
-        }
+
+    fill_calendar_readings_task.delay(year, schema_name=schema_name)
+    return {
+        'ok': True,
+        'provider': provider,
+        'year': year,
+        'created': created_count,
+        'skipped': skipped_count,
+        'readings_task': 'queued',
+    }
+
+
+@shared_task(soft_time_limit=60 * 60, time_limit=60 * 60 + 120)
+def fill_calendar_readings_task(year: int, schema_name: str | None = None) -> dict:
+    """U pozadini upiši HILP kratice čitanja za primary zapise godine."""
+    from liturgija.services.liturgical_imports import fill_year_primary_readings_from_hilp
+
+    with run_in_tenant_schema(schema_name):
+        updated = fill_year_primary_readings_from_hilp(year)
+        logger.info(
+            'HILP čitanja za %s: ažurirano %s primary zapisa (schema=%s)',
+            year,
+            updated,
+            schema_name,
+        )
+        return {'ok': True, 'year': year, 'updated': updated}
 
 
 @shared_task
-@with_tenant_schema
 def delete_calendar_entries_task(entry_ids: list[int], schema_name: str | None = None) -> dict:
     """Masovno brisanje kalendara (chunk 500) pa osvježi ``is_primary``."""
-    from django_multitenant.schema import run_in_tenant_schema
     from liturgija.services.liturgical_imports import refresh_primary_flags
 
     with run_in_tenant_schema(schema_name):

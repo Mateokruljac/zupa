@@ -1,6 +1,6 @@
 ---
 description: Primary database architecture and SCD/FACT model bases
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Database architecture (mandatory)

@@ -91,6 +91,21 @@ def get_masses_for_date(data: dict, iso: str) -> list[dict]:
     return slots
 
 
+def has_scheduled_mass(data: dict, iso_date: str, mass_time: str) -> bool:
+    """True ako tog dana u rasporedu (plus iznimke) postoji misa u tom satu."""
+    if not iso_date or not mass_time:
+        return False
+    normalized_date = str(iso_date)[:10]
+    try:
+        date.fromisoformat(normalized_date)
+    except ValueError:
+        return False
+    return any(
+        str(mass.get('time') or '') == str(mass_time)
+        for mass in get_masses_for_date(data, normalized_date)
+    )
+
+
 def format_mass_schedule_html(data: dict) -> str:
     """HTML popis stalnog rasporeda za župni listić."""
     rows = data.get('massSchedule') or []

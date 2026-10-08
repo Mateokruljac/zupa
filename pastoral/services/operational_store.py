@@ -10,14 +10,12 @@ from __future__ import annotations
 
 import copy
 import uuid
-from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 from django.db.models import Prefetch
 
 from core.models import close_current_scd2_rows
-from core.utils import _parse_iso_date, _iso_or_empty
 from pastoral.models import Parish
 from financije.models import (
     CashbookEntry,
@@ -35,12 +33,15 @@ from liturgija.models import (
 
 
 from liturgija.services.mass_records import (
+    bulletin_issue_as_legacy_record,
+    bulletin_issue_field_defaults_from_legacy,
     mass_exception_as_legacy_record,
     mass_exception_field_defaults_from_legacy,
     mass_intention_as_legacy_record,
     mass_intention_field_defaults_from_legacy,
     mass_schedule_slot_as_legacy_record,
     mass_schedule_slot_field_defaults_from_legacy,
+    parse_optional_uuid,
 )
 from ured.services.office_records import (
     announcement_as_legacy_record,
@@ -92,43 +93,6 @@ from financije.services.finance_records import (
 )
 
 
-
-def bulletin_issue_field_defaults_from_legacy(record: dict) -> dict:
-    """JS dict → kwargs za ``BulletinIssue`` (bez PK)."""
-    layout = record.get('layoutSnapshot')
-    if not isinstance(layout, dict):
-        layout = {}
-    status = str(record.get('status') or BulletinIssue.Status.PUBLISHED)
-    if status not in BulletinIssue.Status.values:
-        status = BulletinIssue.Status.PUBLISHED
-    week_start = _parse_iso_date(record.get('weekStart'))
-    week_end = _parse_iso_date(record.get('weekEnd'))
-    if week_start is not None and week_end is None:
-        week_end = week_start + timedelta(days=6)
-    return {
-        'week_start': week_start,
-        'week_end': week_end,
-        'title': str(record.get('title') or '')[:255],
-        'status': status,
-        'layout': copy.deepcopy(layout),
-        'rendered_html': str(record.get('renderedHtml') or ''),
-    }
-
-
-def bulletin_issue_as_legacy_record(issue: BulletinIssue) -> dict:
-    """Red tablice listića → dict koji čita JS i povijest izdanja."""
-    layout = issue.layout if isinstance(issue.layout, dict) else {}
-    return {
-        'id': str(issue.id),
-        'weekStart': _iso_or_empty(issue.week_start),
-        'weekEnd': _iso_or_empty(issue.week_end),
-        'title': issue.title or '',
-        'status': issue.status or BulletinIssue.Status.PUBLISHED,
-        'layoutSnapshot': copy.deepcopy(layout),
-        'renderedHtml': issue.rendered_html or '',
-        'createdAt': issue.created_at.isoformat() if issue.created_at else '',
-        'updatedAt': issue.updated_at.isoformat() if issue.updated_at else '',
-    }
 
 # Kolekcije koje više ne smiju ostati u Parish.data nakon cutovera.
 ORM_BACKED_COLLECTION_KEYS = frozenset({
@@ -214,115 +178,70 @@ def _replace_typed_collection(
     ).delete()
 
 
-def _replace_mass_intentions(records: list) -> None:
+def _replace_uuid_model_collection(
+    model,
+    records: list,
+    *,
+    defaults_from_legacy,
+    skip_defaults=None,
+) -> None:
+    """Upsert po UUID ``id`` pa obriši redove kojih više nema u listi."""
     keep_pks = set()
     for record in records or []:
         if not isinstance(record, dict):
             continue
-        defaults = mass_intention_field_defaults_from_legacy(record)
-        try:
-            pk = uuid.UUID(str(record.get('id')))
-        except (ValueError, TypeError, AttributeError):
-            pk = None
-        if pk:
-            intention = MassIntention.objects.filter(pk=pk).first()
-            if intention is not None:
-                for field_name, field_value in defaults.items():
-                    setattr(intention, field_name, field_value)
-                intention.save()
-                keep_pks.add(intention.pk)
-                continue
-        intention = MassIntention(**defaults)
-        intention.save()
-        keep_pks.add(intention.pk)
-    MassIntention.objects.exclude(pk__in=keep_pks).delete()
-
-
-def _replace_mass_schedule_slots(records: list) -> None:
-    keep_pks = set()
-    for record in records or []:
-        if not isinstance(record, dict):
+        defaults = defaults_from_legacy(record)
+        if skip_defaults and skip_defaults(defaults):
             continue
-        defaults = mass_schedule_slot_field_defaults_from_legacy(record)
-        try:
-            pk = uuid.UUID(str(record.get('id')))
-        except (ValueError, TypeError, AttributeError):
-            pk = None
-        if pk:
-            slot = MassScheduleSlot.objects.filter(pk=pk).first()
-            if slot is not None:
-                for field_name, field_value in defaults.items():
-                    setattr(slot, field_name, field_value)
-                slot.save()
-                keep_pks.add(slot.pk)
-                continue
-        slot = MassScheduleSlot(**defaults)
-        slot.save()
-        keep_pks.add(slot.pk)
-    MassScheduleSlot.objects.exclude(pk__in=keep_pks).delete()
-
-
-def _replace_mass_exceptions(records: list) -> None:
-    keep_pks = set()
-    for record in records or []:
-        if not isinstance(record, dict):
-            continue
-        defaults = mass_exception_field_defaults_from_legacy(record)
-        try:
-            pk = uuid.UUID(str(record.get('id')))
-        except (ValueError, TypeError, AttributeError):
-            pk = None
-        if pk:
-            exception = MassException.objects.filter(pk=pk).first()
-            if exception is not None:
-                for field_name, field_value in defaults.items():
-                    setattr(exception, field_name, field_value)
-                exception.save()
-                keep_pks.add(exception.pk)
-                continue
-        exception = MassException(**defaults)
-        exception.save()
-        keep_pks.add(exception.pk)
-    MassException.objects.exclude(pk__in=keep_pks).delete()
-
-
-def _replace_bulletin_issues(records: list) -> None:
-    keep_pks = set()
-    for record in records or []:
-        if not isinstance(record, dict):
-            continue
-        defaults = bulletin_issue_field_defaults_from_legacy(record)
-        if defaults['week_start'] is None or defaults['week_end'] is None:
-            continue
-        try:
-            pk = uuid.UUID(str(record.get('id')))
-        except (ValueError, TypeError, AttributeError):
-            pk = None
-        issue = None
-        if pk:
-            issue = BulletinIssue.objects.filter(pk=pk).first()
-        if issue is None:
-            issue = BulletinIssue(**defaults)
-            issue.save()
+        pk = parse_optional_uuid(record.get('id'))
+        instance = model.objects.filter(pk=pk).first() if pk else None
+        if instance is None:
+            instance = model(**defaults)
         else:
             for field_name, field_value in defaults.items():
-                setattr(issue, field_name, field_value)
-            issue.save()
-        keep_pks.add(issue.pk)
-    BulletinIssue.objects.exclude(pk__in=keep_pks).delete()
+                setattr(instance, field_name, field_value)
+        instance.save()
+        keep_pks.add(instance.pk)
+    model.objects.exclude(pk__in=keep_pks).delete()
+
+
+# key → (model, defaults_from_legacy, optional skip_defaults)
+_LITURGICAL_SAVERS = {
+    'intentions': (MassIntention, mass_intention_field_defaults_from_legacy, None),
+    'massSchedule': (
+        MassScheduleSlot,
+        mass_schedule_slot_field_defaults_from_legacy,
+        None,
+    ),
+    'massExceptions': (
+        MassException,
+        mass_exception_field_defaults_from_legacy,
+        None,
+    ),
+    'zupniListicIssues': (
+        BulletinIssue,
+        bulletin_issue_field_defaults_from_legacy,
+        lambda defaults: (
+            defaults['week_start'] is None or defaults['week_end'] is None
+        ),
+    ),
+}
 
 
 @with_tenant_schema
 def _save_liturgical_collections(parish: Parish, parish_data: dict) -> None:
-    _replace_mass_intentions(parish_data.get('intentions'))
-    _replace_mass_schedule_slots(parish_data.get('massSchedule'))
-    _replace_mass_exceptions(parish_data.get('massExceptions'))
-    _replace_bulletin_issues(parish_data.get('zupniListicIssues'))
+    for key, (model, defaults_fn, skip_fn) in _LITURGICAL_SAVERS.items():
+        _replace_uuid_model_collection(
+            model,
+            parish_data.get(key),
+            defaults_from_legacy=defaults_fn,
+            skip_defaults=skip_fn,
+        )
 
 
 @with_tenant_schema
 def save_liturgical_collections(parish: Parish, parish_data: dict) -> None:
-    """Spremi samo kolekcije koje mijenja aktivni liturgijski JSON API."""
+    """Spremi sve liturgijske ORM kolekcije iz parish dicta (puni save)."""
     with transaction.atomic():
         _save_liturgical_collections(parish, parish_data)
         parish.save(update_fields=['updated_at'])

@@ -10,19 +10,13 @@ from django.template.loader import render_to_string
 
 from pastoral.services.dates import fmt_hr_short as fmt_short
 from pastoral.services.dates import week_end_from, week_start_from
-from liturgija.services.liturgical import LiturgicalService
 from liturgija.services.mass_schedule import format_mass_schedule_html as format_mass_schedule
 from liturgija.config.zupni_listic_config_data import ZUPNI_LISTIC_CONFIG
 
-_config_cache: dict | None = None
-
 
 def load_config() -> dict:
-    """Vrste blokova i default layout iz Python dicta (kopija, da se ne mutira modul)."""
-    global _config_cache
-    if _config_cache is None:
-        _config_cache = copy.deepcopy(ZUPNI_LISTIC_CONFIG)
-    return copy.deepcopy(_config_cache)
+    """Vrste blokova i default layout (kopija, da se ne mutira modul)."""
+    return copy.deepcopy(ZUPNI_LISTIC_CONFIG)
 
 
 def plain_text_to_html(text: str | None) -> str:
@@ -65,28 +59,6 @@ def get_layout(data: dict | None = None, config: dict | None = None) -> dict:
     """Kostur listića: default iz koda, ne spremljeni predložak župe."""
     cfg = config or load_config()
     return _strip_legacy_listic_defaults(copy.deepcopy(cfg['defaultLayout']))
-
-
-def migrate_listic_data(data: dict) -> dict:
-    """Osiguraj listu izdanja (in-place)."""
-    if not isinstance(data.get('zupniListicIssues'), list):
-        data['zupniListicIssues'] = []
-    return data
-
-
-def liturgical_color_hint(iso: str) -> str:
-    """Kratki natpis boje/dana za UI; fallback po danu u tjednu ako kalendar prazan."""
-    day = LiturgicalService().get_day(iso, with_hilp=False)
-    if day.get('colorLabel'):
-        return day['colorLabel']
-    if day.get('title') and day.get('source') != 'offline':
-        return day['title']
-    d = date.fromisoformat(iso)
-    if d.weekday() == 6:
-        return 'Zelena (ili liturgija dana)'
-    if d.weekday() == 4:
-        return 'Ljubičasta / crvena (petak)'
-    return 'Zelena (ferija)'
 
 
 def format_nakane_html(data: dict, week_start: str) -> str:

@@ -11,12 +11,9 @@ from typing import TYPE_CHECKING
 from django.db import transaction
 
 from liturgija.api_actions import (
-    create_intention,
-    delete_intention,
     delete_listic_issue,
     delete_mass_schedule,
     render_listic_preview,
-    update_intention,
     upsert_listic_issue,
     upsert_mass_schedule,
 )
@@ -27,9 +24,6 @@ if TYPE_CHECKING:
 
 
 ACTION_HANDLERS = {
-    'create_intention': create_intention,
-    'update_intention': update_intention,
-    'delete_intention': delete_intention,
     'upsert_mass_schedule': upsert_mass_schedule,
     'delete_mass_schedule': delete_mass_schedule,
     'upsert_listic_issue': upsert_listic_issue,
@@ -43,24 +37,9 @@ LITURGICAL_RESPONSE_KEYS = (
     'massExceptions',
     'zupniListicIssues',
 )
-
-
-READ_ONLY_ACTION_NAMES = frozenset({
-    'render_listic_preview',
-})
-# Handler sam piše u bazu; dict se ne smije ponovo spremati (ponovno bi stvorio red).
-DATABASE_WRITTEN_ACTION_NAMES = frozenset({
-    'create_intention',
-    'update_intention',
-    'delete_intention',
-})
-MUTATING_LITURGICAL_ACTION_NAMES = (
-    LITURGICAL_ACTION_NAMES - READ_ONLY_ACTION_NAMES
-)
-
-SETTINGS_AWARE_ACTION_NAMES = READ_ONLY_ACTION_NAMES | frozenset({
-    'upsert_listic_issue',
-})
+READ_ONLY_ACTION_NAMES = frozenset({'render_listic_preview'})
+MUTATING_LITURGICAL_ACTION_NAMES = LITURGICAL_ACTION_NAMES - READ_ONLY_ACTION_NAMES
+SETTINGS_AWARE_ACTION_NAMES = READ_ONLY_ACTION_NAMES | {'upsert_listic_issue'}
 
 
 def dispatch_action(
@@ -110,21 +89,6 @@ def _dispatch_action(
             action_payload or {},
             parish_settings,
         )
-    elif action_name == 'create_intention':
-        # Samo podaci forme.
-        action_result = action_handler(action_payload or {})
-    elif action_name == 'update_intention':
-        # JS šalje { id, data: polja forme }.
-        payload = action_payload or {}
-        action_result = action_handler(payload.get('id'), payload.get('data') or {})
-    elif action_name == 'delete_intention':
-        # JS šalje samo id (string), stariji klijent može poslati { id }.
-        intention_id = (
-            action_payload.get('id')
-            if isinstance(action_payload, dict)
-            else action_payload
-        )
-        action_result = action_handler(intention_id)
     else:
         action_result = action_handler(parish_data, action_payload or {})
 
@@ -133,28 +97,23 @@ def _dispatch_action(
     if not action_result.get('ok', True):
         return action_result
 
-    if action_name in DATABASE_WRITTEN_ACTION_NAMES:
-        parish_data = parish_data_service.load()
-    elif action_name in LITURGICAL_ACTION_NAMES:
-        parish_data_service.save_liturgical(parish_data)
-    else:
-        parish_data_service.save(parish_data)
-    additional_response_data = {
-        response_key: response_value
-        for response_key, response_value in action_result.items()
-        if response_key != 'ok'
-    }
     if action_name in LITURGICAL_ACTION_NAMES:
+        # Handleri već pišu ORM; parish_data je usklađen za odgovor.
         response_data = {
             key: parish_data.get(key)
             for key in LITURGICAL_RESPONSE_KEYS
         }
         response_is_partial = True
     else:
-        # Zadržava testni/compatibility contract kada se registry eksplicitno
-        # nadomjesti izvan aktivnog liturgijskog API-ja.
+        parish_data_service.save(parish_data)
         response_data = parish_data_service.load()
         response_is_partial = False
+
+    additional_response_data = {
+        response_key: response_value
+        for response_key, response_value in action_result.items()
+        if response_key != 'ok'
+    }
     return {
         'ok': True,
         'data': response_data,

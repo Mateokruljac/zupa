@@ -458,7 +458,11 @@
         }
         (async () => {
           try {
-            await runAction("create_intention", {
+            if (!global.PastoralApi?.createIntention) {
+              showToast("API nije učitan");
+              return;
+            }
+            const item = await global.PastoralApi.createIntention({
               date: iso,
               mass_time: fd.get("massTime") || massTime,
               intention_for: intentionFor,
@@ -466,6 +470,11 @@
               notes: (fd.get("notes") || "").trim(),
               paid: !!form.querySelector('[name="paid"]')?.checked,
             });
+            if (item) {
+              const remaining = (state.intentions || []).filter((intention) => intention.id !== item.id);
+              remaining.push(item);
+              state.intentions = remaining;
+            }
             M.close();
             showToast("Nakana spremljena");
             onDone?.();

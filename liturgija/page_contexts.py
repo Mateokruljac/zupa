@@ -1,16 +1,31 @@
 """Kontekst admin stranica Liturgije (naslov + JSON za JS)."""
 from __future__ import annotations
 
-
 from liturgija.services.zupni_listic import (
     load_config,
-    migrate_listic_data,
     zupni_listic_page_context,
 )
 from pastoral.page_context_registry import register_page
 from pastoral.services.dates import today_iso
-
 from pastoral.services.data import ParishDataService
+
+
+def _mass_page_bootstrap(
+    parish_data: dict,
+    parish_data_service: ParishDataService,
+    **extra,
+) -> dict:
+    return {
+        'intentions': parish_data.get('intentions', []),
+        'massSchedule': parish_data.get('massSchedule', []),
+        'massExceptions': parish_data.get('massExceptions', []),
+        'defaultStipend': float(
+            parish_data_service.load_settings().get(
+                'defaultMassIntentionStipend', 0,
+            ) or 0
+        ),
+        **extra,
+    }
 
 
 @register_page(
@@ -19,20 +34,15 @@ from pastoral.services.data import ParishDataService
     subtitle='Upis nakan po danu i misi',
 )
 def build_nakane_context(request, parish_data: dict, parish_data_service: ParishDataService) -> dict:
-    """Bootstrap nakana + zadani stipend iz postavki župe."""
     selected_date = request.GET.get('date') or today_iso()
     if selected_date == 'today':
         selected_date = today_iso()
     return {
-        'nakane_bootstrap': {
-            'intentions': parish_data.get('intentions', []),
-            'massSchedule': parish_data.get('massSchedule', []),
-            'massExceptions': parish_data.get('massExceptions', []),
-            'filterDate': selected_date,
-            'defaultStipend': float(
-        parish_data_service.load_settings().get('defaultMassIntentionStipend', 0) or 0
-    )
-        },
+        'nakane_bootstrap': _mass_page_bootstrap(
+            parish_data,
+            parish_data_service,
+            filterDate=selected_date,
+        ),
     }
 
 
@@ -42,18 +52,8 @@ def build_nakane_context(request, parish_data: dict, parish_data_service: Parish
     subtitle='Stalni termini i veza na misne nakane',
 )
 def build_mise_context(request, parish_data: dict, parish_data_service: ParishDataService) -> dict:
-    """Bootstrap rasporeda za JS mise-engine."""
     return {
-        'mise_bootstrap': {
-            'massSchedule': parish_data.get('massSchedule', []),
-            'massExceptions': parish_data.get('massExceptions', []),
-            'intentions': parish_data.get('intentions', []),
-            'defaultStipend': float(
-                parish_data_service.load_settings().get(
-                    'defaultMassIntentionStipend', 0
-                ) or 0
-            ),
-        },
+        'mise_bootstrap': _mass_page_bootstrap(parish_data, parish_data_service),
     }
 
 
@@ -63,15 +63,15 @@ def build_zupni_listic_context(
     parish_data: dict,
     parish_data_service: ParishDataService,
 ) -> dict:
-    """Default layout iz koda, izdanja i preview HTML za editor."""
     parish_settings = parish_data_service.load_settings()
-    migrate_listic_data(parish_data)
+    if not isinstance(parish_data.get('zupniListicIssues'), list):
+        parish_data['zupniListicIssues'] = []
     page_context = zupni_listic_page_context(parish_data, parish_settings, request)
-    bulletin_configuration = load_config()
+    config = load_config()
     page_context['listic_bootstrap'] = {
         'config': {
-            'blockTypes': bulletin_configuration['blockTypes'],
-            'defaultLayout': bulletin_configuration['defaultLayout'],
+            'blockTypes': config['blockTypes'],
+            'defaultLayout': config['defaultLayout'],
         },
         'editLayout': page_context['listic_edit_layout'],
     }

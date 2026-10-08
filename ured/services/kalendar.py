@@ -4,7 +4,7 @@ from __future__ import annotations
 import calendar
 from datetime import date
 
-from liturgija.services.liturgical import LiturgicalService
+from liturgija.services.liturgical import get_day, get_month_days
 
 
 def _integer_query_parameter(request, parameter_name: str, default_value: int) -> int:
@@ -119,8 +119,7 @@ def calendar_page_context(parish_data: dict, request) -> dict:
     calendar_year, calendar_month = _selected_calendar_period(request, today)
     selected_date = _selected_calendar_date(request, today)
 
-    liturgical_service = LiturgicalService()
-    liturgical_month_days = liturgical_service.get_month_days(
+    liturgical_month_days = get_month_days(
         calendar_year,
         calendar_month,
     )
@@ -188,7 +187,7 @@ def calendar_page_context(parish_data: dict, request) -> dict:
         'cal_cells': _calendar_cells(calendar_year, calendar_month),
         'filter_date': selected_date,
         'lit_month_days': liturgical_month_days,
-        'lit_day': liturgical_service.get_day(selected_date),
+        'lit_day': get_day(selected_date),
         'day_events': selected_day_events,
         'day_tasks': selected_day_tasks,
         'day_item_count': len(selected_day_events) + len(selected_day_tasks),
