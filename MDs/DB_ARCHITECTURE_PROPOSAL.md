@@ -181,7 +181,7 @@ Until cutover completes, `historical_name` may remain nullable for unmigrated st
 Non-resident relatives as free-text notes on the household unless they become `Person`. Do not keep a parallel person-ish table.
 
 **`Street`** — Ulica  
-Grain: one named street in the parish. **SCD2A**. Fields: `name`, `zone`, `sort_order`, `notes`, `is_active`. `unified_key` from parish + stable street identity. Current rows: `date_to = 9999-12-31`.
+Grain: one named street in the parish. **SCD2A**. Fields: `name`, `city`, `sort_order`, `notes`, `is_active`. `unified_key` from parish + stable street identity. Current rows: `date_to = 9999-12-31`.
 
 **`PastoralVisit`** — Pastoralna posjeta  
 Grain: one visit. Mutable operational. FK `household_id` optional, `scheduled_on`, `is_done`, `visit_type`, `person_name` (until Person link), `address` snapshot, `priest`, `purpose`, `report`.

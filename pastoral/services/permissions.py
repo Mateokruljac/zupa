@@ -163,28 +163,6 @@ def group_nav_sections(nav_items: list) -> list:
     return sections
 
 
-def nav_badges_from_stats(stats: dict) -> dict:
-    badges = {}
-    if stats.get('nova_prijave'):
-        badges['javne-prijave'] = stats['nova_prijave']
-    if stats.get('unpaid_nakane'):
-        badges['nakane'] = stats['unpaid_nakane']
-    if stats.get('debts_unpaid'):
-        unpaid = stats['debts_unpaid']
-        badges['dugovanja'] = unpaid
-        badges['financijska-izvjestaja'] = unpaid
-    if stats.get('reminders_count'):
-        badges['podsjetnici'] = stats['reminders_count']
-    task_badge = stats.get('overdue_tasks', 0) + stats.get('due_today_tasks', 0)
-    if task_badge:
-        badges['kalendar'] = task_badge
-    if stats.get('lukno_unpaid'):
-        badges['obitelji'] = stats['lukno_unpaid']
-    if stats.get('visits_due'):
-        badges['posjete'] = stats['visits_due']
-    return badges
-
-
 def filter_nav(role: str, current_page: str) -> list:
     allowed_modules = set(role_permissions(role))
     visible_navigation_items = []

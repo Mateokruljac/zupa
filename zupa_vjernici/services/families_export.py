@@ -8,7 +8,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.http import HttpResponse
 
-from zupa_vjernici.services.families_page import filter_families
+from zupa_vjernici.services.families_page import filter_families, resolve_lukno_year
 
 _CONTENT_TYPE = (
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -71,7 +71,7 @@ def _member_rows(families: list[dict]) -> list[list[object]]:
         'Obitelj',
         'Ime i prezime',
         'Odnos',
-        'Godina rođenja',
+        'Datum rođenja',
     ]]
     for family in families:
         surname = family.get('surname') or ''
@@ -84,7 +84,7 @@ def _member_rows(families: list[dict]) -> list[list[object]]:
                 surname,
                 family_member.get('name') or '',
                 family_member.get('relation') or '',
-                family_member.get('birthYear') or '',
+                family_member.get('birthDate') or family_member.get('birthYear') or '',
             ])
     return rows
 

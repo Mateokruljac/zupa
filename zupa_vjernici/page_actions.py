@@ -45,10 +45,15 @@ def handle_family_action(
     if action_name == 'save_family_member':
         family_member_form = FamilyMemberForm(request.POST)
         if family_member_form.is_valid():
+            cleaned_member = family_member_form.cleaned_data
+            birth_date = cleaned_member.get('birth_date')
             action_result = upsert_family_member(parish_data, {
                 'family_id': request.POST.get('family_id', ''),
                 'member_id': request.POST.get('member_id', ''),
-                **family_member_form.cleaned_data,
+                'given_name': cleaned_member.get('given_name') or '',
+                'surname': cleaned_member.get('surname') or '',
+                'relation': cleaned_member.get('relation') or '',
+                'birth_date': birth_date.isoformat() if birth_date else '',
             })
             if action_result.get('ok'):
                 parish_data_service.save(parish_data)
@@ -115,6 +120,58 @@ def handle_family_action(
             messages.error(request, 'Provjerite tekst bilješke.')
         return True
 
+    if action_name == 'add_street':
+        street_form = StreetForm(request.POST)
+        if not street_form.is_valid():
+            request.pastoral_json_response = {
+                'ok': False,
+                'error': 'invalid_street',
+            }
+            return True
+        cleaned_street = street_form.cleaned_data
+        street_name = cleaned_street['name'].strip()
+        existing_street = next(
+            (
+                street
+                for street in parish_data.get('streets', [])
+                if (street.get('name') or '').strip().casefold() == street_name.casefold()
+            ),
+            None,
+        )
+        if existing_street:
+            request.pastoral_json_response = {
+                'ok': True,
+                'street': {
+                    'id': existing_street.get('id'),
+                    'name': existing_street.get('name') or '',
+                    'city': existing_street.get('city') or '',
+                },
+            }
+            return True
+        normalize_parish_data(parish_data)
+        operation_result = upsert_street(parish_data, {
+            'name': street_name,
+            'city': cleaned_street.get('city') or '',
+            'notes': cleaned_street.get('notes') or '',
+        })
+        if not operation_result.get('ok'):
+            request.pastoral_json_response = {
+                'ok': False,
+                'error': 'street_not_saved',
+            }
+            return True
+        parish_data_service.save(parish_data)
+        created_street = operation_result['item']
+        request.pastoral_json_response = {
+            'ok': True,
+            'street': {
+                'id': created_street.get('id'),
+                'name': created_street.get('name') or '',
+                'city': created_street.get('city') or '',
+            },
+        }
+        return True
+
     if action_name not in {'add_family', 'update_family'}:
         return False
 
@@ -127,10 +184,13 @@ def handle_family_action(
         if action_name == 'add_family':
             action_result = create_family(parish_data, cleaned_data)
         else:
-            action_result = update_family(parish_data, {
+            update_payload = {
                 'id': request.POST.get('family_id', ''),
                 **cleaned_data,
-            })
+            }
+            if 'pastoral_notes' not in request.POST:
+                update_payload.pop('pastoral_notes', None)
+            action_result = update_family(parish_data, update_payload)
         if action_result.get('ok'):
             parish_data_service.save(parish_data)
             success_message = (
@@ -164,7 +224,7 @@ def handle_streets_and_visits_action(
             street_payload = {
                 'id': request.POST.get('street_id') or None,
                 'name': cleaned_data['name'],
-                'zone': cleaned_data.get('zone') or '',
+                'city': cleaned_data.get('city') or '',
                 'notes': cleaned_data.get('notes') or '',
             }
             normalize_parish_data(parish_data)

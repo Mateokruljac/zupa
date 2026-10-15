@@ -40,11 +40,12 @@ def streets_page_context(
     street_map_external_url = ''
     if selected_street:
         parish_city = (parish_settings or {}).get('city') or ''
+        street_city = (selected_street.get('city') or '').strip() or parish_city
         street_map_query = ', '.join(
             address_part
             for address_part in (
                 selected_street.get('name') or '',
-                parish_city,
+                street_city,
                 'Hrvatska',
             )
             if address_part

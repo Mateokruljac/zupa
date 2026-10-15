@@ -1,4 +1,4 @@
-"""API mutacije ulica i kvartova župe."""
+"""API mutacije ulica župe."""
 from __future__ import annotations
 
 from pastoral.services.api_action_handlers.shared import (
@@ -10,7 +10,7 @@ def upsert_street(parish_data: dict, action_payload: dict) -> dict:
     street_id = action_payload.get('id')
     street_payload = {
         'name': (action_payload.get('name') or '').strip(),
-        'zone': (action_payload.get('zone') or '').strip(),
+        'city': (action_payload.get('city') or '').strip(),
         'notes': (action_payload.get('notes') or '').strip(),
     }
     if not street_payload['name']:

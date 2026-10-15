@@ -74,9 +74,6 @@
             <li>
               <a href="{% page_url link.page %}" class="{% if link.active %}active{% endif %}">
                 <span class="nav-ico">{{ link.icon }}</span>{{ link.label }}
-                {% with badge=nav_badges|get_item:link.page %}
-                {% if badge %}<span class="nav-badge">{{ badge }}</span>{% endif %}
-                {% endwith %}
               </a>
             </li>
             {% endfor %}

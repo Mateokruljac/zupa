@@ -139,14 +139,31 @@ def upsert_family_member(parish_data: dict, action_payload: dict) -> dict:
     if not family:
         return {'ok': False, 'error': 'not_found'}
 
-    family_member_payload = {
-        'name': (action_payload.get('name') or '').strip(),
-        'relation': (action_payload.get('relation') or '').strip(),
-        'birthYear': (
+    given_name = (action_payload.get('given_name') or action_payload.get('givenName') or '').strip()
+    surname = (action_payload.get('surname') or '').strip()
+    full_name = ' '.join(part for part in (given_name, surname) if part).strip()
+    if not full_name:
+        full_name = (action_payload.get('name') or '').strip()
+    birth_date = action_payload.get('birth_date') or action_payload.get('birthDate') or ''
+    if hasattr(birth_date, 'isoformat'):
+        birth_date = birth_date.isoformat()
+    birth_date = str(birth_date or '').strip()
+    birth_year = (
+        birth_date[:4]
+        if len(birth_date) >= 4 and birth_date[:4].isdigit()
+        else (
             action_payload.get('birth_year')
             or action_payload.get('birthYear')
             or ''
-        ),
+        )
+    )
+    family_member_payload = {
+        'name': full_name,
+        'givenName': given_name,
+        'surname': surname,
+        'relation': (action_payload.get('relation') or '').strip(),
+        'birthYear': birth_year,
+        'birthDate': birth_date,
         'roles': action_payload.get('roles') or [],
         'notes': (action_payload.get('notes') or '').strip(),
     }

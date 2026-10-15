@@ -321,8 +321,8 @@ class ChurchEnrollment(SCD2):
 class Street(SCD2A):
     """Imenovana ulica u teritoriju župe.
 
-    Promjena naziva otvara novu verziju. Sakramenti snimaju tekst mjesta,
-    ne živi FK na ovaj red, da matica ne prati kasnije preimenovanje.
+    Promjena naziva ili grada otvara novu verziju. Sakramenti snimaju tekst
+    mjesta, ne živi FK na ovaj red, da matica ne prati kasnije preimenovanje.
     """
 
     unified_key_origin_fields = ('parish_id', 'public_identifier')
@@ -334,8 +334,8 @@ class Street(SCD2A):
         related_name='streets',
     )
     public_identifier = models.CharField(max_length=64, db_index=True)
-    name = models.CharField(max_length=200)
-    zone = models.CharField(max_length=120, blank=True)
+    name = models.CharField(max_length=200, verbose_name='Ulica')
+    city = models.CharField(max_length=120, blank=True, verbose_name='Grad')
     sort_order = models.IntegerField(default=0)
     notes = models.TextField(blank=True)
     payload = models.JSONField(default=dict, blank=True)

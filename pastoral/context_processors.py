@@ -14,7 +14,6 @@ from pastoral.services.permissions import (
     current_nav_page,
     filter_nav,
     group_nav_sections,
-    nav_badges_from_stats,
 )
 
 
@@ -111,7 +110,6 @@ def pastoral_globals(request):
     parish_data = getattr(request, '_pastoral_parish_data', None)
     if parish_data is None:
         parish_data = parish_data_service.load()
-    office_statistics = parish_data_service.office_statistics(parish_data)
     tenant_context = getattr(request, 'tenant_context', None)
     active_role = tenant_context.role if tenant_context else request.user.role
     navigation_items = filter_nav(active_role, current_page)
@@ -120,7 +118,6 @@ def pastoral_globals(request):
         'parish_settings': parish_settings,
         'nav_items': navigation_items,
         'nav_sections': group_nav_sections(navigation_items),
-        'nav_badges': nav_badges_from_stats(office_statistics),
         'current_page': current_page,
         'active_role_label': dict(ParishMembership.Role.choices).get(
             active_role,

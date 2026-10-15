@@ -192,6 +192,10 @@ def admin_page_view(request, page: str):
             return document_print_response(request, parish_data_service)
 
         if handle_page_post(request, page, parish_data_service):
+            json_response = getattr(request, 'pastoral_json_response', None)
+            if json_response is not None:
+                status = 200 if json_response.get('ok') else 400
+                return JsonResponse(json_response, status=status)
             return redirect(request.get_full_path())
 
     page_context = _build_admin_page_context(

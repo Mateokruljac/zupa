@@ -14,6 +14,7 @@ from zupa_vjernici.models import Person, normalize_person_search_text
 
 FEMALE_RELATIONS = frozenset({
     'majka', 'žena', 'zena', 'kći', 'kci', 'kcer', 'wife', 'mother', 'daughter',
+    'supruga/majka',
 })
 from django_multitenant.schema import with_tenant_schema
 MALE_RELATIONS = frozenset({
@@ -45,6 +46,16 @@ def sex_from_relation(relation: str) -> str:
     return Person.Sex.MALE
 
 
+def _parse_birth_date(value) -> date | None:
+    text = str(value or '').strip()
+    if len(text) < 10:
+        return None
+    try:
+        return date.fromisoformat(text[:10])
+    except ValueError:
+        return None
+
+
 def birth_year_as_text(value) -> str:
     """Godina s kartona kao tekst; prazno ako vrijednosti nema."""
     if value in (None, ''):
@@ -60,6 +71,7 @@ def find_or_create_person(
     fallback_surname: str = '',
     relation: str = '',
     birth_year: str = '',
+    birth_date: str = '',
     place_of_birth: str = '',
 ) -> Person | None:
     """Vraća postojeću aktivnu osobu u župi ili kreira novu SCD1 instancu.
@@ -71,8 +83,8 @@ def find_or_create_person(
         Person ili None ako nema niti jednog tokena imena.
 
     Side effects:
-        Može upisati novu osobu. Postojećoj dopunjuje samo prazan spol,
-        mjesto i datum rođenja — ne prepisuje već poznati identitet.
+        Može upisati novu osobu. Postojećoj dopunjuje prazan spol i mjesto.
+        Datum rođenja se upisuje kad karton pošalje točan datum.
     """
     given_names, surname = split_person_name(full_name, fallback_surname)
     if not given_names and not surname:
@@ -90,7 +102,10 @@ def find_or_create_person(
         normalized_given_names=normalized_given,
         normalized_surname=normalized_surname,
     )
+    parsed_birth_date = _parse_birth_date(birth_date)
     year_text = birth_year_as_text(birth_year)
+    if not year_text and parsed_birth_date:
+        year_text = str(parsed_birth_date.year)
     if year_text.isdigit():
         year_value = int(year_text)
         year_match = queryset.filter(date_of_birth__year=year_value).first()
@@ -109,7 +124,9 @@ def find_or_create_person(
             sex=sex_from_relation(relation),
             place_of_birth=str(place_of_birth or '')[:180],
         )
-        if year_text.isdigit():
+        if parsed_birth_date:
+            person.date_of_birth = parsed_birth_date
+        elif year_text.isdigit():
             year_value = int(year_text)
             if 1800 <= year_value <= 2200:
                 # Karton ima samo godinu; 1. siječnja je marker, ne točan datum.
@@ -125,11 +142,12 @@ def find_or_create_person(
     if place_of_birth and not person.place_of_birth:
         person.place_of_birth = str(place_of_birth)[:180]
         updates.append('place_of_birth')
-    if year_text.isdigit() and person.date_of_birth is None:
-        year_value = int(year_text)
-        if 1800 <= year_value <= 2200:
-            person.date_of_birth = date(year_value, 1, 1)
-            updates.append('date_of_birth')
+    if parsed_birth_date and person.date_of_birth != parsed_birth_date:
+        person.date_of_birth = parsed_birth_date
+        updates.append('date_of_birth')
+    elif year_text.isdigit() and person.date_of_birth is None:
+        person.date_of_birth = date(year_value, 1, 1)
+        updates.append('date_of_birth')
     if updates:
         person.save(update_fields=updates)
     return person

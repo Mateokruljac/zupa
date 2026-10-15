@@ -24,7 +24,7 @@ def filter_families(
     lukno: str = '',
     lukno_year: int | None = None,
 ) -> list[dict]:
-    """Vrati obitelji koje odgovaraju ulici, pretrazi i statusu lukna."""
+    """Vrati obitelji koje odgovaraju ulici, imenu člana i statusu lukna."""
     matching_families = list(families)
     if street_id:
         matching_families = [
@@ -96,6 +96,21 @@ def paginate_families(
     }
 
 
+def resolve_lukno_year(raw_value, current_year: int) -> int:
+    """Vrati odabranu godinu lukna ili prethodnu godinu ako unos nije valjan."""
+    previous_year = current_year - 1
+    text = str(raw_value or '').strip()
+    if not text:
+        return previous_year
+    try:
+        requested_year = int(text)
+    except ValueError:
+        return previous_year
+    if 1990 <= requested_year <= current_year:
+        return requested_year
+    return previous_year
+
+
 def _normalized_lukno_filter(value: str) -> str:
     normalized = (value or '').strip().casefold()
     if normalized in {'paid', 'unpaid'}:
@@ -150,14 +165,19 @@ def _composition_row(label: str, detail: str, count: int, total: int) -> dict:
 
 
 def _family_matches_search(family: dict, search_term: str) -> bool:
-    if search_term in (family.get('surname') or '').casefold():
-        return True
-    if search_term in (family.get('address') or '').casefold():
-        return True
     return any(
         search_term in (family_member.get('name') or '').casefold()
         for family_member in family.get('members') or []
     )
+
+
+def _lukno_payment_status(family: dict, year: int) -> str:
+    contribution = _contribution_for_year(family, year)
+    if not contribution:
+        return 'none'
+    if contribution.get('luknoPaid'):
+        return 'paid'
+    return 'unpaid'
 
 
 def families_page_context(data: dict, request) -> dict:
@@ -169,6 +189,7 @@ def families_page_context(data: dict, request) -> dict:
     search_term = (request.GET.get('q') or '').strip()
     year = date.today().year
     previous_year = year - 1
+    lukno_year = resolve_lukno_year(request.GET.get('year'), year)
     lukno_filter = _normalized_lukno_filter(request.GET.get('lukno', ''))
     all_families = list(data.get('families', []))
     families = filter_families(
@@ -176,7 +197,7 @@ def families_page_context(data: dict, request) -> dict:
         street_id=street_filter,
         search_term=search_term,
         lukno=lukno_filter,
-        lukno_year=previous_year,
+        lukno_year=lukno_year,
     )
     family_pagination = paginate_families(families, request.GET.get('page'))
     families = family_pagination['items']
@@ -340,18 +361,20 @@ def families_page_context(data: dict, request) -> dict:
             if family_card_tab_index < len(family_card_tab_ids) - 1
             else ''
         ),
-        'family_card_edit': request.GET.get('edit') == '1',
         'family_filters': {
             'q': request.GET.get('q', ''),
             'street': street_filter,
             'lukno': lukno_filter,
+            'year': lukno_year,
         },
+        'lukno_year_choices': list(range(year, year - 16, -1)),
         'family_query': urlencode({
             key: value
             for key, value in {
                 'q': search_term,
                 'street': street_filter,
                 'lukno': lukno_filter,
+                'year': str(lukno_year),
             }.items()
             if value
         }),
@@ -361,6 +384,7 @@ def families_page_context(data: dict, request) -> dict:
                 'q': search_term,
                 'street': street_filter,
                 'lukno': lukno_filter,
+                'year': str(lukno_year),
                 'page': (
                     family_pagination['page']
                     if family_pagination['page'] > 1
@@ -370,6 +394,11 @@ def families_page_context(data: dict, request) -> dict:
             if value
         }),
         'family_pagination': family_pagination,
+        'family_lukno_status': {
+            family.get('id'): _lukno_payment_status(family, lukno_year)
+            for family in all_families
+            if family.get('id')
+        },
         'family_stats': {
             'total': len(all_families),
             'shown': family_pagination['total'],

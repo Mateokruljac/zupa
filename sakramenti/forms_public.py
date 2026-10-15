@@ -187,10 +187,10 @@ class PublicFormBase(forms.Form):
     def _init_street_field(self):
         choices = [('', '— Odaberite ulicu —')]
         for street in sorted(self._streets, key=lambda s: (s.get('sortOrder', 0), s.get('name', ''))):
-            zone = street.get('zone', '')
+            city = street.get('city', '')
             label = street.get('name', '')
-            if zone:
-                label = f'{label} ({zone})'
+            if city:
+                label = f'{label} ({city})'
             choices.append((street['id'], label))
         choices.append((STREET_NOT_LISTED, 'Moje adrese nema na popisu'))
         self.fields['street_id'] = forms.ChoiceField(

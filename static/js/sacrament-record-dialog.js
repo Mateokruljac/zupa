@@ -36,10 +36,6 @@
     dialog.querySelectorAll("[data-sacrament-dialog-close]").forEach((button) => {
       button.addEventListener("click", () => closeSacramentRecordDialog(dialog));
     });
-
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) closeSacramentRecordDialog(dialog);
-    });
   });
 
   document.querySelectorAll("[data-confirm-delete]").forEach((deleteForm) => {

@@ -17,7 +17,7 @@ class FamilyForm(forms.Form):
         widget=forms.Select(attrs=_WIDGET),
     )
     address = forms.CharField(
-        label='Kućni broj i dodatak adresi',
+        label='Kućni broj (Kat stana)',
         max_length=200,
         widget=forms.TextInput(attrs={
             **_WIDGET,
@@ -34,12 +34,6 @@ class FamilyForm(forms.Form):
         label='E-mail',
         required=False,
         widget=forms.EmailInput(attrs=_WIDGET),
-    )
-    origin_place = forms.CharField(
-        label='Mjesto podrijetla',
-        max_length=120,
-        required=False,
-        widget=forms.TextInput(attrs=_WIDGET),
     )
     status = forms.ChoiceField(
         label='Status kartona',
@@ -63,26 +57,36 @@ class FamilyForm(forms.Form):
         ]
 
 
+FAMILY_MEMBER_RELATIONS = (
+    ('', '— Odaberite odnos —'),
+    ('Samačko kućanstvo', 'Samačko kućanstvo'),
+    ('suprug/otac', 'suprug/otac'),
+    ('supruga/majka', 'supruga/majka'),
+    ('dijete', 'dijete'),
+    ('drugo', 'drugo'),
+)
+
+
 class FamilyMemberForm(forms.Form):
-    name = forms.CharField(
-        label='Ime i prezime',
-        max_length=140,
+    given_name = forms.CharField(
+        label='Ime',
+        max_length=80,
         widget=forms.TextInput(attrs=_WIDGET),
     )
-    relation = forms.CharField(
-        label='Odnos u obitelji',
+    surname = forms.CharField(
+        label='Prezime',
         max_length=80,
-        required=False,
-        widget=forms.TextInput(attrs={
-            **_WIDGET,
-            'placeholder': 'npr. suprug, supruga, dijete',
-        }),
+        widget=forms.TextInput(attrs=_WIDGET),
     )
-    birth_year = forms.IntegerField(
-        label='Godina rođenja',
-        min_value=1900,
+    relation = forms.ChoiceField(
+        label='Odnos u obitelji',
+        choices=FAMILY_MEMBER_RELATIONS,
+        widget=forms.Select(attrs=_WIDGET),
+    )
+    birth_date = forms.DateField(
+        label='Datum rođenja',
         required=False,
-        widget=forms.NumberInput(attrs=_WIDGET),
+        widget=forms.DateInput(attrs={**_WIDGET, 'type': 'date'}),
     )
 
 
@@ -139,8 +143,8 @@ class FamilyNotesForm(forms.Form):
 
 
 class StreetForm(forms.Form):
-    name = forms.CharField(label='Naziv ulice', max_length=120, widget=forms.TextInput(attrs=_WIDGET))
-    zone = forms.CharField(label='Zona / kvart', max_length=80, required=False, widget=forms.TextInput(attrs=_WIDGET))
+    name = forms.CharField(label='Ulica', max_length=120, widget=forms.TextInput(attrs=_WIDGET))
+    city = forms.CharField(label='Grad', max_length=120, required=False, widget=forms.TextInput(attrs=_WIDGET))
     notes = forms.CharField(label='Napomena', required=False, widget=forms.Textarea(attrs={'rows': 2, **_WIDGET}))
 
 class VisitForm(forms.Form):

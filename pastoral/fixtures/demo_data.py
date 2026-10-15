@@ -372,35 +372,35 @@ DEMO_PARISH_DATA = json.loads(r"""
     {
       "id": "st1",
       "name": "Ulica Cvijete",
-      "zone": "Centar župe",
+      "city": "",
       "sortOrder": 1,
       "notes": "Blok oko crkve"
     },
     {
       "id": "st2",
       "name": "Markova ulica",
-      "zone": "Centar župe",
+      "city": "",
       "sortOrder": 2,
       "notes": ""
     },
     {
       "id": "st3",
       "name": "Bolnička ulica",
-      "zone": "Istočni kvart",
+      "city": "",
       "sortOrder": 3,
       "notes": "Više starijih vjernika"
     },
     {
       "id": "st4",
       "name": "Kovačeva ulica",
-      "zone": "Sjever",
+      "city": "",
       "sortOrder": 4,
       "notes": ""
     },
     {
       "id": "st5",
       "name": "Novakov prolaz",
-      "zone": "Sjever",
+      "city": "",
       "sortOrder": 5,
       "notes": ""
     }

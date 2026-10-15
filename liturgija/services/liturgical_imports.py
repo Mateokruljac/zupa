@@ -76,10 +76,7 @@ def _map_color_token(color_token: str) -> str:
 
 def _latin_event_name(calendar_event: dict) -> str:
     """Latinski naziv za katalog: ``title`` (Romcal fullname) pa ``name``."""
-    return str(
-        calendar_event.get('title')
-        or calendar_event.get('name')
-        or ''
+    return str(calendar_event.get('title') or calendar_event.get('name','')
     ).strip()
 
 

@@ -73,12 +73,6 @@
     const dismiss = () => close();
     overlay.querySelector(".pastoral-modal-close")?.addEventListener("click", dismiss);
     overlay.querySelector("[data-modal-cancel]")?.addEventListener("click", dismiss);
-    if (opts.closeOnBackdrop !== false) {
-      overlay.addEventListener("click", (e) => {
-        if (e.target === overlay) dismiss();
-      });
-    }
-    overlay.querySelector(".pastoral-modal")?.addEventListener("click", (e) => e.stopPropagation());
 
     form?.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -130,9 +124,6 @@
     overlay.querySelector("[data-modal-confirm]")?.addEventListener("click", () => done(opts.onConfirm));
     overlay.querySelector("[data-modal-cancel]")?.addEventListener("click", () => done(opts.onCancel));
     overlay.querySelector(".pastoral-modal-close")?.addEventListener("click", () => done(opts.onCancel));
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) done(opts.onCancel);
-    });
   }
 
   function confirmPromise(opts) {
@@ -200,9 +191,6 @@
     };
     overlay.querySelector("[data-modal-ok]")?.addEventListener("click", ok);
     overlay.querySelector(".pastoral-modal-close")?.addEventListener("click", ok);
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay) ok();
-    });
   }
 
   global.PastoralModal = {

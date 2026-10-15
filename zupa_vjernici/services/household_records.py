@@ -29,6 +29,7 @@ from zupa_vjernici.models import (
 from zupa_vjernici.services.person_identity import (
     birth_year_as_text,
     find_or_create_person,
+    split_person_name,
 )
 
 
@@ -66,11 +67,30 @@ def _birth_year_value(membership: HouseholdMembership):
     return raw
 
 
+def _member_name_parts(membership: HouseholdMembership) -> tuple[str, str]:
+    if membership.person_id:
+        return (
+            membership.person.given_names or '',
+            membership.person.surname or '',
+        )
+    return split_person_name(membership.historical_name)
+
+
+def _member_birth_date(membership: HouseholdMembership) -> str:
+    if membership.person_id and membership.person.date_of_birth:
+        return membership.person.date_of_birth.isoformat()
+    return ''
+
+
 def membership_as_member_record(membership: HouseholdMembership, sacraments) -> dict:
+    given_name, surname = _member_name_parts(membership)
     return {
         'id': membership.public_identifier,
         'name': _display_name(membership),
+        'givenName': given_name,
+        'surname': surname,
         'birthYear': _birth_year_value(membership),
+        'birthDate': _member_birth_date(membership),
         'relation': membership.role or '',
         'sacraments': list(sacraments or []),
         'roles': list(membership.pastoral_roles or []),
@@ -283,6 +303,7 @@ def _upsert_membership(
     full_name: str,
     relation: str,
     birth_year,
+    birth_date: str = '',
     notes: str,
     sort_order: int,
     lives_in_household: bool,
@@ -304,6 +325,7 @@ def _upsert_membership(
         fallback_surname=household.surname,
         relation=relation or spouse_side,
         birth_year=birth_year_as_text(birth_year),
+        birth_date=birth_date,
         place_of_birth=place_of_birth,
     )
     membership, _created = upsert_current_scd2(
@@ -448,6 +470,7 @@ def sync_household_nested_records(household: Household, record: dict) -> None:
             full_name=str(member_record.get('name') or ''),
             relation=str(member_record.get('relation') or ''),
             birth_year=member_record.get('birthYear'),
+            birth_date=str(member_record.get('birthDate') or ''),
             notes=str(member_record.get('notes') or ''),
             sort_order=index,
             lives_in_household=True,

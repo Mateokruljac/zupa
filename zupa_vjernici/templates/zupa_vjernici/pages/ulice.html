@@ -22,7 +22,7 @@
   <div class="table-wrap">
     <table class="data-table family-list-table">
       <thead>
-        <tr><th>Ulica</th><th>Kvart</th><th>Obitelji</th><th></th></tr>
+        <tr><th>Ulica</th><th>Grad</th><th>Obitelji</th><th></th></tr>
       </thead>
       <tbody>
         {% for street in streets %}
@@ -31,7 +31,7 @@
             <strong>{{ street.name }}</strong>
             {% if street.notes %}<small>{{ street.notes|truncatechars:70 }}</small>{% endif %}
           </td>
-          <td>{{ street.zone|default:"—" }}</td>
+          <td>{{ street.city|default:"—" }}</td>
           <td>{{ family_counts|get_item:street.id|default:0 }}</td>
           <td><a href="?street={{ street.id }}" class="btn btn-ghost btn-sm">Detalji</a></td>
         </tr>
@@ -66,9 +66,9 @@
       <h2>{{ selected_street.name }}</h2>
       <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
     </header>
-    {% if selected_street.zone %}
+    {% if selected_street.city %}
     <div class="family-card-summary">
-      <p class="family-card-summary__meta"><span class="badge">{{ selected_street.zone }}</span></p>
+      <p class="family-card-summary__meta"><span class="badge">{{ selected_street.city }}</span></p>
     </div>
     {% endif %}
     <nav class="family-wizard-tabs" aria-label="Koraci kartona ulice">

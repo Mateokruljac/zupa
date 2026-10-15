@@ -1,6 +1,7 @@
 from django.urls import path
 
 from liturgija.api import intentions_api
+from zupa_vjernici.api import families_api
 from liturgija import api_views as liturgija_api_views
 
 from . import api_views, views
@@ -16,6 +17,7 @@ urlpatterns = [
     path('api/parish-data/', api_views.parish_data_api, name='parish_data'),
     path('api/action/', api_views.parish_action_api, name='parish_action'),
     path('api/intentions/', intentions_api.urls),
+    path('api/families/', families_api.urls),
     path('api/otp/send/', api_views.send_otp_api, name='send_otp_api'),
     path(
         'api/liturgical/year/<int:year>/',

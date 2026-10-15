@@ -30,7 +30,6 @@ def attach_family_forms(page_context: dict) -> None:
             'address': selected_family.get('address', ''),
             'phone': selected_family.get('phone', ''),
             'email': selected_family.get('email', ''),
-            'origin_place': selected_family.get('originPlace', ''),
             'status': selected_family.get('status', 'aktivna'),
             'pastoral_notes': selected_family.get('pastoralNotes', ''),
         })
@@ -65,7 +64,7 @@ def attach_street_forms(page_context: dict) -> None:
             auto_id='edit_street_%s',
             initial={
                 'name': selected_street.get('name', ''),
-                'zone': selected_street.get('zone', ''),
+                'city': selected_street.get('city', ''),
                 'notes': selected_street.get('notes', ''),
             },
         )
@@ -141,6 +140,7 @@ def attach_parish_community_forms(
 ) -> bool:
     if page_slug == 'obitelji':
         attach_family_forms(page_context)
+        page_context['street_create_form'] = StreetForm(auto_id='family_new_street_%s')
         return True
     if page_slug == 'ulice':
         attach_street_forms(page_context)
