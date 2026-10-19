@@ -21,12 +21,16 @@ def families_xlsx_response(parish_data: dict, request) -> HttpResponse:
         street['id']: street
         for street in parish_data.get('streets', [])
     }
+    current_year = date.today().year
+    lukno_year = resolve_lukno_year(request.GET.get('year'), current_year)
     families = filter_families(
         list(parish_data.get('families', [])),
         street_id=request.GET.get('street', ''),
         search_term=(request.GET.get('q') or '').strip(),
         lukno=request.GET.get('lukno', ''),
-        lukno_year=date.today().year - 1,
+        lukno_year=lukno_year,
+        status=request.GET.get('status', 'aktivna'),
+        focus=request.GET.get('focus', ''),
     )
     workbook = _workbook_bytes(
         [

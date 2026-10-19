@@ -16,7 +16,17 @@
   function printHtml(html, title) {
     const w = window.open("", "_blank");
     if (!w) {
-      alert("Omogućite skočne prozore za ispis.");
+      if (global.Swal) {
+        global.Swal.fire({
+          title: "Ispis",
+          text: "Omogućite skočne prozore za ispis.",
+          icon: "warning",
+          confirmButtonText: "U redu",
+          heightAuto: false,
+        });
+      } else {
+        global.alert("Omogućite skočne prozore za ispis.");
+      }
       return;
     }
     const settings = global.PastoralParish?.loadSettings?.() || {};

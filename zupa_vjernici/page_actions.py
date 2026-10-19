@@ -9,6 +9,7 @@ from pastoral.services.api_action_handlers.shared import normalize_parish_data
 from zupa_vjernici.api_actions import (
     create_family,
     delete_street,
+    delete_visit,
     toggle_visit_done,
     update_family,
     update_family_notes,
@@ -54,6 +55,7 @@ def handle_family_action(
                 'surname': cleaned_member.get('surname') or '',
                 'relation': cleaned_member.get('relation') or '',
                 'birth_date': birth_date.isoformat() if birth_date else '',
+                'notes': cleaned_member.get('notes') or '',
             })
             if action_result.get('ok'):
                 parish_data_service.save(parish_data)
@@ -76,20 +78,14 @@ def handle_family_action(
         contribution_form = FamilyContributionForm(request.POST)
         if contribution_form.is_valid():
             cleaned_data = contribution_form.cleaned_data
-            lukno_paid_at = cleaned_data.get('lukno_paid_at')
-            donation_date = cleaned_data.get('donation_date')
+            paid_at = cleaned_data.get('paid_at')
             action_result = upsert_contribution(parish_data, {
                 'family_id': request.POST.get('family_id', ''),
+                'contribution_id': cleaned_data.get('contribution_id') or '',
                 'year': cleaned_data['year'],
-                'lukno_amount': cleaned_data['lukno_amount'],
-                'lukno_paid': cleaned_data.get('lukno_paid', False),
-                'lukno_paid_at': (
-                    lukno_paid_at.isoformat() if lukno_paid_at else ''
-                ),
-                'church_donation': cleaned_data.get('church_donation') or 0,
-                'donation_date': (
-                    donation_date.isoformat() if donation_date else ''
-                ),
+                'category': cleaned_data['category'],
+                'amount': cleaned_data['amount'],
+                'paid_at': paid_at.isoformat() if paid_at else '',
                 'notes': cleaned_data.get('notes') or '',
             })
             if action_result.get('ok'):
@@ -240,19 +236,29 @@ def handle_streets_and_visits_action(
 
     if action_name == 'delete_street' and page_slug == 'ulice':
         normalize_parish_data(parish_data)
-        delete_street(
+        operation_result = delete_street(
             parish_data,
             {'id': request.POST.get('street_id', '')},
         )
-        parish_data_service.save(parish_data)
-        messages.success(request, 'Ulica obrisana.')
+        if operation_result.get('ok'):
+            parish_data_service.save(parish_data)
+            messages.success(request, 'Ulica obrisana.')
+        elif operation_result.get('error') == 'has_families':
+            count = operation_result.get('family_count') or 0
+            messages.error(
+                request,
+                (
+                    f'Ulicu nije moguće obrisati dok na njoj postoji '
+                    f'{count} povezanih obitelji. Premjestite ili odspojite '
+                    f'obitelji pa pokušajte ponovno.'
+                ),
+            )
+        else:
+            messages.error(request, 'Ulica nije obrisana.')
         return True
 
     if action_name == 'upsert_visit' and page_slug == 'posjete':
-        visit_form = VisitForm(
-            request.POST,
-            families=parish_data.get('families', []),
-        )
+        visit_form = VisitForm(request.POST)
         if visit_form.is_valid():
             cleaned_data = visit_form.cleaned_data
             visit_payload = {
@@ -260,8 +266,6 @@ def handle_streets_and_visits_action(
                 'person': cleaned_data['person'],
                 'type': cleaned_data['visit_type'],
                 'address': cleaned_data.get('address') or '',
-                'priest': cleaned_data.get('priest') or '',
-                'purpose': cleaned_data.get('purpose') or '',
                 'familyId': cleaned_data.get('family_id') or '',
                 'report': cleaned_data.get('report') or '',
             }
@@ -283,25 +287,6 @@ def handle_streets_and_visits_action(
 
     if action_name == 'toggle_visit' and page_slug == 'posjete':
         visit_id = request.POST.get('visit_id', '')
-        selected_visit = next(
-            (
-                visit
-                for visit in parish_data.get('visits', [])
-                if visit.get('id') == visit_id
-            ),
-            None,
-        )
-        if (
-            selected_visit
-            and not selected_visit.get('done')
-            and not (selected_visit.get('report') or '').strip()
-        ):
-            messages.error(
-                request,
-                'Prije zaključivanja posjeta upišite kratki ishod i sljedeći '
-                'korak u polje Izvještaj.',
-            )
-            return True
         operation_result = toggle_visit_done(parish_data, {'id': visit_id})
         if operation_result.get('ok'):
             parish_data_service.save(parish_data)
@@ -309,11 +294,15 @@ def handle_streets_and_visits_action(
         return True
 
     if action_name == 'delete_visit' and page_slug == 'posjete':
-        messages.error(
-            request,
-            'Pastoralni zapis posjeta ne briše se. Uredite termin ili ga '
-            'označite otkazanim kada uvedemo statusni tijek.',
+        operation_result = delete_visit(
+            parish_data,
+            {'id': request.POST.get('visit_id', '')},
         )
+        if operation_result.get('ok'):
+            parish_data_service.save(parish_data)
+            messages.success(request, 'Posjet obrisan.')
+        else:
+            messages.error(request, 'Posjet nije obrisan.')
         return True
 
     return False

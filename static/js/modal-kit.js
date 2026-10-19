@@ -96,6 +96,23 @@
    * @param {function} [opts.onCancel]
    */
   function confirm(opts) {
+    if (typeof window !== "undefined" && window.Swal) {
+      window.Swal.fire({
+        title: opts.title || "Potvrda",
+        text: opts.message || "",
+        icon: opts.danger ? "warning" : "question",
+        showCancelButton: true,
+        confirmButtonText: opts.confirmLabel || (opts.danger ? "Obriši" : "Potvrdi"),
+        cancelButtonText: "Odustani",
+        reverseButtons: true,
+        focusCancel: true,
+        heightAuto: false,
+      }).then((result) => {
+        if (result.isConfirmed) opts.onConfirm?.();
+        else opts.onCancel?.();
+      });
+      return;
+    }
     close();
     const overlay = document.createElement("div");
     overlay.className = "pastoral-modal-overlay";
@@ -127,6 +144,19 @@
   }
 
   function confirmPromise(opts) {
+    if (typeof window !== "undefined" && window.Swal) {
+      return window.Swal.fire({
+        title: opts.title || "Potvrda",
+        text: opts.message || "",
+        icon: opts.danger ? "warning" : "question",
+        showCancelButton: true,
+        confirmButtonText: opts.confirmLabel || (opts.danger ? "Obriši" : "Potvrdi"),
+        cancelButtonText: "Odustani",
+        reverseButtons: true,
+        focusCancel: true,
+        heightAuto: false,
+      }).then((result) => Boolean(result.isConfirmed));
+    }
     return new Promise((resolve) => {
       confirm({
         ...opts,
@@ -168,6 +198,16 @@
 
   /** Samo prikaz (npr. upute prije plaćanja) */
   function alert(opts) {
+    if (typeof window !== "undefined" && window.Swal) {
+      window.Swal.fire({
+        title: opts.title || "Obavijest",
+        html: opts.body || "",
+        icon: opts.icon || "info",
+        confirmButtonText: "U redu",
+        heightAuto: false,
+      }).then(() => opts.onClose?.());
+      return;
+    }
     close();
     const overlay = document.createElement("div");
     overlay.className = "pastoral-modal-overlay";

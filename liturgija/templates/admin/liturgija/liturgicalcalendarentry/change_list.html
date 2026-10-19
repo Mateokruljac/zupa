@@ -7,9 +7,25 @@
   </a>
 </li>
 <li>
-  <a href="#"  onclick="alert('Još nije implementirano')" class="addlink">
-    Uvezi bizantski  kalendar
+  <a href="#" class="addlink" id="litcal-import-byzantine">
+    Uvezi bizantski kalendar
   </a>
+  <script>
+  document.getElementById("litcal-import-byzantine")?.addEventListener("click", function (event) {
+    event.preventDefault();
+    if (window.Swal) {
+      window.Swal.fire({
+        title: "Bizantski kalendar",
+        text: "Još nije implementirano.",
+        icon: "info",
+        confirmButtonText: "U redu",
+        heightAuto: false,
+      });
+      return;
+    }
+    window.alert("Još nije implementirano");
+  });
+  </script>
 </li>
 {{ block.super }}
 {% endblock %}

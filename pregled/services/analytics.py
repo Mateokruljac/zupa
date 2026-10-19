@@ -73,12 +73,17 @@ def compute_stats(data: dict) -> dict:
     lukno_paid = lukno_unpaid = 0
     donation_year = 0.0
     for fam in data.get('families') or []:
-        row = next((c for c in fam.get('contributions') or [] if c.get('year') == year), None)
-        if row:
-            if row.get('luknoPaid'):
-                lukno_paid += 1
-            else:
-                lukno_unpaid += 1
+        for row in fam.get('contributions') or []:
+            if row.get('year') != year:
+                continue
+            category = (row.get('category') or 'lukno').strip() or 'lukno'
+            if category == 'lukno':
+                if row.get('luknoPaid'):
+                    lukno_paid += 1
+                else:
+                    lukno_unpaid += 1
+            if category == 'obiteljski_dar':
+                donation_year += float(row.get('luknoAmount') or 0)
             donation_year += float(row.get('churchDonation') or 0)
 
     return {

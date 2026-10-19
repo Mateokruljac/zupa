@@ -63,7 +63,7 @@ def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[di
                 'category': 'lukno',
                 'title': f"Lukno {year} — obitelj {fam.get('surname', '')}",
                 'sub': fam.get('address') or fam.get('phone') or '',
-                'href': f"obitelji?family={fam.get('id', '')}",
+                'href': f"obitelji#family={fam.get('id', '')}",
                 'due': today,
             })
         notes = (fam.get('pastoralNotes') or '').lower()
@@ -76,8 +76,8 @@ def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[di
                 'priority': 'visoka' if since > 120 else 'srednja',
                 'category': 'posjet',
                 'title': f"Posjet obitelji {fam.get('surname', '')}",
-                'sub': f"Zadnji posjet: {fam.get('lastVisit')}" if fam.get('lastVisit') else 'Još nema zabilježenog posjeta',
-                'href': f"obitelji?family={fam.get('id', '')}",
+                'sub': f"Zadnja posjeta: {fam.get('lastVisit')}" if fam.get('lastVisit') else 'Još nema zabilježenog posjeta',
+                'href': f"obitelji#family={fam.get('id', '')}",
                 'due': today,
             })
 

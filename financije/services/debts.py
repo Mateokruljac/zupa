@@ -97,6 +97,9 @@ def collect_receivables(data: dict, *, only_unpaid: bool = True) -> list[dict]:
 
     for fam in data.get('families', []):
         for c in fam.get('contributions', []):
+            category = (c.get('category') or 'lukno').strip() or 'lukno'
+            if category != 'lukno':
+                continue
             amt = float(c.get('luknoAmount') or def_lukno)
             paid = bool(c.get('luknoPaid'))
             if only_unpaid and paid:

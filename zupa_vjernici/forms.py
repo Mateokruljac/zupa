@@ -37,7 +37,10 @@ class FamilyForm(forms.Form):
     )
     status = forms.ChoiceField(
         label='Status kartona',
-        choices=(('aktivna', 'Aktivna obitelj'), ('neaktivna', 'Neaktivna obitelj')),
+        choices=(
+            ('aktivna', 'Aktivna — u redovnoj skrbi'),
+            ('neaktivna', 'Neaktivna — odseljeni / zatvoren karton'),
+        ),
         initial='aktivna',
         required=False,
         widget=forms.Select(attrs=_WIDGET),
@@ -88,49 +91,53 @@ class FamilyMemberForm(forms.Form):
         required=False,
         widget=forms.DateInput(attrs={**_WIDGET, 'type': 'date'}),
     )
+    notes = forms.CharField(
+        label='Bilješka',
+        required=False,
+        widget=forms.Textarea(attrs={**_WIDGET, 'rows': 3}),
+    )
+
+
+CONTRIBUTION_CATEGORY_CHOICES = (
+    ('lukno', 'Lukno'),
+    ('obiteljski_dar', 'Obiteljski dar'),
+    ('zvonarina', 'Zvonarina'),
+    ('ostalo', 'Ostalo'),
+)
 
 
 class FamilyContributionForm(forms.Form):
+    contribution_id = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(),
+    )
     year = forms.IntegerField(
         label='Godina',
         min_value=1990,
         max_value=2100,
         widget=forms.NumberInput(attrs=_WIDGET),
     )
-    lukno_amount = forms.DecimalField(
-        label='Lukno (€)',
+    category = forms.ChoiceField(
+        label='Kategorija',
+        choices=CONTRIBUTION_CATEGORY_CHOICES,
+        initial='lukno',
+        widget=forms.Select(attrs=_WIDGET),
+    )
+    amount = forms.DecimalField(
+        label='Iznos (€)',
         min_value=0,
         max_digits=10,
         decimal_places=2,
         widget=forms.NumberInput(attrs={**_WIDGET, 'step': '0.01'}),
     )
-    lukno_paid = forms.BooleanField(
-        label='Lukno plaćeno',
-        required=False,
-    )
-    lukno_paid_at = forms.DateField(
-        label='Datum uplate lukna',
-        required=False,
-        widget=forms.DateInput(attrs={**_WIDGET, 'type': 'date'}),
-    )
-    church_donation = forms.DecimalField(
-        label='Dar za crkvu (€)',
-        min_value=0,
-        max_digits=10,
-        decimal_places=2,
-        required=False,
-        initial=0,
-        widget=forms.NumberInput(attrs={**_WIDGET, 'step': '0.01'}),
-    )
-    donation_date = forms.DateField(
-        label='Datum dara',
-        required=False,
+    paid_at = forms.DateField(
+        label='Datum uplate',
         widget=forms.DateInput(attrs={**_WIDGET, 'type': 'date'}),
     )
     notes = forms.CharField(
         label='Bilješka',
         required=False,
-        widget=forms.TextInput(attrs=_WIDGET),
+        widget=forms.Textarea(attrs={**_WIDGET, 'rows': 3}),
     )
 
 
@@ -148,8 +155,24 @@ class StreetForm(forms.Form):
     notes = forms.CharField(label='Napomena', required=False, widget=forms.Textarea(attrs={'rows': 2, **_WIDGET}))
 
 class VisitForm(forms.Form):
-    scheduled = forms.DateField(label='Datum posjeta', widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}))
-    person = forms.CharField(label='Osoba / obitelj', max_length=120, widget=forms.TextInput(attrs=_WIDGET))
+    scheduled = forms.DateField(
+        label='Datum posjeta',
+        widget=forms.DateInput(attrs={'type': 'date', **_WIDGET}),
+    )
+    person = forms.CharField(
+        label='Osoba',
+        max_length=120,
+        widget=forms.TextInput(attrs={
+            **_WIDGET,
+            'autocomplete': 'off',
+            'role': 'combobox',
+            'aria-autocomplete': 'list',
+            'aria-expanded': 'false',
+            'data-visit-person-search': '',
+            'aria-controls': 'visit-person-list',
+            'placeholder': 'Pretraži osobu ili obitelj',
+        }),
+    )
     visit_type = forms.ChoiceField(
         label='Vrsta',
         choices=[
@@ -160,31 +183,20 @@ class VisitForm(forms.Form):
         ],
         widget=forms.Select(attrs=_WIDGET),
     )
-    address = forms.CharField(label='Adresa', max_length=200, required=False, widget=forms.TextInput(attrs=_WIDGET))
-    priest = forms.CharField(label='Svećenik', max_length=100, required=False, widget=forms.TextInput(attrs=_WIDGET))
-    purpose = forms.CharField(label='Svrha / napomena', max_length=200, required=False, widget=forms.TextInput(attrs=_WIDGET))
-    family_id = forms.CharField(
-        label='Povezana obitelj',
-        max_length=40,
+    address = forms.CharField(
+        label='Adresa',
+        max_length=200,
         required=False,
-        widget=forms.Select(attrs=_WIDGET),
+        widget=forms.TextInput(attrs={**_WIDGET, 'data-visit-address': ''}),
     )
-    report = forms.CharField(label='Izvještaj', required=False, widget=forms.Textarea(attrs={'rows': 3, **_WIDGET}))
-
-    def __init__(self, *args, families=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['family_id'].widget.choices = [
-            ('', '— Posjet nije vezan uz obitelj —'),
-            *[
-                (
-                    family.get('id'),
-                    ' · '.join(filter(None, (
-                        family.get('surname', ''),
-                        family.get('address', ''),
-                    ))),
-                )
-                for family in (families or [])
-                if family.get('id')
-            ],
-        ]
+    family_id = forms.CharField(
+        required=False,
+        max_length=40,
+        widget=forms.HiddenInput(attrs={'data-visit-family-id': ''}),
+    )
+    report = forms.CharField(
+        label='Napomena',
+        required=False,
+        widget=forms.Textarea(attrs={'rows': 3, **_WIDGET}),
+    )
 

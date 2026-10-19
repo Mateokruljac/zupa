@@ -56,6 +56,7 @@ def migrate_family_contributions(family: dict) -> None:
             family['contributions'].append({
                 'id': generate_record_identifier('yc'),
                 'year': contribution_year,
+                'category': 'lukno',
                 'luknoPaid': False,
                 'luknoAmount': DEFAULT_ANNUAL_CONTRIBUTION_AMOUNT,
                 'luknoPaidAt': '',

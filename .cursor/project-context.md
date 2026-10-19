@@ -12,8 +12,8 @@ Primarni dokument arhitekture baze: `MDs/DB_ARCHITECTURE_PROPOSAL.md`.
 | Aplikacija | Vlasništvo |
 |---|---|
 | `core` | Samo apstraktne SCD/FACT baze |
-| `pastoral` | Shell, auth, OTP, `Parish`, `Diocese`, `ParishMembership` |
-| `zupa_vjernici` | `Person`, kanonska pripadnost (latinska / istočna), ulica, kućanstvo, posjete |
+| `pastoral` | Shell, auth, OTP, `Parish`, `ParishMembership` |
+| `zupa_vjernici` | `EcclesiasticalJurisdiction`, `Person`, ulica, kućanstvo, posjete |
 | `sakramenti` | Događaji, sudionici, details, priprava |
 | `isprave` | Matične knjige, predlošci, potvrde |
 | `liturgija` | Raspored misa, nakane, listić, kalendar |

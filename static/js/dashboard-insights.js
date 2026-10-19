@@ -110,6 +110,9 @@
   function groupedBarsConfig(container, rows, colors) {
     const series = (container.dataset.series || "in,out").split(",");
     const labels = (container.dataset.labels || "Ulaz,Izlaz").split(",");
+    const useCurrency = container.dataset.currency !== "0";
+    const paletteColors = [colors.green, colors.rose, colors.blue];
+    const hoverColors = ["#3f8068", "#ad6a73", "#5a7f9a"];
     return {
       type: "bar",
       data: {
@@ -117,16 +120,16 @@
         datasets: series.map((key, index) => ({
           label: labels[index] || key,
           data: rows.map((row) => Number(row[key]) || 0),
-          backgroundColor: index === 0 ? colors.green : colors.rose,
-          hoverBackgroundColor: index === 0 ? "#3f8068" : "#ad6a73",
+          backgroundColor: paletteColors[index % paletteColors.length],
+          hoverBackgroundColor: hoverColors[index % hoverColors.length],
           borderRadius: 6,
           borderSkipped: false,
-          maxBarThickness: 30,
+          maxBarThickness: series.length === 1 ? 42 : 30,
           categoryPercentage: 0.66,
           barPercentage: 0.86,
         })),
       },
-      options: baseOptions(colors, true),
+      options: baseOptions(colors, useCurrency),
     };
   }
 

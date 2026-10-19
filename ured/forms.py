@@ -25,6 +25,10 @@ class ParishSettingsForm(forms.Form):
     diocese = forms.CharField(
         label='Nadbiskupija ili biskupija',
         max_length=200,
+        help_text=(
+            'Za zaglavlja i ispis. Ako je u tehničkoj administraciji '
+            'povezana crkvena jurisdikcija, njezin naziv ima prednost.'
+        ),
         widget=forms.TextInput(attrs=_WIDGET),
     )
     pastor = forms.CharField(

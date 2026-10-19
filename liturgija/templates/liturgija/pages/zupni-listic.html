@@ -4,35 +4,104 @@
 {% block body_attrs %}data-needs-parish-data="1"{% endblock %}
 
 {% block content %}
-<div id="page-root" data-django-page="1" data-week-start="{{ week_start }}">
+<div id="page-root" data-django-page="1" data-week-start="{{ week_start }}"{% if listic_current_issue %} data-editing-id="{{ listic_current_issue.id }}"{% endif %}>
   <div class="listic-tabs card" role="tablist">
-    <button type="button" class="listic-tab is-active" data-tab="edit">Sastavi listić</button>
+    <button type="button" class="listic-tab is-active" data-tab="week">Ovaj tjedan</button>
+    <button type="button" class="listic-tab" data-tab="edit">Sastavi</button>
     <button type="button" class="listic-tab" data-tab="history">Povijest ({{ listic_issues|length }})</button>
   </div>
 
-  <div class="listic-panel" data-panel="edit">
-    <div class="listic-layout">
+  <div class="listic-panel" data-panel="week">
+    <section class="card listic-week-hero">
+      <div class="listic-week-hero__main">
+        <p class="card-label">Tjedan listića</p>
+        <h2 class="section-title" id="listic-week-label">{{ listic_week_summary.week_label }}</h2>
+        <p class="listic-week-status" id="listic-week-status">
+          {% if listic_current_issue %}
+            {% if listic_current_issue.status == 'izdan' %}
+            <span class="badge badge-done">Izdan</span>
+            {% else %}
+            <span class="badge">Nacrt</span>
+            {% endif %}
+            <span class="card-sub">{{ listic_current_issue.title }}</span>
+          {% else %}
+            <span class="badge">Nema izdanja</span>
+            <span class="card-sub">Još nije spremljen listić za ovaj tjedan.</span>
+          {% endif %}
+        </p>
+        <div class="listic-week-stats" id="listic-week-stats" aria-label="Sažetak tjedna">
+          <article class="listic-week-stat">
+            <strong id="listic-stat-masses">{{ listic_week_summary.mass_slots }}</strong>
+            <span>termina misa</span>
+          </article>
+          <article class="listic-week-stat">
+            <strong id="listic-stat-intentions">{{ listic_week_summary.intentions }}</strong>
+            <span>nakana</span>
+          </article>
+          <article class="listic-week-stat">
+            <strong id="listic-stat-sacraments">{{ listic_week_summary.sacraments }}</strong>
+            <span>sakramenata / događaja</span>
+          </article>
+        </div>
+        <p class="card-sub listic-week-hint">
+          Mise i nakane dolaze iz modula
+          <a href="{% page_url 'mise' %}">Mise</a> i
+          <a href="{% page_url 'nakane' %}">Nakane</a>.
+          Ovdje upisujete obavijesti i ispisujete listić.
+        </p>
+      </div>
+      <div class="listic-week-hero__actions">
+        <div class="form-group">
+          <label for="listic-week-start-home">Ponedjeljak tjedna</label>
+          <input type="date" id="listic-week-start-home" value="{{ week_start }}" />
+        </div>
+        <button type="button" class="btn btn-primary" data-goto-edit id="listic-cta-compose">
+          {% if listic_current_issue %}Nastavi sastavljanje{% else %}Sastavi listić{% endif %}
+        </button>
+        <button type="button" class="btn btn-secondary{% if not listic_current_issue %} hidden{% endif %}" id="listic-cta-print">Ispis / PDF</button>
+        <button type="button" class="btn btn-ghost" data-goto-history>Povijest izdanja</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="listic-panel hidden" data-panel="edit">
+    <div class="listic-layout listic-layout--compose">
       <section class="card listic-form-card">
-        <h2 class="section-title">Sastavi listić za tjedan</h2>
-        <p class="card-sub">Raspored misa, nakane, sakramenti i događaji preuzimaju se automatski za odabrani tjedan.</p>
-        <div class="listic-week-row">
-          <div class="form-group">
+        <header class="listic-compose-head">
+          <div>
+            <p class="card-label">Sastavljanje</p>
+            <h2 class="section-title">Što upisujete</h2>
+          </div>
+          <div class="form-group listic-week-picker">
             <label for="listic-week-start">Tjedan (ponedjeljak)</label>
             <input type="date" id="listic-week-start" value="{{ week_start }}" />
           </div>
-        </div>
-        <div class="listic-blocks-builder" id="listic-builder-edit">
-          {% include "liturgija/listic/block_builder.html" with blocks=listic_edit_layout.blocks block_types=block_types %}
-        </div>
-        <button type="button" class="btn btn-secondary btn-sm" data-add-text-block="edit">+ Tekstualni blok</button>
+        </header>
+        <p class="card-sub">Automatski dijelovi (mise, nakane, sakramenti) pune se iz evidencije. Ovdje uredite obavijesti i bilješke.</p>
+
+        <div class="listic-editor-fields" id="listic-editor-fields"></div>
+
+        <details class="listic-structure" id="listic-structure-wrap">
+          <summary>Prilagodi sastav listića</summary>
+          <p class="card-sub">Uključite ili isključite sekcije i promijenite redoslijed. Za većinu tjedana ovo nije potrebno.</p>
+          <div class="listic-structure-list" id="listic-structure"></div>
+          <button type="button" class="btn btn-ghost btn-sm" data-add-text-block="edit">+ Tekstualni blok</button>
+        </details>
+
         <div class="listic-actions">
-          <button type="button" class="btn btn-primary" id="listic-save-issue">Spremi izdanje</button>
-          <button type="button" class="btn btn-secondary" id="listic-print-btn">Ispis / PDF</button>
+          <button type="button" class="btn btn-primary" id="listic-save-draft">Spremi nacrt</button>
+          <button type="button" class="btn btn-secondary" id="listic-save-issue">Označi izdano</button>
+          <button type="button" class="btn btn-ghost" id="listic-print-btn">Ispis / PDF</button>
           <button type="button" class="btn btn-ghost hidden" id="listic-cancel-edit">Novo izdanje</button>
         </div>
       </section>
       <section class="card listic-preview-card">
-        <h2 class="section-title">Pregled</h2>
+        <header class="listic-compose-head">
+          <div>
+            <p class="card-label">Ispis</p>
+            <h2 class="section-title">Pregled</h2>
+          </div>
+        </header>
         <div id="listic-preview" class="listic-preview">{{ initial_preview_html|safe }}</div>
       </section>
     </div>
@@ -41,6 +110,7 @@
   <div class="listic-panel hidden" data-panel="history">
     <section class="card">
       <h2 class="section-title">Povijest</h2>
+      <p class="card-sub">Arhiva spremljenih listića — pregled, reprint ili nastavak uređivanja.</p>
       <div class="table-wrap">
         <table class="data-table">
           <thead><tr><th>Tjedan</th><th>Naslov</th><th>Status</th><th>Datum</th><th></th></tr></thead>

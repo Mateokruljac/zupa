@@ -14,11 +14,16 @@ from zupa_vjernici.schemas import (
     FamilyCardMutationOut,
     FamilyCardOut,
     FamilyContributionWrite,
+    FamilyDeleteOut,
     FamilyMemberWrite,
     FamilyNotesWrite,
 )
 from zupa_vjernici.services.family_card import (
     FamilyCardRejected,
+    delete_family_card,
+    delete_family_contribution_card,
+    delete_family_member_card,
+    load_family_card,
     save_family_basics,
     save_family_contribution_card,
     save_family_member_card,
@@ -93,6 +98,15 @@ def _rejected(error: FamilyCardRejected):
     return error.status_code, FamilyCardErrorOut(error=error.code, fields=error.fields)
 
 
+@families_router.get('/{family_id}/', response=CARD_RESPONSES)
+def get_family_card(request, family_id: str):
+    try:
+        card = load_family_card(request, family_id)
+    except FamilyCardRejected as error:
+        return _rejected(error)
+    return _saved(card, 'Karton učitan.')
+
+
 @families_router.patch('/{family_id}/', response=CARD_RESPONSES)
 def update_family_basics(request, family_id: str, payload: FamilyBasicsWrite):
     try:
@@ -117,6 +131,7 @@ def save_member(request, family_id: str, payload: FamilyMemberWrite):
             'surname': payload.surname,
             'relation': payload.relation,
             'birth_date': _iso(payload.birth_date),
+            'notes': payload.notes,
             'member_id': payload.member_id,
         })
     except FamilyCardRejected as error:
@@ -132,15 +147,13 @@ def save_member(request, family_id: str, payload: FamilyMemberWrite):
 @families_router.put('/{family_id}/contributions/', response=CARD_RESPONSES)
 def save_contribution(request, family_id: str, payload: FamilyContributionWrite):
     form_data = {
+        'contribution_id': payload.contribution_id,
         'year': _number(payload.year),
-        'lukno_amount': _number(payload.lukno_amount),
-        'lukno_paid_at': _iso(payload.lukno_paid_at),
-        'church_donation': _number(payload.church_donation),
-        'donation_date': _iso(payload.donation_date),
+        'category': payload.category,
+        'amount': _number(payload.amount),
+        'paid_at': _iso(payload.paid_at),
         'notes': payload.notes,
     }
-    if payload.lukno_paid:
-        form_data['lukno_paid'] = 'on'
     try:
         card = save_family_contribution_card(request, family_id, form_data)
     except FamilyCardRejected as error:
@@ -157,6 +170,50 @@ def save_notes(request, family_id: str, payload: FamilyNotesWrite):
     except FamilyCardRejected as error:
         return _rejected(error)
     return _saved(card, 'Bilješka je spremljena.')
+
+
+@families_router.delete(
+    '/{family_id}/',
+    response={
+        200: FamilyDeleteOut,
+        400: FamilyCardErrorOut,
+        404: FamilyCardErrorOut,
+    },
+)
+def remove_family(request, family_id: str):
+    try:
+        delete_family_card(request, family_id)
+    except FamilyCardRejected as error:
+        return _rejected(error)
+    return 200, FamilyDeleteOut(message='Obitelj je obrisana.')
+
+
+@families_router.delete(
+    '/{family_id}/members/{member_id}/',
+    response=CARD_RESPONSES,
+)
+def remove_member(request, family_id: str, member_id: str):
+    try:
+        card = delete_family_member_card(request, family_id, member_id)
+    except FamilyCardRejected as error:
+        return _rejected(error)
+    return _saved(card, 'Član obitelji je uklonjen.')
+
+
+@families_router.delete(
+    '/{family_id}/contributions/{contribution_id}/',
+    response=CARD_RESPONSES,
+)
+def remove_contribution(request, family_id: str, contribution_id: str):
+    try:
+        card = delete_family_contribution_card(
+            request,
+            family_id,
+            contribution_id,
+        )
+    except FamilyCardRejected as error:
+        return _rejected(error)
+    return _saved(card, 'Uplata je obrisana.')
 
 
 families_api.add_router('', families_router)

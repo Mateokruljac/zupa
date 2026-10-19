@@ -40,8 +40,8 @@ from .view_modules.public_forms import (  # noqa: F401
 ADMIN_PAGES = {
      'blagajna', 'dugovanja', 'financijska-izvjestaja',
     'javne-prijave', 'kalendar', 'krizma',
-    'krsenja', 'maticne-knjige', 'mise', 'nakane', 'obitelji', 'pogrebi', 'pomazanje',
-    'posjete', 'postavke', 'potvrde', 'prva-pricest', 'racuni',
+    'krsenja', 'maticne-knjige', 'mise', 'nakane', 'obitelji', 'obitelji-izvjestaj',
+    'pogrebi', 'pomazanje', 'posjete', 'postavke', 'potvrde', 'prva-pricest', 'racuni',
      'ulice', 'vijeca', 'vjencanja', 'zupni-listic', 'podsjetnici',
 }
 
@@ -67,6 +67,7 @@ PAGE_TEMPLATE_NAMES = {
     'kalendar': 'ured/pages/kalendar.html',
     'nakane': 'liturgija/pages/nakane.html',
     'obitelji': 'zupa_vjernici/pages/obitelji.html',
+    'obitelji-izvjestaj': 'zupa_vjernici/pages/obitelji_izvjestaj.html',
     'krizma': 'sakramenti/pages/krizma.html',
     'krsenja': 'sakramenti/pages/krsenja.html',
     'vjencanja': 'sakramenti/pages/vjencanja.html',

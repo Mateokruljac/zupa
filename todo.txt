@@ -1,8 +1,6 @@
 Backgreound proces koji će kreirtati svima na poečtku godine da nisu platitli lukno za tu godinu 
 i onda kako budu plaćali svećenik ili netko će to popunjavati 
 
-Import kalendara, prepravka, latinsko hrcatski itd itd, postaviti ako neki ima prioritet nad drugim
-
 
 Dodati role  - 3 role: ŽUPNIK, Župni vikar, suradnik - župnik određuej tko što može vidjeti, jedino se 
 rola župnik nbe može obrisati 
@@ -10,9 +8,18 @@ rola župnik nbe može obrisati
 Osmisliti kreiranje početnog naloga za župnika
 
 
-
 Trenutno se radi na procesu / modulu - litrugija
 
 
-
 Vidjeti kako dodati taksovnik biskupije
+
+
+
+Obitelji — blagoslov kuća / obilazak:
+popis po ulici s kućicama za bilješku (već postoje Ulice + ispis obitelji);
+koristiti kad se radi pastoralni obilazak / blagoslov kuća.
+
+Obitelji — merge (tehnička administracija):
+spajanje dvostrukih kartona (članovi, lukno, posjeti → odredište;
+izvor zatvoriti / označiti spojenim, ne hard-delete);
+ne stavljati u dnevni pastoralni UI.

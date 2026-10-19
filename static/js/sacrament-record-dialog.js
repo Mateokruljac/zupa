@@ -54,6 +54,23 @@
         return;
       }
 
+      if (window.Swal) {
+        window.Swal.fire({
+          title: "Obrisati zapis?",
+          text: `Trajno će se obrisati ${recordLabel}. Ovu radnju nije moguće poništiti.`,
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Obriši",
+          cancelButtonText: "Odustani",
+          reverseButtons: true,
+          focusCancel: true,
+          heightAuto: false,
+        }).then((result) => {
+          if (result.isConfirmed) deleteForm.submit();
+        });
+        return;
+      }
+
       if (window.confirm(`Trajno obrisati ${recordLabel}?`)) {
         deleteForm.submit();
       }

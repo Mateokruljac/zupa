@@ -454,6 +454,7 @@ DEMO_PARISH_DATA = json.loads(r"""
       "contributions": [
         {
           "id": "yc1_24",
+          "category": "lukno",
           "year": 2024,
           "luknoPaid": true,
           "luknoAmount": 140,
@@ -464,6 +465,7 @@ DEMO_PARISH_DATA = json.loads(r"""
         },
         {
           "id": "yc1_25",
+          "category": "lukno",
           "year": 2025,
           "luknoPaid": true,
           "luknoAmount": 150,
@@ -474,6 +476,7 @@ DEMO_PARISH_DATA = json.loads(r"""
         },
         {
           "id": "yc1_26",
+          "category": "lukno",
           "year": 2026,
           "luknoPaid": true,
           "luknoAmount": 150,
@@ -558,6 +561,7 @@ DEMO_PARISH_DATA = json.loads(r"""
       "contributions": [
         {
           "id": "yc2_24",
+          "category": "lukno",
           "year": 2024,
           "luknoPaid": true,
           "luknoAmount": 140,
@@ -568,6 +572,7 @@ DEMO_PARISH_DATA = json.loads(r"""
         },
         {
           "id": "yc2_25",
+          "category": "lukno",
           "year": 2025,
           "luknoPaid": false,
           "luknoAmount": 150,
@@ -578,6 +583,7 @@ DEMO_PARISH_DATA = json.loads(r"""
         },
         {
           "id": "yc2_26",
+          "category": "lukno",
           "year": 2026,
           "luknoPaid": false,
           "luknoAmount": 150,
@@ -654,6 +660,7 @@ DEMO_PARISH_DATA = json.loads(r"""
       "contributions": [
         {
           "id": "yc3_25",
+          "category": "lukno",
           "year": 2025,
           "luknoPaid": true,
           "luknoAmount": 150,
@@ -664,6 +671,7 @@ DEMO_PARISH_DATA = json.loads(r"""
         },
         {
           "id": "yc3_26",
+          "category": "lukno",
           "year": 2026,
           "luknoPaid": false,
           "luknoAmount": 150,
@@ -743,6 +751,7 @@ DEMO_PARISH_DATA = json.loads(r"""
       "contributions": [
         {
           "id": "yc4_24",
+          "category": "lukno",
           "year": 2024,
           "luknoPaid": true,
           "luknoAmount": 120,
@@ -753,6 +762,7 @@ DEMO_PARISH_DATA = json.loads(r"""
         },
         {
           "id": "yc4_25",
+          "category": "lukno",
           "year": 2025,
           "luknoPaid": true,
           "luknoAmount": 150,
@@ -763,6 +773,7 @@ DEMO_PARISH_DATA = json.loads(r"""
         },
         {
           "id": "yc4_26",
+          "category": "lukno",
           "year": 2026,
           "luknoPaid": true,
           "luknoAmount": 150,

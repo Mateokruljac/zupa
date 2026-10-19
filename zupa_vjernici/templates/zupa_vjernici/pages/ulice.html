@@ -3,11 +3,6 @@
 {% load static %}
 
 {% block content %}
-<section class="kpi-row street-summary" aria-label="Sažetak ulica">
-  <article class="card kpi-card"><p class="card-label">Ulice</p><p class="card-value">{{ streets|length }}</p><p class="card-sub">u teritoriju župe</p></article>
-  <article class="card kpi-card"><p class="card-label">Povezane obitelji</p><p class="card-value">{{ assigned_families_count }}</p><p class="card-sub">imaju dodijeljenu ulicu</p></article>
-</section>
-
 <section class="card family-list-card">
   <header class="family-list-header">
     <div>
@@ -15,14 +10,43 @@
       <h2 class="section-title">Ulice</h2>
     </div>
     <div class="family-list-actions">
-      <span class="badge">{{ streets|length }}</span>
+      <span class="badge">{{ street_pagination.total }} u prikazu</span>
       <button type="button" class="btn btn-primary btn-sm" data-record-dialog="new-street-dialog">Nova ulica</button>
     </div>
   </header>
+
+  <form method="get" class="family-list-tools">
+    {% if street_filters.sort %}<input type="hidden" name="sort" value="{{ street_filters.sort }}">{% endif %}
+    {% if street_filters.dir %}<input type="hidden" name="dir" value="{{ street_filters.dir }}">{% endif %}
+    <div class="family-search-field">
+      <label class="sr-only" for="street-search">Pretraži ulice</label>
+      <input id="street-search" type="search" name="q" value="{{ street_filters.q }}" class="form-control family-search" placeholder="Naziv ulice">
+      <button type="submit" class="btn btn-primary btn-sm family-search-submit">Traži</button>
+    </div>
+    {% if street_filters.q %}
+    <a href="{% page_url 'ulice' %}" class="btn btn-ghost btn-sm">Poništi</a>
+    {% endif %}
+  </form>
+
   <div class="table-wrap">
     <table class="data-table family-list-table">
       <thead>
-        <tr><th>Ulica</th><th>Grad</th><th>Obitelji</th><th></th></tr>
+        <tr>
+          <th>
+            <a href="{{ street_sort_name_href }}" class="visit-sort-link">
+              Ulica
+              {% if street_filters.sort == 'name' %}<span aria-hidden="true">{% if street_filters.dir == 'desc' %}↓{% else %}↑{% endif %}</span>{% endif %}
+            </a>
+          </th>
+          <th>Grad</th>
+          <th>
+            <a href="{{ street_sort_families_href }}" class="visit-sort-link">
+              Obitelji
+              {% if street_filters.sort == 'families' %}<span aria-hidden="true">{% if street_filters.dir == 'desc' %}↓{% else %}↑{% endif %}</span>{% endif %}
+            </a>
+          </th>
+          <th></th>
+        </tr>
       </thead>
       <tbody>
         {% for street in streets %}
@@ -33,14 +57,38 @@
           </td>
           <td>{{ street.city|default:"—" }}</td>
           <td>{{ family_counts|get_item:street.id|default:0 }}</td>
-          <td><a href="?street={{ street.id }}" class="btn btn-ghost btn-sm">Detalji</a></td>
+          <td><a href="?street={{ street.id }}{% if street_list_query %}&amp;{{ street_list_query }}{% endif %}" class="btn btn-ghost btn-sm">Detalji</a></td>
         </tr>
         {% empty %}
-        <tr><td colspan="4" class="empty-state">Još nema upisanih ulica.</td></tr>
+        <tr><td colspan="4" class="empty-state">{% if street_filters.q %}Nema ulica koje odgovaraju pretrazi.{% else %}Još nema upisanih ulica.{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  <nav class="family-pagination" aria-label="Stranice popisa ulica">
+    <p class="family-pagination-meta">Prikaz {{ street_pagination.start }}–{{ street_pagination.end }} od {{ street_pagination.total }}</p>
+    <div class="family-pagination-pages">
+      {% if street_pagination.has_previous %}
+      <a class="btn btn-ghost btn-sm" href="?page={{ street_pagination.previous_page }}{% if street_query %}&amp;{{ street_query }}{% endif %}">Prethodna</a>
+      {% else %}
+      <span class="btn btn-ghost btn-sm is-disabled" aria-disabled="true">Prethodna</span>
+      {% endif %}
+      {% for page_number in street_pagination.pages %}
+        {% if page_number is None %}
+        <span class="family-pagination-gap" aria-hidden="true">…</span>
+        {% elif page_number == street_pagination.page %}
+        <span class="family-pagination-current" aria-current="page">{{ page_number }}</span>
+        {% else %}
+        <a class="btn btn-ghost btn-sm" href="?page={{ page_number }}{% if street_query %}&amp;{{ street_query }}{% endif %}">{{ page_number }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if street_pagination.has_next %}
+      <a class="btn btn-ghost btn-sm" href="?page={{ street_pagination.next_page }}{% if street_query %}&amp;{{ street_query }}{% endif %}">Sljedeća</a>
+      {% else %}
+      <span class="btn btn-ghost btn-sm is-disabled" aria-disabled="true">Sljedeća</span>
+      {% endif %}
+    </div>
+  </nav>
 </section>
 
 <dialog id="new-street-dialog" class="family-record-dialog" data-record-dialog-root{% if show_new_street_dialog %} data-record-dialog-open{% endif %}>
@@ -94,6 +142,29 @@
             <a href="{{ street_map_external_url }}" target="_blank" rel="noopener noreferrer">Otvori veću kartu ↗</a>
           </div>
         </section>
+        {% if street_history|length > 1 %}
+        <section class="street-name-history" aria-labelledby="street-history-title">
+          <h3 id="street-history-title">Povijest naziva</h3>
+          <ol class="case-timeline street-name-history__list">
+            {% for entry in street_history %}
+            <li class="case-event--{% if entry.is_current %}joined{% else %}message{% endif %}">
+              <span class="case-event-dot" aria-hidden="true"></span>
+              <div>
+                <span>
+                  <strong>{{ entry.name }}</strong>
+                  {% if entry.city %}<span class="badge">{{ entry.city }}</span>{% endif %}
+                  {% if entry.is_current %}<span class="badge badge-done">trenutno</span>{% endif %}
+                </span>
+                <p>
+                  {% if entry.valid_from %}od {{ entry.valid_from|hr_date }}{% endif %}
+                  {% if entry.valid_to %} · do {{ entry.valid_to|hr_date }}{% elif entry.is_current %} · do danas{% endif %}
+                </p>
+              </div>
+            </li>
+            {% endfor %}
+          </ol>
+        </section>
+        {% endif %}
       </section>
 
       <section class="family-card-block family-card-block--pane" data-family-pane="obitelji"{% if street_card_tab != 'obitelji' %} hidden{% endif %}>
@@ -115,7 +186,7 @@
                 <td>{{ family.address|default:"—" }}</td>
                 <td>{{ family.members|length }}</td>
                 <td>{{ family.status|default:"aktivna" }}</td>
-                <td><a href="{% page_url 'obitelji' %}?family={{ family.id }}" class="btn btn-ghost btn-sm">Otvori</a></td>
+                <td><a href="{% page_url 'obitelji' %}#family={{ family.id }}" class="btn btn-ghost btn-sm">Otvori</a></td>
               </tr>
               {% empty %}
               <tr><td colspan="5" class="empty-state">Na ovoj ulici još nema povezanih obitelji.</td></tr>
@@ -126,16 +197,19 @@
       </section>
     </div>
     <footer class="family-wizard-foot street-detail-foot">
-      <form method="post" onsubmit="return confirm('Obrisati ulicu {{ selected_street.name|escapejs }}?')">
+      {% if street_families %}
+      <p class="street-delete-blocked">
+        Brisanje nije moguće — na ulici je {{ street_families|length }} obitelji.
+        Premjestite ili odspojite ih pa pokušajte ponovno.
+      </p>
+      {% else %}
+      <form method="post" data-street-delete-form data-street-delete-label="{{ selected_street.name }}">
         {% csrf_token %}
         <input type="hidden" name="action" value="delete_street">
         <input type="hidden" name="street_id" value="{{ selected_street.id }}">
         <button type="submit" class="btn btn-ghost">Obriši ulicu</button>
       </form>
-      <div class="street-detail-foot__nav">
-        <button type="button" class="btn btn-secondary" data-family-wizard="prev"{% if street_card_tab == 'ulica' %} hidden{% endif %}>Prethodno</button>
-        <button type="button" class="btn btn-primary" data-family-wizard="next"{% if street_card_tab == 'obitelji' %} hidden{% endif %}>Sljedeće</button>
-      </div>
+      {% endif %}
     </footer>
   </div>
 </dialog>
@@ -144,4 +218,5 @@
 
 {% block extra_js %}
 <script src="{% static 'js/record-dialog.js' %}"></script>
+<script src="{% static 'js/street-detail.js' %}"></script>
 {% endblock %}

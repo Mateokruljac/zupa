@@ -72,3 +72,18 @@ def toggle_visit_done(data: dict, action_payload: dict) -> dict:
             family['lastVisit'] = today_iso()
     return {'ok': True, 'item': visit_record}
 
+
+def delete_visit(data: dict, action_payload: dict) -> dict:
+    visit_id = (action_payload.get('id') or '').strip()
+    if not visit_id:
+        return {'ok': False, 'error': 'not_found'}
+    before = len(data.get('visits') or [])
+    data['visits'] = [
+        visit
+        for visit in data.get('visits', [])
+        if visit.get('id') != visit_id
+    ]
+    if len(data['visits']) == before:
+        return {'ok': False, 'error': 'not_found'}
+    return {'ok': True}
+

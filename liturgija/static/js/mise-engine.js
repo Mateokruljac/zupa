@@ -94,6 +94,19 @@
   }
 
   function confirmDialog(message, opts = {}) {
+    if (global.Swal) {
+      return global.Swal.fire({
+        title: opts.title || "Potvrda",
+        text: message || "",
+        icon: opts.danger ? "warning" : "question",
+        showCancelButton: true,
+        confirmButtonText: opts.confirmLabel || (opts.danger ? "Obriši" : "Potvrdi"),
+        cancelButtonText: "Odustani",
+        reverseButtons: true,
+        focusCancel: true,
+        heightAuto: false,
+      }).then((result) => Boolean(result.isConfirmed));
+    }
     const M = global.PastoralModal;
     if (M?.confirmPromise) return M.confirmPromise({ message, ...opts });
     if (M?.confirm) {
@@ -306,28 +319,50 @@
       { dow: 0, label: "Ned" },
     ];
     return `
-      <label class="form-group form-wide mise-no-mass-toggle">
-        <input type="checkbox" name="noMass" ${noMass ? "checked" : ""} />
-        Nema mise u tom periodu
-      </label>
-      <p class="card-sub form-wide">Ako označite, za odabrane dane u razdoblju nema misa — nakane se ne mogu upisati.</p>
-      <div class="form-group" data-schedule-time><label>Sat misa *</label><input name="time" type="time" value="${entry?.time || "09:00"}" ${noMass ? "" : "required"} /></div>
-      <div class="form-group form-wide"><label>Dani</label>
+      <div class="form-wide mise-schedule-option">
+        <label class="mise-no-mass-toggle">
+          <input type="checkbox" name="noMass" ${noMass ? "checked" : ""} />
+          <span>Nema mise u tom periodu</span>
+        </label>
+        <p class="card-sub">Za odabrane dane u razdoblju nema misa — nakane se ne upisuju.</p>
+      </div>
+      <div class="form-group mise-schedule-time" data-schedule-time>
+        <label for="mise-schedule-time">Sat *</label>
+        <input id="mise-schedule-time" name="time" type="time" value="${entry?.time || "09:00"}" ${noMass ? "" : "required"} />
+      </div>
+      <div class="form-group form-wide">
+        <label>Dani *</label>
         <div class="mise-weekday-checks">${uniqueChecks
           .map(
             (c) =>
-              `<label class="mise-weekday-check"><input type="checkbox" name="wd" value="${c.dow}" ${wds.includes(c.dow) ? "checked" : ""} /> ${c.label}</label>`
+              `<label class="mise-weekday-check"><input type="checkbox" name="wd" value="${c.dow}" ${wds.includes(c.dow) ? "checked" : ""} /><span>${c.label}</span></label>`
           )
           .join("")}</div>
-        <p class="card-sub">Brzo: ${DAY_PRESETS.map(
-          (p, i) => `<button type="button" class="btn btn-ghost btn-sm" data-preset-wd="${i}">${p.label}</button>`
-        ).join(" ")}</p>
+        <div class="mise-day-presets">
+          <span class="mise-day-presets__label">Brzo</span>
+          ${DAY_PRESETS.map(
+            (p, i) =>
+              `<button type="button" class="btn btn-ghost btn-sm" data-preset-wd="${i}">${p.label}</button>`
+          ).join("")}
+        </div>
       </div>
-      <div class="form-group" data-schedule-location><label>Mjesto</label><input name="location" value="${esc(entry?.location || "")}" placeholder="Crkva, kapela…" /></div>
-      <div class="form-group"><label>Vrijedi od</label><input name="validFrom" type="date" value="${entry?.validFrom || ""}" /></div>
-      <div class="form-group"><label>Vrijedi do</label><input name="validUntil" type="date" value="${entry?.validUntil || ""}" /></div>
-      <p class="card-sub form-wide">Datume ostavite praznima ako raspored vrijedi trajno.</p>
-      <div class="form-group form-wide"><label>Napomena</label><input name="notes" value="${esc(entry?.notes || "")}" placeholder="npr. samo ljeti, blagdani…" /></div>`;
+      <div class="form-group form-wide" data-schedule-location>
+        <label for="mise-schedule-location">Mjesto</label>
+        <input id="mise-schedule-location" name="location" value="${esc(entry?.location || "")}" placeholder="Crkva, kapela…" />
+      </div>
+      <div class="form-group">
+        <label for="mise-schedule-from">Vrijedi od</label>
+        <input id="mise-schedule-from" name="validFrom" type="date" value="${entry?.validFrom || ""}" />
+      </div>
+      <div class="form-group">
+        <label for="mise-schedule-until">Vrijedi do</label>
+        <input id="mise-schedule-until" name="validUntil" type="date" value="${entry?.validUntil || ""}" />
+      </div>
+      <p class="card-sub form-wide mise-schedule-hint">Datume ostavite praznima ako raspored vrijedi trajno.</p>
+      <div class="form-group form-wide">
+        <label for="mise-schedule-notes">Napomena</label>
+        <input id="mise-schedule-notes" name="notes" value="${esc(entry?.notes || "")}" placeholder="npr. samo ljeti, blagdani…" />
+      </div>`;
   }
 
   function readScheduleForm(form) {
@@ -392,8 +427,8 @@
     const M = global.PastoralModal;
     if (!M?.openForm) return;
     M.openForm({
-      title: entry ? "Uredi termin misa" : "Novi termin misa",
-      size: "lg",
+      title: entry ? "Uredi termin mise" : "Novi termin mise",
+      size: "md",
       body: scheduleFormBody(entry),
       submitLabel: "Spremi",
       onOpen: (_overlay, form) => bindScheduleFormBehavior(form),
@@ -555,7 +590,17 @@
 
     const w = window.open("", "_blank");
     if (!w) {
-      showToast("Omogućite skočne prozore za ispis");
+      if (global.Swal) {
+        global.Swal.fire({
+          title: "Ispis",
+          text: "Omogućite skočne prozore za ispis.",
+          icon: "warning",
+          confirmButtonText: "U redu",
+          heightAuto: false,
+        });
+      } else {
+        showToast("Omogućite skočne prozore za ispis");
+      }
       return;
     }
     w.document.open();

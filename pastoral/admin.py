@@ -9,12 +9,9 @@ from django.utils.html import format_html
 
 from admin_interface.models import Theme
 
-from pastoral.admin_mixins import (
-    ParishTechnicalAdminMixin,
-    ProtectedReferenceAdminMixin,
-)
+from pastoral.admin_mixins import ParishTechnicalAdminMixin
 from django_multitenant.schema import with_tenant_schema
-from pastoral.models import Diocese, Parish, User
+from pastoral.models import Parish, User
 
 try:
     admin.site.unregister(Theme)
@@ -22,38 +19,29 @@ except admin.sites.NotRegistered:
     pass
 
 
-@admin.register(Diocese)
-class DioceseAdmin(ProtectedReferenceAdminMixin, admin.ModelAdmin):
-    list_display = ('name', 'code', 'is_active', 'updated_at')
-    list_filter = ('is_active',)
-    search_fields = ('name', 'code')
-    readonly_fields = ('id', 'created_at', 'updated_at')
-    fields = ('id', 'name', 'code', 'is_active', 'created_at', 'updated_at')
-
-
 @admin.register(Parish)
 class ParishAdmin(ParishTechnicalAdminMixin, admin.ModelAdmin):
     """Postavke župe — ne dnevni pastoralni unos."""
 
     list_display = (
-        'display_name', 'slug', 'tenant_id', 'lifecycle_status', 'diocese',
+        'display_name', 'slug', 'tenant_id', 'lifecycle_status',
         'canonical_tradition', 'ecclesiastical_jurisdiction',
         'updated_at',
     )
     list_filter = (
-        'lifecycle_status', 'diocese', 'canonical_tradition',
+        'lifecycle_status', 'canonical_tradition',
         'ecclesiastical_jurisdiction', 'default_liturgical_tradition',
     )
     search_fields = ('slug',)
     autocomplete_fields = (
-        'diocese', 'ecclesiastical_jurisdiction',
+        'ecclesiastical_jurisdiction',
         'default_liturgical_tradition',
     )
     readonly_fields = (
         'tenant_id', 'updated_at', 'settings_preview',
     )
     fields = (
-        'tenant_id', 'slug', 'diocese', 'canonical_tradition',
+        'tenant_id', 'slug', 'canonical_tradition',
         'ecclesiastical_jurisdiction', 'default_liturgical_tradition',
         'lifecycle_status',
         'updated_at', 'settings_preview',

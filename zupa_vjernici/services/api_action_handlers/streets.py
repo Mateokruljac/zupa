@@ -39,10 +39,26 @@ def upsert_street(parish_data: dict, action_payload: dict) -> dict:
 
 
 def delete_street(parish_data: dict, action_payload: dict) -> dict:
-    street_id = action_payload.get('id')
+    street_id = (action_payload.get('id') or '').strip()
+    if not street_id:
+        return {'ok': False, 'error': 'not_found'}
+    linked_families = sum(
+        1
+        for family in parish_data.get('families') or []
+        if (family.get('streetId') or '') == street_id
+    )
+    if linked_families:
+        return {
+            'ok': False,
+            'error': 'has_families',
+            'family_count': linked_families,
+        }
+    before = len(parish_data.get('streets') or [])
     parish_data['streets'] = [
         street
         for street in parish_data.get('streets', [])
         if street.get('id') != street_id
     ]
+    if len(parish_data['streets']) == before:
+        return {'ok': False, 'error': 'not_found'}
     return {'ok': True}

@@ -1,6 +1,9 @@
 MODULES = {
     'pregled': {'label': 'Pregled', 'pages': ['dashboard']},
-    'zupa': {'label': 'Župa i vjernici', 'pages': ['obitelji', 'ulice', 'posjete']},
+    'zupa': {
+        'label': 'Župa i vjernici',
+        'pages': ['obitelji', 'obitelji-izvjestaj', 'ulice', 'posjete'],
+    },
     'liturgija': {'label': 'Liturgija', 'pages': ['nakane', 'mise', 'zupni-listic']},
     'sakramenti': {
         'label': 'Sakramenti',
@@ -107,21 +110,32 @@ NAV_PAGES = {
 KNOWN_NAV_PAGES = NAV_PAGES | FINANCE_PAGES
 
 
+NAV_PAGE_ALIASES = {
+    'obitelji-izvjestaj': 'obitelji',
+}
+
+
 def current_nav_page(request) -> str:
     """Stranica za aktivnu stavku izbornika, i kad URL nema kwargs ``page``."""
     match = getattr(request, 'resolver_match', None)
     if not match:
         return 'dashboard'
     page = match.kwargs.get('page')
+    if page in NAV_PAGE_ALIASES:
+        return NAV_PAGE_ALIASES[page]
     if page in KNOWN_NAV_PAGES:
         return page
     if match.url_name in {'app', 'dashboard'}:
         return 'dashboard'
+    if match.url_name in NAV_PAGE_ALIASES:
+        return NAV_PAGE_ALIASES[match.url_name]
     if match.url_name in KNOWN_NAV_PAGES:
         return match.url_name
     path = (request.path or '').rstrip('/')
     if '/pages/' in path:
         slug = path.rsplit('/pages/', 1)[-1].split('/')[0]
+        if slug in NAV_PAGE_ALIASES:
+            return NAV_PAGE_ALIASES[slug]
         if slug in KNOWN_NAV_PAGES:
             return slug
     return 'dashboard'

@@ -114,7 +114,7 @@
     </div>
     <footer>
       {% if selected_council_member %}
-      <button type="submit" name="action" value="delete_council_member" class="btn btn-danger" formnovalidate onclick="return confirm('Ukloniti ovog člana iz vijeća?')">Ukloni člana</button>
+      <button type="submit" name="action" value="delete_council_member" class="btn btn-danger" formnovalidate data-swal-confirm="Ukloniti ovog člana iz vijeća?" data-swal-title="Ukloniti člana?" data-swal-confirm-label="Ukloni">Ukloni člana</button>
       {% endif %}
       <button type="button" class="btn btn-ghost" data-record-dialog-close>Odustani</button>
       <button type="submit" class="btn btn-primary">Spremi</button>

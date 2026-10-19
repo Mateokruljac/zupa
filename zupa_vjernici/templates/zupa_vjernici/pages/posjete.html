@@ -3,65 +3,219 @@
 {% load static %}
 
 {% block content %}
-<section class="kpi-row visit-summary" aria-label="Sažetak posjeta">
-  <article class="card kpi-card"><p class="card-label">Otvoreni posjeti</p><p class="card-value">{{ visit_stats.open }}</p><p class="card-sub">čekaju obavljanje</p></article>
-  <article class="card kpi-card"><p class="card-label">Prošao termin</p><p class="card-value">{{ visit_stats.due }}</p><p class="card-sub">treba provjeriti</p></article>
-  <article class="card kpi-card"><p class="card-label">Bez izvještaja</p><p class="card-value">{{ visit_stats.reports_missing }}</p><p class="card-sub">obavljeni bez ishoda</p></article>
+<section class="visit-ops-strip" aria-label="Operativni sažetak posjeta">
+  <a href="?status=open{% if visit_search %}&amp;q={{ visit_search|urlencode }}{% endif %}&amp;dir={{ visit_sort_dir }}" class="visit-ops-strip__item{% if filter_status == 'open' %} is-active{% endif %}">
+    <strong>{{ visit_stats.open }}</strong>
+    <span>otvoreni</span>
+  </a>
+  <a href="?status=overdue{% if visit_search %}&amp;q={{ visit_search|urlencode }}{% endif %}&amp;dir={{ visit_sort_dir }}" class="visit-ops-strip__item{% if filter_status == 'overdue' %} is-active{% endif %}">
+    <strong>{{ visit_stats.due }}</strong>
+    <span>prošao termin</span>
+  </a>
+  <a href="?status=needs_report{% if visit_search %}&amp;q={{ visit_search|urlencode }}{% endif %}&amp;dir={{ visit_sort_dir }}" class="visit-ops-strip__item{% if filter_status == 'needs_report' %} is-active{% endif %}">
+    <strong>{{ visit_stats.reports_missing }}</strong>
+    <span>bez napomene</span>
+  </a>
 </section>
 
 <section class="card visit-list-card">
   <header class="visit-list-header">
-    <div><p class="card-label">Pastoralna skrb</p><h2 class="section-title">Posjeti</h2></div>
+    <div>
+      <p class="card-label">Pastoralna skrb</p>
+      <h2 class="section-title">Posjeti</h2>
+    </div>
     <div class="visit-list-actions">
-      <nav class="visit-status-filters" aria-label="Filtriranje posjeta">
-        <a href="?status=open" class="btn btn-sm {% if filter_status == 'open' %}btn-primary{% else %}btn-ghost{% endif %}">Otvoreni</a>
-        <a href="?status=done" class="btn btn-sm {% if filter_status == 'done' %}btn-primary{% else %}btn-ghost{% endif %}">Obavljeni</a>
-        <a href="?status=all" class="btn btn-sm {% if filter_status == 'all' %}btn-primary{% else %}btn-ghost{% endif %}">Svi</a>
-      </nav>
-      <a href="{% page_url 'obitelji' %}" class="btn btn-ghost btn-sm">Obitelji</a>
-      <button type="button" class="btn btn-primary btn-sm" data-record-dialog="visit-record-dialog">+ Novi posjet</button>
+      <span class="badge">{{ visit_pagination.total }} u prikazu</span>
+      <button type="button" class="btn btn-primary btn-sm" data-record-dialog="visit-record-dialog">+ Nova posjeta</button>
     </div>
   </header>
+
+  <div class="visit-quick-filters" role="group" aria-label="Filteri posjeta">
+    {% for chip in visit_filters %}
+    <a href="{{ chip.href }}" class="visit-quick-filter{% if chip.active %} is-active{% endif %}">
+      {{ chip.label }} <em>{{ chip.count }}</em>
+    </a>
+    {% endfor %}
+  </div>
+
+  <form method="get" class="visit-list-tools">
+    <input type="hidden" name="status" value="{{ filter_status }}">
+    <input type="hidden" name="dir" value="{{ visit_sort_dir }}">
+    <div class="family-search-field">
+      <label class="sr-only" for="visit-search">Pretraži obitelj</label>
+      <input id="visit-search" type="search" name="q" value="{{ visit_search }}" class="form-control family-search" placeholder="Osoba ili obitelj">
+      <button type="submit" class="btn btn-primary btn-sm family-search-submit">Traži</button>
+    </div>
+    {% if visit_search_active %}
+    <a href="?status={{ filter_status }}&amp;dir={{ visit_sort_dir }}" class="btn btn-ghost btn-sm">Poništi pretragu</a>
+    {% endif %}
+  </form>
+
   <div class="table-wrap">
     <table class="data-table visit-list-table">
-      <thead><tr><th>Datum</th><th>Osoba ili obitelj</th><th>Vrsta</th><th>Adresa i svrha</th><th>Status</th><th></th></tr></thead>
+      <thead>
+        <tr>
+          <th>
+            <a href="{{ visit_sort_toggle_href }}" class="visit-sort-link">
+              Datum
+              <span aria-hidden="true">{% if visit_sort_dir == 'desc' %}↓{% else %}↑{% endif %}</span>
+            </a>
+          </th>
+          <th>Osoba ili obitelj</th>
+          <th>Vrsta</th>
+          <th>Adresa</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
         {% for visit in visits %}
-        <tr>
-          <td>{{ visit.scheduled|hr_date }}{% if visit.isOverdue %}<small class="text-danger">{{ visit.daysOverdue }} dana nakon termina</small>{% endif %}</td>
-          <td><strong>{{ visit.person }}</strong>{% if visit.familySurname %}<small>{{ visit.familySurname }}</small>{% endif %}</td>
-          <td><span class="badge">{{ visit.type }}</span></td>
-          <td>{{ visit.address|default:"—" }}{% if visit.purpose %}<small>{{ visit.purpose }}</small>{% endif %}</td>
+        <tr class="{% if visit.isOverdue %}visit-row--overdue{% elif visit.needsReport %}visit-row--needs-report{% endif %}">
           <td>
-            {% if visit.done %}<span class="badge badge-done">obavljeno</span>{% if visit.needsReport %}<small class="text-danger">nedostaje izvještaj</small>{% elif visit.report %}<small>{{ visit.report|truncatechars:70 }}</small>{% endif %}
-            {% elif visit.isOverdue %}<span class="badge badge-urgent">prošao termin</span>
-            {% else %}<span class="badge">planirano</span>{% endif %}
+            {{ visit.scheduled|hr_date }}
+            {% if visit.isOverdue %}
+            <small class="text-danger">{{ visit.daysOverdue }} dana nakon termina</small>
+            {% endif %}
+          </td>
+          <td>
+            <strong>{{ visit.person }}</strong>
+            {% if visit.familySurname %}<small>{{ visit.familySurname }}</small>{% endif %}
+            {% if visit.familyId %}
+            <a href="{% page_url 'obitelji' %}#family={{ visit.familyId }}" class="text-link visit-family-link">Karton →</a>
+            {% endif %}
+          </td>
+          <td><span class="badge">{{ visit.typeLabel }}</span></td>
+          <td>{{ visit.address|default:"—" }}</td>
+          <td>
+            {% if visit.done %}
+            <span class="badge badge-done">obavljeno</span>
+            {% if visit.needsReport %}
+            <small class="text-danger">nedostaje napomena</small>
+            {% elif visit.report %}
+            <small>{{ visit.report|truncatechars:70 }}</small>
+            {% endif %}
+            {% elif visit.isOverdue %}
+            <span class="badge badge-urgent">prošao termin</span>
+            {% else %}
+            <span class="badge">planirano</span>
+            {% endif %}
           </td>
           <td class="visit-row-actions">
-            <a href="?visit={{ visit.id }}&status={{ filter_status }}" class="btn btn-ghost btn-sm">Detalji</a>
-            <form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle_visit"><input type="hidden" name="visit_id" value="{{ visit.id }}"><button type="submit" class="btn btn-ghost btn-sm">{% if visit.done %}Ponovno otvori{% else %}Označi obavljeno{% endif %}</button></form>
+            <a href="?visit={{ visit.id }}&amp;status={{ filter_status }}{% if visit_search %}&amp;q={{ visit_search|urlencode }}{% endif %}{% if visit_sort_dir != 'asc' %}&amp;dir={{ visit_sort_dir }}{% endif %}{% if visit_pagination.page > 1 %}&amp;page={{ visit_pagination.page }}{% endif %}" class="btn btn-ghost btn-sm">Uredi</a>
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="toggle_visit">
+              <input type="hidden" name="visit_id" value="{{ visit.id }}">
+              <button type="submit" class="btn btn-ghost btn-sm">{% if visit.done %}Ponovno otvori{% else %}Obavljeno{% endif %}</button>
+            </form>
+            <form method="post" data-visit-delete-form data-visit-delete-label="{{ visit.person }}">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete_visit">
+              <input type="hidden" name="visit_id" value="{{ visit.id }}">
+              <button type="submit" class="btn btn-ghost btn-sm">Obriši</button>
+            </form>
           </td>
         </tr>
-        {% empty %}<tr><td colspan="6" class="empty-state">Nema posjeta u ovom prikazu.</td></tr>{% endfor %}
+        {% empty %}
+        <tr><td colspan="6" class="empty-state">Nema posjeta u ovom prikazu.</td></tr>
+        {% endfor %}
       </tbody>
     </table>
   </div>
+  <nav class="family-pagination" aria-label="Stranice popisa posjeta">
+    <p class="family-pagination-meta">Prikaz {{ visit_pagination.start }}–{{ visit_pagination.end }} od {{ visit_pagination.total }}</p>
+    <div class="family-pagination-pages">
+      {% if visit_pagination.has_previous %}
+      <a class="btn btn-ghost btn-sm" href="?page={{ visit_pagination.previous_page }}{% if visit_query %}&amp;{{ visit_query }}{% endif %}">Prethodna</a>
+      {% else %}
+      <span class="btn btn-ghost btn-sm is-disabled" aria-disabled="true">Prethodna</span>
+      {% endif %}
+      {% for page_number in visit_pagination.pages %}
+        {% if page_number is None %}
+        <span class="family-pagination-gap" aria-hidden="true">…</span>
+        {% elif page_number == visit_pagination.page %}
+        <span class="family-pagination-current" aria-current="page">{{ page_number }}</span>
+        {% else %}
+        <a class="btn btn-ghost btn-sm" href="?page={{ page_number }}{% if visit_query %}&amp;{{ visit_query }}{% endif %}">{{ page_number }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if visit_pagination.has_next %}
+      <a class="btn btn-ghost btn-sm" href="?page={{ visit_pagination.next_page }}{% if visit_query %}&amp;{{ visit_query }}{% endif %}">Sljedeća</a>
+      {% else %}
+      <span class="btn btn-ghost btn-sm is-disabled" aria-disabled="true">Sljedeća</span>
+      {% endif %}
+    </div>
+  </nav>
 </section>
 
 <dialog id="visit-record-dialog" class="family-record-dialog visit-record-dialog" data-record-dialog-root {% if selected_visit or prefilled_family %}data-record-dialog-open{% endif %}>
-  <form method="post" class="family-record-dialog__form">
+  <form method="post" class="family-record-dialog__form" data-visit-person-picker>
     {% csrf_token %}
     <input type="hidden" name="action" value="upsert_visit">
     {% if selected_visit %}<input type="hidden" name="visit_id" value="{{ selected_visit.id }}">{% endif %}
+    {{ visit_form.family_id }}
     <header>
-      <div><p class="card-label">{% if selected_visit %}Detalji i uređivanje{% else %}Novi termin{% endif %}</p><h2>{% if selected_visit %}{{ selected_visit.person }}{% else %}Planiraj posjet{% endif %}</h2></div>
+      <div>
+        <p class="card-label">{% if selected_visit %}Detalji i uređivanje{% else %}Novi termin{% endif %}</p>
+        <h2>{% if selected_visit %}{{ selected_visit.person }}{% else %}Planiraj posjet{% endif %}</h2>
+      </div>
       <button type="button" data-record-dialog-close aria-label="Zatvori">×</button>
     </header>
-    {% if prefilled_family %}<p class="family-record-dialog__intro">Posjet je povezan s obitelji {{ prefilled_family.surname }}. Kontaktni podaci već su popunjeni.</p>{% elif selected_visit and not selected_visit.done %}<p class="family-record-dialog__intro">Prije označavanja posjeta obavljenim upišite kratak ishod u polje Izvještaj.</p>{% endif %}
-    <div class="family-record-form-grid visit-record-form-grid">{{ visit_form.as_p }}</div>
-    <footer><a href="{% page_url 'posjete' %}?status={{ filter_status }}" class="btn btn-ghost">Odustani</a><button type="submit" class="btn btn-primary">Spremi posjet</button></footer>
+    {% if prefilled_family %}
+    <p class="family-record-dialog__intro">Posjet je povezan s obitelji {{ prefilled_family.surname }}. Adresa je već popunjena.</p>
+    {% endif %}
+    <div class="family-record-form-grid visit-record-form-grid">
+      <div class="visit-form-field">
+        <label for="{{ visit_form.scheduled.id_for_label }}">{{ visit_form.scheduled.label }}</label>
+        {{ visit_form.scheduled }}
+        {{ visit_form.scheduled.errors }}
+      </div>
+      <div class="visit-form-field visit-person-field">
+        <label for="{{ visit_form.person.id_for_label }}">{{ visit_form.person.label }}</label>
+        <div class="visit-person-picker">
+          {{ visit_form.person }}
+          <ul id="visit-person-list" class="visit-person-suggestions" role="listbox" hidden data-visit-person-suggestions></ul>
+        </div>
+        {{ visit_form.person.errors }}
+      </div>
+      <div class="visit-form-field">
+        <label for="{{ visit_form.visit_type.id_for_label }}">{{ visit_form.visit_type.label }}</label>
+        {{ visit_form.visit_type }}
+        {{ visit_form.visit_type.errors }}
+      </div>
+      <div class="visit-form-field">
+        <label for="{{ visit_form.address.id_for_label }}">{{ visit_form.address.label }}</label>
+        {{ visit_form.address }}
+        {{ visit_form.address.errors }}
+      </div>
+      <div class="visit-form-field visit-form-field--wide">
+        <label for="{{ visit_form.report.id_for_label }}">{{ visit_form.report.label }}</label>
+        {{ visit_form.report }}
+        {{ visit_form.report.errors }}
+      </div>
+    </div>
+    <footer>
+      {% if selected_visit %}
+      <button type="submit" class="btn btn-ghost" form="visit-delete-form" formnovalidate>Obriši</button>
+      {% endif %}
+      <a href="{% page_url 'posjete' %}?{% if visit_query %}{{ visit_query }}{% endif %}" class="btn btn-ghost">Odustani</a>
+      <button type="submit" class="btn btn-primary">Spremi posjet</button>
+    </footer>
   </form>
+  {% if selected_visit %}
+  <form id="visit-delete-form" method="post" data-visit-delete-form data-visit-delete-label="{{ selected_visit.person }}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_visit">
+    <input type="hidden" name="visit_id" value="{{ selected_visit.id }}">
+  </form>
+  {% endif %}
 </dialog>
+
+{{ visit_person_options|json_script:"visit-person-options" }}
 {% endblock %}
 
-{% block extra_js %}<script src="{% static 'js/record-dialog.js' %}"></script>{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/record-dialog.js' %}"></script>
+<script src="{% static 'js/visit-person-picker.js' %}"></script>
+<script src="{% static 'js/visit-list.js' %}"></script>
+{% endblock %}

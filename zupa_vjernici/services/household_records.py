@@ -157,9 +157,17 @@ def spouse_as_legacy_record(membership: HouseholdMembership | None) -> dict | No
 
 
 def contribution_as_legacy_record(contribution: HouseholdContribution) -> dict:
+    from zupa_vjernici.services.contribution_categories import (
+        contribution_category_label,
+        normalize_contribution_category,
+    )
+
+    category = normalize_contribution_category(contribution.category)
     return {
         'id': contribution.public_identifier,
         'year': contribution.year,
+        'category': category,
+        'categoryLabel': contribution_category_label(category),
         'luknoPaid': bool(contribution.lukno_paid),
         'luknoAmount': float(contribution.lukno_amount or 0),
         'luknoPaidAt': _iso_or_empty(contribution.lukno_paid_at),
@@ -542,11 +550,18 @@ def sync_household_nested_records(household: Household, record: dict) -> None:
             year_value = int(year_raw) if year_raw not in (None, '') else 0
         except (TypeError, ValueError):
             year_value = 0
+        category = str(
+            contribution_record.get('category')
+            or HouseholdContribution.CATEGORY_LUKNO
+        )
+        if category not in dict(HouseholdContribution.CATEGORY_CHOICES):
+            category = HouseholdContribution.CATEGORY_LUKNO
         HouseholdContribution.objects.update_or_create(
             household=household,
             public_identifier=public_identifier,
             defaults={
                 'year': year_value,
+                'category': category,
                 'lukno_paid': bool(contribution_record.get('luknoPaid')),
                 'lukno_amount': _decimal_amount(
                     contribution_record.get('luknoAmount')

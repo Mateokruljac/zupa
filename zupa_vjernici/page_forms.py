@@ -21,39 +21,28 @@ if TYPE_CHECKING:
 
 
 def attach_family_forms(page_context: dict) -> None:
-    selected_family = page_context.get('selected_family')
-    family_initial_values = {'status': 'aktivna'}
-    if selected_family:
-        family_initial_values.update({
-            'surname': selected_family.get('surname', ''),
-            'street_id': selected_family.get('streetId', ''),
-            'address': selected_family.get('address', ''),
-            'phone': selected_family.get('phone', ''),
-            'email': selected_family.get('email', ''),
-            'status': selected_family.get('status', 'aktivna'),
-            'pastoral_notes': selected_family.get('pastoralNotes', ''),
-        })
+    streets = page_context.get('street_list', [])
+    # Karton se puni preko API-ja; forme ovdje ostaju prazne predloške.
+    page_context['new_family_form'] = FamilyForm(
+        streets=streets,
+        auto_id='new_family_%s',
+        initial={'status': 'aktivna'},
+    )
     page_context['family_form'] = FamilyForm(
-        streets=page_context.get('street_list', []),
-        initial=family_initial_values,
+        streets=streets,
+        auto_id='edit_family_%s',
+        initial={'status': 'aktivna'},
     )
     page_context['family_member_form'] = FamilyMemberForm()
     page_context['family_contribution_form'] = FamilyContributionForm(
         initial={
             'year': date.today().year,
-            'lukno_amount': DEFAULT_ANNUAL_CONTRIBUTION_AMOUNT,
-            'church_donation': 0,
+            'category': 'lukno',
+            'amount': DEFAULT_ANNUAL_CONTRIBUTION_AMOUNT,
+            'paid_at': date.today(),
         },
     )
-    page_context['family_notes_form'] = FamilyNotesForm(
-        initial={
-            'pastoral_notes': (
-                selected_family.get('pastoralNotes', '')
-                if selected_family
-                else ''
-            ),
-        },
-    )
+    page_context['family_notes_form'] = FamilyNotesForm()
 
 
 def attach_street_forms(page_context: dict) -> None:
@@ -98,13 +87,9 @@ def attach_visit_forms(
                 'address': selected_family.get('address', ''),
                 'family_id': selected_family.get('id', ''),
                 'visit_type': 'obitelj',
-                'purpose': 'Pastoralni posjet',
             })
             page_context['prefilled_family'] = selected_family
-    page_context['visit_form'] = VisitForm(
-        families=families,
-        initial=visit_initial_values,
-    )
+    page_context['visit_form'] = VisitForm(initial=visit_initial_values)
 
     visit_id = request.GET.get('visit')
     if not visit_id:
@@ -120,13 +105,11 @@ def attach_visit_forms(
     if not selected_visit:
         return
     page_context['selected_visit'] = selected_visit
-    page_context['visit_form'] = VisitForm(families=families, initial={
+    page_context['visit_form'] = VisitForm(initial={
         'scheduled': selected_visit.get('scheduled'),
         'person': selected_visit.get('person', ''),
         'visit_type': selected_visit.get('type', 'obitelj'),
         'address': selected_visit.get('address', ''),
-        'priest': selected_visit.get('priest', ''),
-        'purpose': selected_visit.get('purpose', ''),
         'family_id': selected_visit.get('familyId', ''),
         'report': selected_visit.get('report', ''),
     })

@@ -9,7 +9,7 @@ import uuid
 
 from django_multitenant.models import User  # re-export: AUTH_USER_MODEL je shared
 
-from core.models import FCTA, SCD1, SCD2, OPEN_ENDED_VALID_TO
+from core.models import FCTA, SCD2, OPEN_ENDED_VALID_TO
 from django_multitenant.schema import TenantBoundModel, with_tenant_schema
 from zupa_vjernici.canonical import CanonicalTradition
 
@@ -28,26 +28,12 @@ class UUIDTimestampedModel(FCTA):
         abstract = True
 
 
-class Diocese(SCD1):
-    unified_key_origin_fields = ('code',)
-
-    code = models.SlugField(unique=True)
-    name = models.CharField(max_length=200)
-
-    class Meta:
-        ordering = ('name',)
-        verbose_name = 'Biskupija'
-        verbose_name_plural = 'Biskupije'
-
-    def __str__(self):
-        return self.name
-
-
 class Parish(TenantBoundModel):
     """Jedna župa — tenant ureda.
 
     `canonical_tradition` razlikuje latinsku župu od župe Križevačke eparhije.
     Obred misa je `default_liturgical_tradition`, ne ovo polje.
+    Biskupija/eparhija je `ecclesiastical_jurisdiction` (ne zaseban Diocese model).
     """
 
     class LifecycleStatus(models.TextChoices):
@@ -59,13 +45,6 @@ class Parish(TenantBoundModel):
 
     tenant_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     slug = models.SlugField(unique=True, default=settings.PARISH_DEFAULT_SLUG)
-    diocese = models.ForeignKey(
-        'pastoral.Diocese',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='parishes',
-    )
     canonical_tradition = models.CharField(
         'Kanonska tradicija',
         max_length=16,
@@ -134,11 +113,23 @@ class Parish(TenantBoundModel):
         """Vrijednost koju sakrament snima; prazno ostaje nepotvrđeno."""
         return self.canonical_tradition or 'unconfirmed'
 
+    def diocese_display_name(self) -> str:
+        """Naziv biskupije/eparhije za zaglavlja i ispis."""
+        if self.ecclesiastical_jurisdiction_id:
+            return self.ecclesiastical_jurisdiction.official_name
+        return (self.settings or {}).get('diocese') or ''
+
     @with_tenant_schema
     def save(self, *args, **kwargs):
         if self.slug:
             self.unified_key = self.slug
         self.is_active = self.lifecycle_status == self.LifecycleStatus.ACTIVE
+        if self.ecclesiastical_jurisdiction_id:
+            parish_settings = dict(self.settings or {})
+            parish_settings['diocese'] = (
+                self.ecclesiastical_jurisdiction.official_name
+            )
+            self.settings = parish_settings
         return super().save(*args, **kwargs)
 
 

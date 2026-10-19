@@ -7,6 +7,7 @@ na novi otvoreni red — inače bi ostala na zatvorenoj verziji ulice.
 """
 from __future__ import annotations
 
+from core.models import OPEN_ENDED_VALID_TO
 from zupa_vjernici.models import Street
 from django_multitenant.schema import with_tenant_schema
 
@@ -20,6 +21,34 @@ def street_as_legacy_record(street: Street) -> dict:
         'sortOrder': int(street.sort_order or 0),
         'notes': street.notes or '',
     }
+
+
+@with_tenant_schema
+def street_name_history(parish, public_identifier: str) -> list[dict]:
+    """Povijest naziva/grada iz SCD2 verzija (najnovije prvo)."""
+    if not public_identifier:
+        return []
+    rows = list(
+        Street.objects.filter(
+            parish=parish,
+            public_identifier=public_identifier,
+        ).order_by('-date_from', '-created_at')
+    )
+    history = []
+    for row in rows:
+        is_current = row.date_to == OPEN_ENDED_VALID_TO
+        history.append({
+            'name': row.name or '',
+            'city': row.city or '',
+            'valid_from': row.date_from.isoformat() if row.date_from else '',
+            'valid_to': (
+                ''
+                if is_current or not row.date_to
+                else row.date_to.isoformat()
+            ),
+            'is_current': is_current,
+        })
+    return history
 
 
 def street_field_defaults_from_legacy(record: dict) -> dict:

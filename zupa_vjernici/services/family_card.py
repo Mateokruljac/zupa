@@ -9,6 +9,7 @@ from django.forms import Form
 from django_multitenant.schema import with_tenant_schema
 from pastoral.services.api_action_handlers.shared import find_family
 from pastoral.services.data import ParishDataService
+from pastoral.services.dates import parse_iso_date
 from zupa_vjernici.forms import (
     FamilyContributionForm,
     FamilyForm,
@@ -16,11 +17,32 @@ from zupa_vjernici.forms import (
     FamilyNotesForm,
 )
 from zupa_vjernici.services.api_action_handlers.families import (
+    delete_contribution,
+    delete_family,
+    delete_family_member,
     update_family,
     update_family_notes,
     upsert_contribution,
     upsert_family_member,
 )
+from zupa_vjernici.services.contribution_categories import (
+    contribution_category_label,
+    contribution_totals,
+    is_lukno_contribution,
+    normalize_contribution_category,
+)
+from zupa_vjernici.services.membership_timeline import (
+    membership_timeline_for_family,
+)
+
+
+def _needs_pastoral_followup(family: dict, today: date) -> bool:
+    last_visit = parse_iso_date(family.get('lastVisit'))
+    if not last_visit:
+        return True
+    if (today - last_visit).days > 365:
+        return True
+    return 'posjetiti' in (family.get('pastoralNotes') or '').casefold()
 
 
 class FamilyCardRejected(Exception):
@@ -40,7 +62,10 @@ def family_card_snapshot(parish_data: dict, family: dict, year: int) -> dict:
     street = streets.get(family.get('streetId'))
     contributions = sorted(
         list(family.get('contributions') or []),
-        key=lambda contribution: contribution.get('year') or 0,
+        key=lambda contribution: (
+            contribution.get('year') or 0,
+            contribution.get('category') or '',
+        ),
         reverse=True,
     )
     current_contribution = next(
@@ -48,6 +73,7 @@ def family_card_snapshot(parish_data: dict, family: dict, year: int) -> dict:
             contribution
             for contribution in contributions
             if contribution.get('year') == year
+            and is_lukno_contribution(contribution)
         ),
         None,
     )
@@ -64,6 +90,9 @@ def family_card_snapshot(parish_data: dict, family: dict, year: int) -> dict:
         data_gaps.append('e-mail')
     if not family.get('streetId'):
         data_gaps.append('teritorijalna pripadnost')
+    today = date.today()
+    last_visit_on = family.get('lastVisit') or ''
+    last_visit_date = parse_iso_date(last_visit_on)
     return {
         'id': family.get('id') or '',
         'surname': family.get('surname') or '',
@@ -77,6 +106,11 @@ def family_card_snapshot(parish_data: dict, family: dict, year: int) -> dict:
         'dataGaps': data_gaps,
         'currentYear': year,
         'luknoStatus': lukno_status,
+        'lastVisitOn': last_visit_on,
+        'lastVisitDays': (
+            (today - last_visit_date).days if last_visit_date else None
+        ),
+        'needsPastoralFollowup': _needs_pastoral_followup(family, today),
         'members': [
             {
                 'id': member.get('id') or '',
@@ -86,12 +120,19 @@ def family_card_snapshot(parish_data: dict, family: dict, year: int) -> dict:
                 'relation': member.get('relation') or '',
                 'birthDate': member.get('birthDate') or '',
                 'birthYear': str(member.get('birthYear') or ''),
+                'notes': member.get('notes') or '',
             }
             for member in family.get('members') or []
         ],
         'contributions': [
             {
+                'id': contribution.get('id') or '',
                 'year': int(contribution.get('year') or 0),
+                'category': normalize_contribution_category(
+                    contribution.get('category'),
+                ),
+                'categoryLabel': contribution.get('categoryLabel')
+                or contribution_category_label(contribution.get('category')),
                 'luknoAmount': float(contribution.get('luknoAmount') or 0),
                 'luknoPaid': bool(contribution.get('luknoPaid')),
                 'luknoPaidAt': contribution.get('luknoPaidAt') or '',
@@ -101,6 +142,10 @@ def family_card_snapshot(parish_data: dict, family: dict, year: int) -> dict:
             }
             for contribution in contributions
         ],
+        'contributionTotals': contribution_totals(contributions),
+        'membershipTimeline': membership_timeline_for_family(
+            family.get('id') or '',
+        ),
     }
 
 
@@ -121,6 +166,17 @@ def _require_saved(action_result: dict) -> None:
     if action_result.get('ok'):
         return
     raise FamilyCardRejected(400, action_result.get('error') or 'not_saved')
+
+
+@with_tenant_schema
+def load_family_card(request, family_id: str) -> dict:
+    """Učitaj karton za modal — bez odabira preko query parametra."""
+    parish_data_service = ParishDataService.for_request(request)
+    parish_data = parish_data_service.load()
+    family = find_family(parish_data, family_id)
+    if family is None:
+        raise FamilyCardRejected(404, 'not_found')
+    return family_card_snapshot(parish_data, family, date.today().year)
 
 
 @with_tenant_schema
@@ -169,6 +225,7 @@ def save_family_member_card(request, family_id: str, form_data: dict) -> dict:
             'surname': cleaned_data.get('surname') or '',
             'relation': cleaned_data.get('relation') or '',
             'birth_date': birth_date.isoformat() if birth_date else '',
+            'notes': cleaned_data.get('notes') or '',
         }))
 
     return _save_family_change(request, family_id, apply)
@@ -178,16 +235,14 @@ def save_family_contribution_card(request, family_id: str, form_data: dict) -> d
     def apply(parish_data: dict) -> None:
         contribution_form = FamilyContributionForm(form_data)
         cleaned_data = _require_form(contribution_form)
-        lukno_paid_at = cleaned_data.get('lukno_paid_at')
-        donation_date = cleaned_data.get('donation_date')
+        paid_at = cleaned_data.get('paid_at')
         _require_saved(upsert_contribution(parish_data, {
             'family_id': family_id,
+            'contribution_id': cleaned_data.get('contribution_id') or '',
             'year': cleaned_data['year'],
-            'lukno_amount': cleaned_data['lukno_amount'],
-            'lukno_paid': cleaned_data.get('lukno_paid', False),
-            'lukno_paid_at': lukno_paid_at.isoformat() if lukno_paid_at else '',
-            'church_donation': cleaned_data.get('church_donation') or 0,
-            'donation_date': donation_date.isoformat() if donation_date else '',
+            'category': cleaned_data['category'],
+            'amount': cleaned_data['amount'],
+            'paid_at': paid_at.isoformat() if paid_at else '',
             'notes': cleaned_data.get('notes') or '',
         }))
 
@@ -204,3 +259,43 @@ def save_family_notes_card(request, family_id: str, form_data: dict) -> dict:
         }))
 
     return _save_family_change(request, family_id, apply)
+
+
+def delete_family_member_card(
+    request,
+    family_id: str,
+    member_id: str,
+) -> dict:
+    def apply(parish_data: dict) -> None:
+        _require_saved(delete_family_member(parish_data, {
+            'family_id': family_id,
+            'member_id': member_id,
+        }))
+
+    return _save_family_change(request, family_id, apply)
+
+
+def delete_family_contribution_card(
+    request,
+    family_id: str,
+    contribution_id: str,
+) -> dict:
+    def apply(parish_data: dict) -> None:
+        _require_saved(delete_contribution(parish_data, {
+            'family_id': family_id,
+            'contribution_id': contribution_id,
+        }))
+
+    return _save_family_change(request, family_id, apply)
+
+
+@with_tenant_schema
+def delete_family_card(request, family_id: str) -> None:
+    parish_data_service = ParishDataService.for_request(request)
+    with transaction.atomic():
+        parish_data_service.lock_for_update()
+        parish_data = parish_data_service.load()
+        if find_family(parish_data, family_id) is None:
+            raise FamilyCardRejected(404, 'not_found')
+        _require_saved(delete_family(parish_data, {'id': family_id}))
+        parish_data_service.save(parish_data)

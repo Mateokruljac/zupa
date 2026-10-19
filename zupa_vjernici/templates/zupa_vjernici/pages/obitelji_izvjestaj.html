@@ -1,0 +1,158 @@
+{% extends "pastoral/base.html" %}
+{% load pastoral_tags %}
+{% load static %}
+
+{% block content %}
+<section class="family-report-toolbar">
+  <a href="{% page_url 'obitelji' %}" class="btn btn-ghost btn-sm">← Natrag na obitelji</a>
+</section>
+
+<section class="kpi-row family-summary" aria-label="Sažetak obitelji">
+  <article class="card kpi-card">
+    <p class="card-label">Obitelji</p>
+    <p class="card-value">{{ family_stats.total }}</p>
+    <p class="card-sub">ukupno u evidenciji</p>
+  </article>
+  <article class="card kpi-card">
+    <p class="card-label">Članovi kućanstva</p>
+    <p class="card-value">{{ family_stats.members }}</p>
+    <p class="card-sub">u svim kartonima</p>
+  </article>
+  <article class="card kpi-card">
+    <p class="card-label">Prosječno po obitelji</p>
+    <p class="card-value">{{ family_stats.members_average }}</p>
+    <p class="card-sub">članova u kartonu</p>
+  </article>
+  <article class="card kpi-card">
+    <p class="card-label">Ulice</p>
+    <p class="card-value">{{ family_stats.streets_count }}</p>
+    <p class="card-sub">u teritoriju župe</p>
+  </article>
+  <article class="card kpi-card">
+    <p class="card-label">Lukno {{ family_stats.previous_year }}.</p>
+    <p class="card-value">{{ family_stats.previous_year_lukno_unpaid }}</p>
+    <p class="card-sub">nije plaćeno</p>
+  </article>
+  <article class="card kpi-card">
+    <p class="card-label">Prihod od lukna {{ family_stats.previous_year }}.</p>
+    <p class="card-value family-summary-money">{{ family_stats.previous_year_lukno_income|money_eur }}</p>
+    <p class="card-sub">uplaćeno u evidenciji</p>
+  </article>
+</section>
+
+<section class="card family-composition-card" aria-labelledby="family-composition-title">
+  <div class="family-composition-head">
+    <p class="card-label">Sastav kućanstava</p>
+    <h2 class="section-title" id="family-composition-title">Kako su obitelji sastavljene</h2>
+  </div>
+  <div class="family-composition-grid">
+    {% for item in family_composition %}
+    <article class="family-composition-item">
+      <strong>{{ item.count }}</strong>
+      <span>{{ item.label }}</span>
+      <small>{{ item.detail }}</small>
+      <span class="family-composition-bar" aria-hidden="true"><i style="width: {{ item.share }}%"></i></span>
+      <em>{{ item.share }}%</em>
+    </article>
+    {% endfor %}
+  </div>
+  <p class="dashboard-method-note">Djeca se broje prema upisanom odnosu (sin, kći, dijete). Samačka kućanstva nisu uključena u ostale kategorije.</p>
+</section>
+
+<section class="card family-finance-overview family-finance-overview--report" aria-labelledby="family-finance-overview-title">
+  {% with totals=parish_finance_totals %}
+  {{ totals|json_script:"parish-finance-totals" }}
+  <div class="family-finance-stats family-finance-stats--page" data-finance-stats data-finance-totals-script="parish-finance-totals"{% if not totals.grandTotal %} hidden{% endif %}>
+    <div class="family-finance-overview__head">
+      <div>
+        <p class="card-label">Lukno i darovi</p>
+        <h2 class="section-title" id="family-finance-overview-title">Uplate u župi</h2>
+      </div>
+      <div class="family-finance-stats__filters" role="group" aria-label="Filter uplata" data-finance-year-filter>
+        <button type="button" class="family-finance-filter-pill is-selected" data-finance-year-all aria-pressed="true">Sve ukupno</button>
+        <div class="family-finance-year-field">
+          <label class="sr-only" for="parish-finance-year">Godina</label>
+          <input id="parish-finance-year" class="form-control family-finance-year-input" type="number" inputmode="numeric" min="1900" max="2100" step="1" placeholder="Godina" aria-label="Filtriraj po godini" data-finance-year-input>
+          <button type="button" class="family-finance-year-search" data-finance-year-search title="Filtriraj po godini" aria-label="Filtriraj po godini">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16.2 16.2 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="family-finance-stats__grid">
+      <div class="family-finance-stats__block">
+        <p class="card-label" data-finance-category-title>Po kategoriji (ukupno)</p>
+        <ul class="family-finance-stats__list" data-finance-totals-by-category>
+          {% for row in totals.byCategory %}
+          <li>
+            <div class="family-finance-stats__row">
+              <span>{{ row.label }}</span>
+              <strong>{{ row.total|money_eur }}</strong>
+            </div>
+            {% if totals.grandTotal %}
+            <span class="family-finance-stats__bar" aria-hidden="true"><i style="width: {% widthratio row.total totals.grandTotal 100 %}%"></i></span>
+            {% endif %}
+          </li>
+          {% empty %}
+          <li class="empty-state">Nema uplata u evidenciji.</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="family-finance-stats__total">
+        <p class="card-label" data-finance-grand-label>Ukupno uplaćeno</p>
+        <p class="family-finance-stats__grand" data-finance-totals-grand>{{ totals.grandTotal|money_eur }}</p>
+        <small class="family-finance-stats__hint">lukno i darovi zajedno</small>
+      </div>
+    </div>
+  </div>
+  {% if not totals.grandTotal %}
+  <div class="family-composition-head">
+    <p class="card-label">Lukno i darovi</p>
+    <h2 class="section-title" id="family-finance-overview-title">Uplate u župi</h2>
+  </div>
+  <p class="empty-state">Nema uplata u evidenciji.</p>
+  {% endif %}
+  {% endwith %}
+</section>
+
+<section class="family-report-charts" aria-label="Grafikoni izvještaja">
+  {{ family_payments_chart|json_script:"family-payments-chart-data" }}
+  {{ family_people_chart|json_script:"family-people-chart-data" }}
+  <article class="card family-report-chart-card">
+    <div class="family-composition-head">
+      <p class="card-label">Trend</p>
+      <h2 class="section-title">Uplate po godinama</h2>
+    </div>
+    <p class="dashboard-method-note">Ukupan iznos evidentiranih uplata (lukno i darovi) po godini.</p>
+    <div
+      class="pro-chart"
+      data-pastoral-chart="bar"
+      data-source="family-payments-chart-data"
+      data-series="total"
+      data-labels="Uplate"
+      aria-label="Uplate po godinama"
+    ></div>
+  </article>
+  <article class="card family-report-chart-card">
+    <div class="family-composition-head">
+      <p class="card-label">Trend</p>
+      <h2 class="section-title">Broj ljudi po godinama</h2>
+    </div>
+    <p class="dashboard-method-note">Broj osoba u kućanstvima na kraju svake godine (ili danas za tekuću).</p>
+    <div
+      class="pro-chart"
+      data-pastoral-chart="line"
+      data-source="family-people-chart-data"
+      data-series="count"
+      data-labels="Osobe"
+      aria-label="Broj ljudi po godinama"
+    ></div>
+  </article>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="{% static 'js/family-finance-stats.js' %}"></script>
+<script src="{% static 'js/dashboard-insights.js' %}"></script>
+{% endblock %}

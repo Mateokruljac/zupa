@@ -11,6 +11,10 @@ from pastoral.services.api_action_handlers.shared import (
     synchronize_parishioners,
 )
 from pastoral.services.dates import today_iso
+from zupa_vjernici.services.contribution_categories import (
+    LUKNO_CATEGORY,
+    normalize_contribution_category,
+)
 
 
 def create_family(parish_data: dict, action_payload: dict) -> dict:
@@ -54,6 +58,7 @@ def create_family(parish_data: dict, action_payload: dict) -> dict:
     annual_contribution = {
         'id': generate_record_identifier('yc'),
         'year': current_year,
+        'category': 'lukno',
         'luknoPaid': bool(
             action_payload.get('lukno_paid')
             or action_payload.get('luknoPaid')
@@ -61,6 +66,7 @@ def create_family(parish_data: dict, action_payload: dict) -> dict:
         'luknoAmount': float(
             action_payload.get('lukno_amount')
             or action_payload.get('luknoAmount')
+            or action_payload.get('amount')
             or DEFAULT_ANNUAL_CONTRIBUTION_AMOUNT
         ),
         'luknoPaidAt': (
@@ -69,11 +75,7 @@ def create_family(parish_data: dict, action_payload: dict) -> dict:
             or action_payload.get('luknoPaid')
             else ''
         ),
-        'churchDonation': float(
-            action_payload.get('church_donation')
-            or action_payload.get('churchDonation')
-            or 0
-        ),
+        'churchDonation': 0,
         'donationDate': '',
         'notes': '',
     }
@@ -122,6 +124,8 @@ def update_family(parish_data: dict, action_payload: dict) -> dict:
 
 def delete_family(parish_data: dict, action_payload: dict) -> dict:
     family_id = action_payload.get('id') or action_payload.get('family_id')
+    if not find_family(parish_data, family_id):
+        return {'ok': False, 'error': 'not_found'}
     parish_data['families'] = [
         family
         for family in parish_data.get('families', [])
@@ -222,52 +226,70 @@ def upsert_contribution(parish_data: dict, action_payload: dict) -> dict:
     contribution_year = int(
         action_payload.get('year') or date.today().year
     )
-    annual_contribution = next(
-        (
-            contribution
-            for contribution in family.get('contributions') or []
-            if contribution.get('year') == contribution_year
-        ),
-        None,
+    category = normalize_contribution_category(
+        action_payload.get('category'),
     )
-    if not annual_contribution:
+    contribution_id = (
+        action_payload.get('contribution_id')
+        or action_payload.get('contributionId')
+        or ''
+    ).strip()
+    amount = float(
+        action_payload.get('amount')
+        or action_payload.get('lukno_amount')
+        or action_payload.get('luknoAmount')
+        or DEFAULT_ANNUAL_CONTRIBUTION_AMOUNT
+    )
+    paid_at = normalize_date_value(
+        action_payload.get('paid_at')
+        or action_payload.get('paidAt')
+        or action_payload.get('lukno_paid_at')
+        or action_payload.get('luknoPaidAt')
+    ) or today_iso()
+    contributions = family.setdefault('contributions', [])
+    annual_contribution = None
+    if contribution_id:
+        annual_contribution = next(
+            (
+                contribution
+                for contribution in contributions
+                if contribution.get('id') == contribution_id
+            ),
+            None,
+        )
+    if annual_contribution is None:
+        annual_contribution = next(
+            (
+                contribution
+                for contribution in contributions
+                if contribution.get('year') == contribution_year
+                and normalize_contribution_category(
+                    contribution.get('category'),
+                ) == category
+            ),
+            None,
+        )
+    if annual_contribution is None:
         annual_contribution = {
             'id': generate_record_identifier('yc'),
             'year': contribution_year,
         }
-        family.setdefault('contributions', []).append(annual_contribution)
-    annual_contribution['luknoPaid'] = bool(
-        action_payload.get('lukno_paid')
-        or action_payload.get('luknoPaid')
-    )
-    annual_contribution['luknoAmount'] = float(
-        action_payload.get('lukno_amount')
-        or action_payload.get('luknoAmount')
-        or DEFAULT_ANNUAL_CONTRIBUTION_AMOUNT
-    )
-    annual_contribution['luknoPaidAt'] = normalize_date_value(
-        action_payload.get('lukno_paid_at')
-        or action_payload.get('luknoPaidAt')
-    )
-    if (
-        annual_contribution['luknoPaid']
-        and not annual_contribution['luknoPaidAt']
-    ):
-        annual_contribution['luknoPaidAt'] = today_iso()
-    annual_contribution['churchDonation'] = float(
-        action_payload.get('church_donation')
-        or action_payload.get('churchDonation')
-        or 0
-    )
-    annual_contribution['donationDate'] = normalize_date_value(
-        action_payload.get('donation_date')
-        or action_payload.get('donationDate')
-    )
+        contributions.append(annual_contribution)
+    annual_contribution['year'] = contribution_year
+    annual_contribution['category'] = category
+    annual_contribution['luknoAmount'] = amount
+    annual_contribution['luknoPaidAt'] = paid_at
+    annual_contribution['luknoPaid'] = category == LUKNO_CATEGORY
+    annual_contribution['churchDonation'] = 0
+    annual_contribution['donationDate'] = ''
     annual_contribution['notes'] = (
         action_payload.get('notes') or ''
     ).strip()
     family['contributions'].sort(
-        key=lambda contribution: contribution.get('year', 0),
+        key=lambda contribution: (
+            contribution.get('year', 0),
+            contribution.get('category') or '',
+        ),
         reverse=True,
     )
     return {'ok': True, 'item': annual_contribution}
@@ -280,11 +302,31 @@ def delete_contribution(parish_data: dict, action_payload: dict) -> dict:
     )
     if not family:
         return {'ok': False, 'error': 'not_found'}
+    contribution_id = (
+        action_payload.get('contribution_id')
+        or action_payload.get('contributionId')
+        or ''
+    ).strip()
+    if contribution_id:
+        family['contributions'] = [
+            contribution
+            for contribution in family.get('contributions') or []
+            if contribution.get('id') != contribution_id
+        ]
+        return {'ok': True}
     contribution_year = int(action_payload.get('year'))
+    category = normalize_contribution_category(
+        action_payload.get('category'),
+    )
     family['contributions'] = [
         contribution
         for contribution in family.get('contributions') or []
-        if contribution.get('year') != contribution_year
+        if not (
+            contribution.get('year') == contribution_year
+            and normalize_contribution_category(
+                contribution.get('category'),
+            ) == category
+        )
     ]
     return {'ok': True}
 

@@ -30,7 +30,6 @@ ADMIN_REORDER = [
         'models': (
             'zupa_vjernici.EcclesiasticalJurisdiction',
             'liturgija.LiturgicalTradition',
-            'pastoral.Diocese',
         ),
     },
     {

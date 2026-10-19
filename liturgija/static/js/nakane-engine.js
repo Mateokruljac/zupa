@@ -305,25 +305,35 @@
 
   /* ---------- dnevni panel ---------- */
 
-  function renderDayList(list) {
-    if (!list.length) return '<p class="empty-state">Nema nakana za ovaj dan.</p>';
+  function sortMassTimes(times) {
+    return [...times].sort((a, b) => {
+      if (a === "—") return 1;
+      if (b === "—") return -1;
+      return toMins(a) - toMins(b);
+    });
+  }
+
+  function renderDayList(iso) {
+    const list = dayIntentions(iso);
     const byMass = {};
+    massTimeOptions(iso).forEach((time) => {
+      byMass[time] = [];
+    });
     list.forEach((n) => {
       const t = n.massTime || "—";
       (byMass[t] = byMass[t] || []).push(n);
     });
-    return Object.keys(byMass)
-      .sort()
+    const times = sortMassTimes(Object.keys(byMass));
+    if (!times.length) {
+      return '<p class="empty-state">Nema mise ni nakana za ovaj dan.</p>';
+    }
+    return times
       .map((massTime) => {
         const items = byMass[massTime];
-        return `<div class="nakane-mass-group">
-          <div class="nakane-mass-group-head">
-            <h3 class="nakane-mass-time">Misa ${esc(massTime)}</h3>
-            <button type="button" class="btn btn-ghost btn-sm" data-print-mass="${esc(massTime)}" title="Ispis ove mise">Ispis</button>
-          </div>
-          ${items
-            .map(
-              (n) => `<div class="list-item nakane-day-item" data-intent-id="${n.id}">
+        const body = items.length
+          ? items
+              .map(
+                (n) => `<div class="list-item nakane-day-item" data-intent-id="${n.id}">
             <div>
               <strong>${esc(n.intentionFor)}</strong>
               <br><small>${num(n.stipend)} €</small>
@@ -335,8 +345,19 @@
               <button type="button" class="btn btn-ghost btn-sm" data-del-intent="${n.id}">Obriši</button>
             </div>
           </div>`
-            )
-            .join("")}
+              )
+              .join("")
+          : '<p class="nakane-mass-empty">Nema nakane</p>';
+        return `<div class="nakane-mass-group${items.length ? "" : " nakane-mass-group--empty"}">
+          <div class="nakane-mass-group-head">
+            <h3 class="nakane-mass-time">Misa ${esc(massTime)}</h3>
+            ${
+              items.length
+                ? `<button type="button" class="btn btn-ghost btn-sm" data-print-mass="${esc(massTime)}" title="Ispis ove mise">Ispis</button>`
+                : ""
+            }
+          </div>
+          ${body}
         </div>`;
       })
       .join("");
@@ -351,7 +372,7 @@
     panel.innerHTML = `
       <section class="card nakane-day-card">
         ${litLoading}
-        <div class="nakane-day-list">${renderDayList(dayIntentions(iso))}</div>
+        <div class="nakane-day-list">${renderDayList(iso)}</div>
       </section>`;
     loadDayLiturgy(iso);
     bindRowActions(panel);
@@ -591,33 +612,34 @@
     const paidDeg = s.total ? (s.paid / s.total) * 100 : 0;
 
     mount.innerHTML = `
-      <h2 class="section-title">Pregled i statistika</h2>
-      <p class="card-sub">Ukupna evidencija nakana — tablicu ispod sortirajte i filtrirajte.</p>
+      <header class="nakane-stats-head">
+        <h2 class="section-title">Pregled i statistika</h2>
+      </header>
       <div class="kpi-row nakane-stats-kpis">
-        <article class="card kpi-card kpi-tone--liturgy">
+        <article class="kpi-card kpi-tone--liturgy">
           <p class="card-label">Ukupno</p>
           <p class="card-value">${s.total}</p>
-          <p class="card-sub">svih nakana u evidenciji</p>
+          <p class="card-sub">nakana</p>
         </article>
-        <article class="card kpi-card kpi-tone--success">
+        <article class="kpi-card kpi-tone--success">
           <p class="card-label">Plaćeno</p>
           <p class="card-value">${s.paid}</p>
-          <p class="card-sub">${s.paidPct}% od ukupnog broja</p>
+          <p class="card-sub">${s.paidPct}%</p>
         </article>
-        <article class="card kpi-card kpi-tone--alert">
+        <article class="kpi-card kpi-tone--alert">
           <p class="card-label">Neplaćeno</p>
           <p class="card-value">${s.unpaid}</p>
-          <p class="card-sub">${num(s.unpaidStipend)} € stipendija</p>
+          <p class="card-sub">${num(s.unpaidStipend)} €</p>
         </article>
-        <article class="card kpi-card kpi-tone--accent">
+        <article class="kpi-card kpi-tone--accent">
           <p class="card-label">Stipendiji</p>
           <p class="card-value">${num(s.totalStipend)} €</p>
-          <p class="card-sub">ukupno u evidenciji</p>
+          <p class="card-sub">ukupno</p>
         </article>
       </div>
       <div class="nakane-stats-charts">
         <article class="nakane-chart-panel">
-          <p class="card-label">Evidencija plaćenih i neplaćenih misnih nakana</p>
+          <p class="card-label">Plaćeno / neplaćeno</p>
           <div class="nakane-donut-wrap">
             <div class="nakane-donut" style="--paid-pct: ${paidDeg}" aria-hidden="true"></div>
             <div class="nakane-donut-legend">
@@ -627,7 +649,7 @@
           </div>
         </article>
         <article class="nakane-chart-panel">
-          <p class="card-label">Nakane — zadnjih 6 mjeseci</p>
+          <p class="card-label">Zadnjih 6 mjeseci</p>
           <div class="nakane-month-chart">
             <div class="nakane-month-axis" aria-hidden="true">${ticks.map((tick) => `<span>${tick}</span>`).join("")}</div>
             <div class="nakane-month-bars">
@@ -672,24 +694,38 @@
     });
   }
 
+  function intentionMatchesSearch(intention, query) {
+    if (!query) return true;
+    const statusLabel = intention.paid ? "evidentiran" : "nije evidentiran";
+    return [
+      intention.date,
+      fmtDate(intention.date),
+      intention.massTime,
+      intention.intentionFor,
+      intention.notes,
+      String(intention.stipend),
+      statusLabel,
+    ].some((value) => String(value ?? "").toLowerCase().includes(query));
+  }
+
   function renderTable() {
     const mount = document.getElementById("nakane-table");
     if (!mount) return;
     const allRows = state.intentions || [];
     const q = state.tableFilter.search.trim().toLowerCase();
+    const statusFilter = state.tableFilter.status || "all";
     let filtered = allRows.filter((n) => {
-      if (state.tableFilter.status === "paid" && !n.paid) return false;
-      if (state.tableFilter.status === "unpaid" && n.paid) return false;
-      if (!q) return true;
-      return [n.date, n.massTime, n.intentionFor, String(n.stipend)].some((v) =>
-        String(v ?? "").toLowerCase().includes(q)
-      );
+      if (statusFilter === "paid" && !n.paid) return false;
+      if (statusFilter === "unpaid" && n.paid) return false;
+      return intentionMatchesSearch(n, q);
     });
     filtered = sortRows(filtered, state.tableSort);
-    const stats = computeStats();
     const pager = paginateRows(filtered, state.tablePage);
     state.tablePage = pager.page;
     const pageRows = pager.items;
+    const paidCount = allRows.filter((n) => n.paid).length;
+    const unpaidCount = allRows.length - paidCount;
+    const filtersActive = Boolean(q) || statusFilter !== "all";
 
     const cols = [
       { key: "date", label: "Datum" },
@@ -700,22 +736,43 @@
       { key: "_actions", label: "" },
     ];
 
-    const searchEl = mount.querySelector(".nakane-table-search");
+    const searchEl = mount.querySelector("#nakane-table-search");
     const searchFocused = document.activeElement === searchEl;
     const caret = searchEl?.selectionStart;
 
     mount.innerHTML = `
-      <h2 class="section-title">Sve nakane</h2>
-      <p class="card-sub">Kliknite red za otvaranje dana u kalendaru. Sortirajte klikom na zaglavlje.</p>
-      <div class="nakane-table-toolbar">
-        <input type="search" class="nakane-table-search" placeholder="Pretraži nakane…" value="${esc(state.tableFilter.search)}" />
-        <select class="nakane-table-filter" data-nakane-status>
-          <option value="all" ${state.tableFilter.status === "all" ? "selected" : ""}>Sve</option>
-          <option value="paid" ${state.tableFilter.status === "paid" ? "selected" : ""}>Stipendij evidentiran</option>
-          <option value="unpaid" ${state.tableFilter.status === "unpaid" ? "selected" : ""}>Stipendij nije evidentiran</option>
-        </select>
-        <span class="table-kit-meta">${pager.total} / ${allRows.length} nakana · ${num(stats.paidRevenue)} € od plaćenih</span>
+      <header class="visit-list-header">
+        <div>
+          <h2 class="section-title">Sve nakane</h2>
+          <p class="card-sub">Kliknite red za otvaranje dana u kalendaru. Sortirajte klikom na zaglavlje.</p>
+        </div>
+        <div class="visit-list-actions">
+          <span class="badge">${pager.total} u prikazu</span>
+        </div>
+      </header>
+      <div class="visit-quick-filters" role="group" aria-label="Filter po statusu stipendija">
+        <button type="button" class="visit-quick-filter${statusFilter === "all" ? " is-active" : ""}" data-nakane-status="all">
+          Sve <em>${allRows.length}</em>
+        </button>
+        <button type="button" class="visit-quick-filter${statusFilter === "paid" ? " is-active" : ""}" data-nakane-status="paid">
+          Evidentiran <em>${paidCount}</em>
+        </button>
+        <button type="button" class="visit-quick-filter${statusFilter === "unpaid" ? " is-active" : ""}" data-nakane-status="unpaid">
+          Nije evidentiran <em>${unpaidCount}</em>
+        </button>
       </div>
+      <form class="visit-list-tools" data-nakane-search-form>
+        <div class="family-search-field">
+          <label class="sr-only" for="nakane-table-search">Pretraži nakane</label>
+          <input id="nakane-table-search" type="search" class="form-control family-search" placeholder="Nakana, datum ili misa" value="${esc(state.tableFilter.search)}" />
+          <button type="submit" class="btn btn-primary btn-sm family-search-submit">Traži</button>
+        </div>
+        ${
+          filtersActive
+            ? `<button type="button" class="btn btn-ghost btn-sm" data-nakane-clear-filters>Poništi filtere</button>`
+            : ""
+        }
+      </form>
       <div class="table-wrap">
         <table class="data-table">
           <thead><tr>${cols
@@ -744,18 +801,22 @@
                     </tr>`;
                   })
                   .join("")
-              : `<tr><td colspan="6" class="empty-state">Nema nakana za prikaz.</td></tr>`
+              : `<tr><td colspan="6" class="empty-state">${
+                  filtersActive
+                    ? "Nema nakana koje odgovaraju pretrazi ili filteru."
+                    : "Nema nakana za prikaz."
+                }</td></tr>`
           }</tbody>
         </table>
       </div>
-      ${
-        pager.total
-          ? `<nav class="family-pagination" aria-label="Stranice popisa nakana">
+      <nav class="family-pagination" aria-label="Stranice popisa nakana">
         <p class="family-pagination-meta">Prikaz ${pager.start}–${pager.end} od ${pager.total}</p>
-        ${
-          pager.pageCount > 1
-            ? `<div class="family-pagination-pages">
-          ${pager.hasPrevious ? `<button type="button" class="btn btn-ghost btn-sm" data-nakane-page="${pager.page - 1}">Prethodna</button>` : `<span></span>`}
+        <div class="family-pagination-pages">
+          ${
+            pager.hasPrevious
+              ? `<button type="button" class="btn btn-ghost btn-sm" data-nakane-page="${pager.page - 1}">Prethodna</button>`
+              : `<span class="btn btn-ghost btn-sm is-disabled" aria-disabled="true">Prethodna</span>`
+          }
           ${pager.pages
             .map((item) =>
               item === "gap"
@@ -765,17 +826,26 @@
                   : `<button type="button" class="btn btn-ghost btn-sm" data-nakane-page="${item}">${item}</button>`
             )
             .join("")}
-          ${pager.hasNext ? `<button type="button" class="btn btn-ghost btn-sm" data-nakane-page="${pager.page + 1}">Sljedeća</button>` : ""}
-        </div>`
-            : ""
-        }
-      </nav>`
-          : ""
-      }`;
+          ${
+            pager.hasNext
+              ? `<button type="button" class="btn btn-ghost btn-sm" data-nakane-page="${pager.page + 1}">Sljedeća</button>`
+              : `<span class="btn btn-ghost btn-sm is-disabled" aria-disabled="true">Sljedeća</span>`
+          }
+        </div>
+      </nav>`;
 
-    const nextSearch = mount.querySelector(".nakane-table-search");
-    nextSearch?.addEventListener("input", (e) => {
-      state.tableFilter.search = e.target.value;
+    const nextSearch = mount.querySelector("#nakane-table-search");
+    const applySearch = () => {
+      state.tableFilter.search = nextSearch?.value || "";
+      state.tablePage = 1;
+      renderTable();
+    };
+    mount.querySelector("[data-nakane-search-form]")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      applySearch();
+    });
+    nextSearch?.addEventListener("input", () => {
+      state.tableFilter.search = nextSearch.value;
       state.tablePage = 1;
       renderTable();
     });
@@ -784,8 +854,16 @@
       const pos = typeof caret === "number" ? caret : nextSearch.value.length;
       nextSearch.setSelectionRange(pos, pos);
     }
-    mount.querySelector("[data-nakane-status]")?.addEventListener("change", (e) => {
-      state.tableFilter.status = e.target.value;
+    mount.querySelectorAll("[data-nakane-status]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.tableFilter.status = btn.dataset.nakaneStatus || "all";
+        state.tablePage = 1;
+        renderTable();
+      });
+    });
+    mount.querySelector("[data-nakane-clear-filters]")?.addEventListener("click", () => {
+      state.tableFilter.search = "";
+      state.tableFilter.status = "all";
       state.tablePage = 1;
       renderTable();
     });
@@ -866,6 +944,20 @@
             danger: true,
             confirmLabel: "Obriši",
             onConfirm: doDelete,
+          });
+        } else if (global.Swal) {
+          global.Swal.fire({
+            title: "Brisanje nakane",
+            text: "Obrisati ovu nakanu?",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Obriši",
+            cancelButtonText: "Odustani",
+            reverseButtons: true,
+            focusCancel: true,
+            heightAuto: false,
+          }).then((result) => {
+            if (result.isConfirmed) doDelete();
           });
         } else if (global.confirm("Obrisati ovu nakanu?")) {
           doDelete();
@@ -1215,7 +1307,17 @@
 
     const w = global.open("", "_blank");
     if (!w) {
-      showToast("Omogućite skočne prozore za ispis");
+      if (global.Swal) {
+        global.Swal.fire({
+          title: "Ispis",
+          text: "Omogućite skočne prozore za ispis.",
+          icon: "warning",
+          confirmButtonText: "U redu",
+          heightAuto: false,
+        });
+      } else {
+        showToast("Omogućite skočne prozore za ispis");
+      }
       return;
     }
     w.document.write(html);
@@ -1249,6 +1351,7 @@
     const boot = readBootstrap();
     state.intentions = boot.intentions || [];
     state.massSchedule = boot.massSchedule || [];
+    state.massExceptions = boot.massExceptions || [];
     state.defaultStipend = Number(boot.defaultStipend) || 0;
 
     const params = new URLSearchParams(location.search);

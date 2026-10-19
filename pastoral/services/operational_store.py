@@ -319,7 +319,8 @@ def load_operational_collections(parish: Parish) -> dict:
     parish_data['visits'] = [
         visit_as_legacy_record(visit)
         for visit in PastoralVisit.objects.filter(parish=parish).order_by(
-            'public_identifier'
+            'scheduled_on',
+            'public_identifier',
         )
     ]
 
@@ -471,11 +472,21 @@ def save_operational_collections(parish: Parish, parish_data: dict) -> None:
                 ),
             )
             sync_household_nested_records(household, payload)
-        close_current_scd2_rows(
-            Household.objects.filter(parish=parish).exclude(
-                public_identifier__in=keep_families,
-            ),
+        households_to_close = Household.current.filter(parish=parish).exclude(
+            public_identifier__in=keep_families,
         )
+        for household in list(households_to_close):
+            sync_household_nested_records(
+                household,
+                {
+                    'members': [],
+                    'relatives': [],
+                    'husband': None,
+                    'wife': None,
+                    'contributions': [],
+                },
+            )
+        close_current_scd2_rows(households_to_close)
 
         household_by_public_id = {
             household.public_identifier: household

@@ -46,8 +46,11 @@ def _household_created_in_year(household: dict, year: int) -> bool:
 
 def _has_unpaid_lukno_for_year(household: dict, year: int) -> bool:
     for annual_contribution in household.get('contributions') or []:
-        if annual_contribution.get('year') == year and not annual_contribution.get(
-            'luknoPaid'
+        category = (annual_contribution.get('category') or 'lukno').strip() or 'lukno'
+        if (
+            annual_contribution.get('year') == year
+            and category == 'lukno'
+            and not annual_contribution.get('luknoPaid')
         ):
             return True
     return False

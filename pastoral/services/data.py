@@ -201,6 +201,9 @@ class ParishDataService:
         merged = {**DEFAULT_SETTINGS, **(self.parish.settings or {})}
         for theme_key in Settings.THEME_SETTING_KEYS:
             merged.pop(theme_key, None)
+        jurisdiction_name = self.parish.diocese_display_name()
+        if jurisdiction_name:
+            merged['diocese'] = jurisdiction_name
         merged['_parishId'] = self.parish.slug
         merged.update(Settings.load_platform_color())
         return merged

@@ -209,19 +209,85 @@ def sorted_issues(data: dict) -> list:
     )
 
 
+def issue_for_week(issues: list, week_start: str) -> dict | None:
+    """Najnovije izdanje za taj ponedjeljak, ako postoji."""
+    matching = [
+        issue
+        for issue in issues
+        if (issue.get('weekStart') or '') == week_start
+    ]
+    return matching[0] if matching else None
+
+
+def _count_week_sacraments(data: dict, week_start: str, week_end: str) -> int:
+    count = 0
+    for baptism in data.get('baptisms') or []:
+        if week_start <= (baptism.get('baptismDate') or '') <= week_end:
+            count += 1
+    for wedding in data.get('weddings') or []:
+        if week_start <= (wedding.get('weddingDate') or '') <= week_end:
+            count += 1
+    for funeral in data.get('funerals') or []:
+        if week_start <= (funeral.get('funeralDate') or '') <= week_end:
+            count += 1
+    for event in data.get('events') or []:
+        if week_start <= (event.get('date') or '') <= week_end:
+            count += 1
+    return count
+
+
+def week_listic_summary(data: dict, week_start: str) -> dict:
+    """Sažetak tjedna za početni ekran listića."""
+    from datetime import date as date_cls, timedelta
+
+    from liturgija.services.mass_schedule import get_masses_for_date
+
+    start = week_start_from(week_start)
+    end = week_end_from(start)
+    mass_slots = 0
+    start_date = date_cls.fromisoformat(start)
+    for offset in range(7):
+        day = (start_date + timedelta(days=offset)).isoformat()
+        mass_slots += len(get_masses_for_date(data, day))
+    intentions = sum(
+        1
+        for intention in data.get('intentions') or []
+        if start <= (intention.get('date') or '') <= end
+    )
+    return {
+        'mass_slots': mass_slots,
+        'intentions': intentions,
+        'sacraments': _count_week_sacraments(data, start, end),
+        'week_end': end,
+        'week_label': f'{fmt_short(start)} – {fmt_short(end)}',
+    }
+
+
 def zupni_listic_page_context(data: dict, settings: dict, request) -> dict:
     """Kontekst stranice: default layout, tjedan iz ``?week=``, pretpregled HTML."""
     cfg = load_config()
     layout = get_layout(data, cfg)
     week_start = week_start_from(request.GET.get('week') or None)
     issues = sorted_issues(data)
-    edit_layout = sync_auto_blocks(layout, data, settings, week_start)
+    current_issue = issue_for_week(issues, week_start)
+    edit_layout = sync_auto_blocks(
+        (current_issue or {}).get('layoutSnapshot') or layout,
+        data,
+        settings,
+        week_start,
+    )
+    summary = week_listic_summary(data, week_start)
     return {
         'listic_edit_layout': edit_layout,
         'listic_issues': issues,
+        'listic_current_issue': current_issue,
+        'listic_week_summary': summary,
         'week_start': week_start,
+        'week_end': summary['week_end'],
         'block_types': cfg['blockTypes'],
-        'initial_preview_html': render_layout_to_html(edit_layout, data, settings, week_start),
+        'initial_preview_html': render_layout_to_html(
+            edit_layout, data, settings, week_start
+        ),
     }
 
 

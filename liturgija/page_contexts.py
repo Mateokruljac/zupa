@@ -74,5 +74,8 @@ def build_zupni_listic_context(
             'defaultLayout': config['defaultLayout'],
         },
         'editLayout': page_context['listic_edit_layout'],
+        'weekSummary': page_context['listic_week_summary'],
+        'currentIssue': page_context.get('listic_current_issue'),
+        'issues': page_context['listic_issues'],
     }
     return page_context

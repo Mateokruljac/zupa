@@ -15,5 +15,6 @@ def obitelji(request):
     return admin_page_view(request, 'obitelji')
 
 
+obitelji_izvjestaj = domain_page_view('obitelji-izvjestaj')
 ulice = domain_page_view('ulice')
 posjete = domain_page_view('posjete')

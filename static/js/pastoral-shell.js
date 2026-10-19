@@ -238,6 +238,54 @@
 
   global.PastoralNav = { init: initNav, loadState: navLoadState, saveState: navSaveState };
 
+  function initFlashMessages() {
+    const root = document.querySelector(".flash-messages");
+    if (!root) return;
+    const messages = root.querySelectorAll(".flash-message");
+    if (!messages.length) return;
+
+    const dismiss = () => {
+      root.classList.add("is-leaving");
+      window.setTimeout(() => root.remove(), 280);
+    };
+
+    window.setTimeout(dismiss, 5000);
+  }
+
+  function swalConfirm(title, text, confirmButtonText) {
+    if (global.Swal) {
+      return global.Swal.fire({
+        title: title,
+        text: text || "",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: confirmButtonText || "Obriši",
+        cancelButtonText: "Odustani",
+        reverseButtons: true,
+        focusCancel: true,
+        heightAuto: false,
+      }).then((result) => Boolean(result.isConfirmed));
+    }
+    return Promise.resolve(global.confirm(text || title));
+  }
+
+  function initSwalConfirmButtons() {
+    document.addEventListener("click", async (event) => {
+      const btn = event.target.closest("[data-swal-confirm]");
+      if (!btn || btn.dataset.swalConfirmed === "1") return;
+      event.preventDefault();
+      event.stopPropagation();
+      const message = (btn.dataset.swalConfirm || "Jeste li sigurni?").trim();
+      const title = (btn.dataset.swalTitle || "Potvrda").trim();
+      const confirmLabel = (btn.dataset.swalConfirmLabel || "Obriši").trim();
+      const ok = await swalConfirm(title, message, confirmLabel);
+      if (!ok) return;
+      btn.dataset.swalConfirmed = "1";
+      btn.click();
+      delete btn.dataset.swalConfirmed;
+    });
+  }
+
   /* --- UI init (tema + shell) --- */
   document.addEventListener("DOMContentLoaded", () => {
     const page = document.body.dataset.page;
@@ -247,5 +295,7 @@
     } else if (window.PastoralTheme) {
       window.PastoralTheme.initThemePicker({ fixed: isLogin });
     }
+    initFlashMessages();
+    initSwalConfirmButtons();
   });
 })(typeof window !== "undefined" ? window : global);

@@ -60,6 +60,7 @@ def mark_debt_paid(data: dict, source: dict) -> bool:
                 contribution_record
                 for contribution_record in family.get('contributions', [])
                 if contribution_record.get('year') == source.get('year')
+                and (contribution_record.get('category') or 'lukno') == 'lukno'
             ),
             None,
         )

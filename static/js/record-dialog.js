@@ -13,15 +13,21 @@
     else dialog.removeAttribute("open");
   }
 
-  document.querySelectorAll("[data-record-dialog]").forEach((trigger) => {
-    trigger.addEventListener("click", () => {
-      openRecordDialog(document.getElementById(trigger.dataset.recordDialog));
-    });
-  });
-
   document.querySelectorAll("[data-record-dialog-open]").forEach(openRecordDialog);
 
   document.addEventListener("click", (event) => {
+    const dialogTrigger = event.target.closest("[data-record-dialog]");
+    if (dialogTrigger) {
+      const dialog = document.getElementById(dialogTrigger.dataset.recordDialog);
+      openRecordDialog(dialog);
+      const form = dialog && dialog.querySelector("form");
+      if (form) {
+        fillRevealedForm(form, dialogTrigger);
+        const focusable = form.querySelector("input:not([type='hidden']), select, textarea");
+        if (focusable) focusable.focus();
+      }
+      return;
+    }
     const closeButton = event.target.closest("[data-record-dialog-close]");
     if (closeButton) {
       closeRecordDialog(closeButton.closest("dialog"));
@@ -64,6 +70,8 @@
       form.reset();
       const memberId = form.querySelector('[name="member_id"]');
       if (memberId) memberId.value = "";
+      const contributionId = form.querySelector('[name="contribution_id"]');
+      if (contributionId) contributionId.value = "";
       return;
     }
     Object.entries(trigger.dataset).forEach(([key, value]) => {
@@ -87,14 +95,6 @@
     });
   }
 
-  function syncFamilyWizardUrl(tabId) {
-    const url = new URL(window.location.href);
-    url.searchParams.set("tab", tabId);
-    url.searchParams.delete("edit");
-    window.history.replaceState(null, "", url.pathname + url.search);
-    return url.pathname + url.search;
-  }
-
   function showFamilyTab(root, tabId) {
     if (!root) return;
     const panes = [...root.querySelectorAll("[data-family-pane]")];
@@ -115,16 +115,15 @@
     const nextButton = root.querySelector("[data-family-wizard='next']");
     if (previousButton) previousButton.hidden = index <= 0;
     if (nextButton) nextButton.hidden = index >= order.length - 1;
-    const action = syncFamilyWizardUrl(tabId);
-    root.querySelectorAll("form[data-family-form]").forEach((form) => {
-      form.setAttribute("action", action);
-    });
+    // Tab ostaje samo u memoriji moda — ne u query parametrima.
     root.querySelectorAll(".family-reveal-form").forEach((form) => {
       const pane = form.closest("[data-family-pane]");
       if (pane && pane.dataset.familyPane === tabId) return;
       form.hidden = true;
     });
   }
+
+  window.showFamilyWizardTab = showFamilyTab;
 
   document.addEventListener("click", (event) => {
     const tab = event.target.closest(".family-wizard-tab[data-family-tab]");

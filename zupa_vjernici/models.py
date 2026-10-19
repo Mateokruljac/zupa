@@ -488,7 +488,18 @@ class HouseholdMembership(SCD2):
 
 
 class HouseholdContribution(FCTA):
-    """Yearly lukno / gift status for one household (HouseholdContributionYear)."""
+    """One household payment (lukno, gift, bell fee, or other) for a calendar year."""
+
+    CATEGORY_LUKNO = 'lukno'
+    CATEGORY_FAMILY_GIFT = 'obiteljski_dar'
+    CATEGORY_BELL = 'zvonarina'
+    CATEGORY_OTHER = 'ostalo'
+    CATEGORY_CHOICES = (
+        (CATEGORY_LUKNO, 'Lukno'),
+        (CATEGORY_FAMILY_GIFT, 'Obiteljski dar'),
+        (CATEGORY_BELL, 'Zvonarina'),
+        (CATEGORY_OTHER, 'Ostalo'),
+    )
 
     household = models.ForeignKey(
         Household,
@@ -497,6 +508,12 @@ class HouseholdContribution(FCTA):
     )
     public_identifier = models.CharField(max_length=64, db_index=True)
     year = models.PositiveIntegerField(default=0, db_index=True)
+    category = models.CharField(
+        max_length=32,
+        choices=CATEGORY_CHOICES,
+        default=CATEGORY_LUKNO,
+        db_index=True,
+    )
     lukno_paid = models.BooleanField(default=False)
     lukno_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     lukno_paid_at = models.DateField(null=True, blank=True)
@@ -506,7 +523,7 @@ class HouseholdContribution(FCTA):
 
     class Meta:
         unique_together = [('household', 'public_identifier')]
-        ordering = ['-year']
+        ordering = ['-year', 'category']
 
 
 class PastoralVisit(FCTA):

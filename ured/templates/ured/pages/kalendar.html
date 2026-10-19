@@ -101,7 +101,7 @@
     <header><div><p class="card-label">{% if selected_task %}Uređivanje{% else %}Nova obveza{% endif %}</p><h2>{% if selected_task %}{{ selected_task.title }}{% else %}Dodaj zadatak{% endif %}</h2></div><button type="button" data-record-dialog-close aria-label="Zatvori">×</button></header>
     <div class="family-record-form-grid calendar-record-form-grid">{{ task_form.as_p }}</div>
     <footer>
-      {% if selected_task %}<button type="submit" name="action" value="delete_task" class="btn btn-danger calendar-record-delete" formnovalidate onclick="return confirm('Obrisati ovaj zadatak?')">Obriši</button>{% endif %}
+      {% if selected_task %}<button type="submit" name="action" value="delete_task" class="btn btn-danger calendar-record-delete" formnovalidate data-swal-confirm="Obrisati ovaj zadatak?" data-swal-title="Obrisati zadatak?" data-swal-confirm-label="Obriši">Obriši</button>{% endif %}
       <a href="?year={{ cal_year }}&month={{ cal_month }}&date={{ filter_date }}&tasks={{ task_status_filter }}" class="btn btn-ghost">Odustani</a>
       <button type="submit" class="btn btn-primary">{% if selected_task %}Spremi promjene{% else %}Dodaj zadatak{% endif %}</button>
     </footer>
@@ -117,7 +117,7 @@
     <p class="family-record-dialog__intro">Vrijeme nije obvezno. Ako ga upišete, sustav provjerava preklapanje u istom prostoru.</p>
     <div class="family-record-form-grid calendar-record-form-grid">{{ event_form.as_p }}</div>
     <footer>
-      {% if selected_event %}<button type="submit" name="action" value="delete_event" class="btn btn-danger calendar-record-delete" formnovalidate onclick="return confirm('Obrisati ovaj događaj?')">Obriši</button>{% endif %}
+      {% if selected_event %}<button type="submit" name="action" value="delete_event" class="btn btn-danger calendar-record-delete" formnovalidate data-swal-confirm="Obrisati ovaj događaj?" data-swal-title="Obrisati događaj?" data-swal-confirm-label="Obriši">Obriši</button>{% endif %}
       <a href="?year={{ cal_year }}&month={{ cal_month }}&date={{ filter_date }}&tasks={{ task_status_filter }}" class="btn btn-ghost">Odustani</a>
       <button type="submit" class="btn btn-primary">{% if selected_event %}Spremi promjene{% else %}Dodaj događaj{% endif %}</button>
     </footer>
