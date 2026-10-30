@@ -14,7 +14,8 @@ def domain_page_view(page_slug: str) -> Callable:
     def page_view(request, page: str | None = None):
         from pastoral.views import admin_page_view
 
-        return admin_page_view(request, page or page_slug)
+        # Keyword oblik čini slug vidljivim dekoratoru za provjeru ovlasti.
+        return admin_page_view(request, page=page or page_slug)
 
     page_view.__name__ = page_slug.replace('-', '_')
     page_view.__qualname__ = page_view.__name__

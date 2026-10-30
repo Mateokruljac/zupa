@@ -100,7 +100,10 @@ def collect_receivables(data: dict, *, only_unpaid: bool = True) -> list[dict]:
             category = (c.get('category') or 'lukno').strip() or 'lukno'
             if category != 'lukno':
                 continue
-            amt = float(c.get('luknoAmount') or def_lukno)
+            amount_value = c.get('luknoAmount')
+            if amount_value in (None, ''):
+                amount_value = def_lukno
+            amt = float(amount_value)
             paid = bool(c.get('luknoPaid'))
             if only_unpaid and paid:
                 continue

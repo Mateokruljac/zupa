@@ -6,26 +6,14 @@ na `Person` kad ime to dopušta. Osnivački dekret nije spremište datoteka.
 """
 from __future__ import annotations
 
-from datetime import date
-
 from core.models import close_current_scd2_rows, upsert_current_scd2
+from core.utils import (
+    _iso_or_empty as iso_or_empty,
+    _parse_iso_date as parse_iso_date,
+)
 from ured.models import Council, CouncilMembership, ParishFoundingDecree
 from zupa_vjernici.services.person_identity import find_or_create_person
 from django_multitenant.schema import with_tenant_schema
-
-
-def _parse_iso_date(value) -> date | None:
-    raw = str(value or '').strip()
-    if not raw or raw in {'—', '-'}:
-        return None
-    try:
-        return date.fromisoformat(raw[:10])
-    except ValueError:
-        return None
-
-
-def _iso_or_empty(value: date | None) -> str:
-    return value.isoformat() if value else ''
 
 
 def membership_as_legacy_record(membership: CouncilMembership) -> dict:
@@ -48,14 +36,14 @@ def council_as_legacy_record(council: Council) -> dict:
     if council.council_type == Council.CouncilType.ECONOMIC:
         return {
             'budgetYear': council.budget_year,
-            'lastReview': _iso_or_empty(council.last_meeting_on),
-            'nextReview': _iso_or_empty(council.next_meeting_on),
+            'lastReview': iso_or_empty(council.last_meeting_on),
+            'nextReview': iso_or_empty(council.next_meeting_on),
             'members': members,
         }
     return {
-        'established': _iso_or_empty(council.established_on),
-        'lastMeeting': _iso_or_empty(council.last_meeting_on),
-        'nextMeeting': _iso_or_empty(council.next_meeting_on),
+        'established': iso_or_empty(council.established_on),
+        'lastMeeting': iso_or_empty(council.last_meeting_on),
+        'nextMeeting': iso_or_empty(council.next_meeting_on),
         'members': members,
     }
 
@@ -90,11 +78,11 @@ def sync_council_from_legacy(parish, council_type: str, payload) -> None:
     )
     defaults = {
         'title': title,
-        'established_on': _parse_iso_date(payload.get('established')),
-        'last_meeting_on': _parse_iso_date(
+        'established_on': parse_iso_date(payload.get('established')),
+        'last_meeting_on': parse_iso_date(
             payload.get('lastMeeting') or payload.get('lastReview')
         ),
-        'next_meeting_on': _parse_iso_date(
+        'next_meeting_on': parse_iso_date(
             payload.get('nextMeeting') or payload.get('nextReview')
         ),
     }

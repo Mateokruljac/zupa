@@ -11,8 +11,18 @@ def pastoral_login_required(view_function):
     @login_required(login_url='pastoral:login')
     @wraps(view_function)
     def wrapper(request, *args, **kwargs):
-        page = kwargs.get('page', 'dashboard')
-        if request.resolver_match.url_name == 'app':
+        # Domenski URL viewovi povijesno su slug prosljeđivali kao prvi
+        # pozicijski argument. Ovlast mora čitati oba oblika; inače bi takav
+        # zahtjev izgledao kao dashboard i zaobišao zabranu modula.
+        resolver_match = getattr(request, 'resolver_match', None)
+        page = kwargs.get('page') or (args[0] if args else None)
+        if page is None and resolver_match:
+            resolver_kwargs = getattr(resolver_match, 'kwargs', {}) or {}
+            page = (
+                resolver_kwargs.get('page')
+                or getattr(resolver_match, 'url_name', None)
+            )
+        if page in {None, 'app'}:
             page = 'dashboard'
         tenant_context = getattr(request, 'tenant_context', None)
         active_role = tenant_context.role if tenant_context else request.user.role

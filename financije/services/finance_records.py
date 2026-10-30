@@ -14,28 +14,14 @@ prema starom UI ugovoru.
 from __future__ import annotations
 
 import copy
-from datetime import date
-from decimal import Decimal, InvalidOperation
 
-from core.utils import _decimal_amount
+from core.utils import (
+    _decimal_amount as decimal_amount,
+    _iso_or_empty as iso_or_empty,
+    _parse_iso_date as parse_iso_date,
+)
 from financije.ledgers import LEDGER_CRKVENI, normalize_ledger
 from financije.models import CashbookEntry, Invoice, ParishDebt
-
-
-def _parse_iso_date(value) -> date | None:
-    """Čita prvih deset znakova kao ISO datum; prazno ili smeće je None."""
-    raw = str(value or '').strip()
-    if not raw:
-        return None
-    try:
-        return date.fromisoformat(raw[:10])
-    except ValueError:
-        return None
-
-
-def _iso_or_empty(value: date | None) -> str:
-    """ISO datum za JSON/UI, prazan string ako datum nije zadan."""
-    return value.isoformat() if value else ''
 
 
 def cashbook_as_legacy_record(entry: CashbookEntry) -> dict:
@@ -53,7 +39,7 @@ def cashbook_as_legacy_record(entry: CashbookEntry) -> dict:
     """
     return {
         'id': entry.public_identifier,
-        'date': _iso_or_empty(entry.entry_date),
+        'date': iso_or_empty(entry.entry_date),
         'type': entry.entry_type or 'ulaz',
         'category': entry.category or '',
         'ledger': normalize_ledger(entry.ledger, entry.category),
@@ -77,7 +63,7 @@ def cashbook_field_defaults_from_legacy(record: dict) -> dict:
         Kwargs usklađeni s `CashbookEntry` (uključujući prazan `payload`).
     """
     return {
-        'entry_date': _parse_iso_date(record.get('date')),
+        'entry_date': parse_iso_date(record.get('date')),
         'entry_type': str(record.get('type') or 'ulaz'),
         'category': str(record.get('category') or ''),
         'ledger': normalize_ledger(
@@ -85,7 +71,7 @@ def cashbook_field_defaults_from_legacy(record: dict) -> dict:
             record.get('category'),
         ),
         'description': str(record.get('description') or ''),
-        'amount': _decimal_amount(record.get('amount')),
+        'amount': decimal_amount(record.get('amount')),
         'payment_method': str(record.get('paymentMethod') or ''),
         'report_code': str(record.get('reportCode') or ''),
         'payload': {},
@@ -114,7 +100,7 @@ def parish_debt_as_legacy_record(debt: ParishDebt) -> dict:
         'amount': float(debt.amount or 0),
         'paid': bool(debt.is_paid),
         'contact': debt.contact or '',
-        'dueDate': _iso_or_empty(debt.due_date),
+        'dueDate': iso_or_empty(debt.due_date),
         'notes': debt.notes or '',
     }
 
@@ -141,10 +127,10 @@ def parish_debt_field_defaults_from_legacy(record: dict) -> dict:
         'year': year_value,
         'category': str(record.get('category') or ''),
         'label': str(record.get('label') or ''),
-        'amount': _decimal_amount(record.get('amount')),
+        'amount': decimal_amount(record.get('amount')),
         'is_paid': bool(record.get('paid')),
         'contact': str(record.get('contact') or ''),
-        'due_date': _parse_iso_date(record.get('dueDate')),
+        'due_date': parse_iso_date(record.get('dueDate')),
         'notes': str(record.get('notes') or ''),
         'payload': {},
     }
@@ -178,8 +164,8 @@ def invoice_as_legacy_record(invoice: Invoice) -> dict:
     return {
         'id': invoice.public_identifier,
         'number': invoice.number or '',
-        'issueDate': _iso_or_empty(invoice.issue_date),
-        'dueDate': _iso_or_empty(invoice.due_date),
+        'issueDate': iso_or_empty(invoice.issue_date),
+        'dueDate': iso_or_empty(invoice.due_date),
         # Jedan ORM stupac čuva naziv druge strane za oba smjera računa.
         # Zadržavamo oba legacy ključa dok izlazni i ulazni UI imaju različite
         # nazive za isti podatak.
@@ -194,7 +180,7 @@ def invoice_as_legacy_record(invoice: Invoice) -> dict:
         'total': total,
         'status': status,
         'paidAmount': paid_amount,
-        'paidAt': _iso_or_empty(invoice.paid_at),
+        'paidAt': iso_or_empty(invoice.paid_at),
         'linkedSource': linked_source,
         'notes': invoice.notes or '',
         'direction': direction,
@@ -220,8 +206,8 @@ def invoice_field_defaults_from_legacy(record: dict) -> dict:
         linked_source = {}
     return {
         'number': str(record.get('number') or ''),
-        'issue_date': _parse_iso_date(record.get('issueDate')),
-        'due_date': _parse_iso_date(record.get('dueDate')),
+        'issue_date': parse_iso_date(record.get('issueDate')),
+        'due_date': parse_iso_date(record.get('dueDate')),
         'payer_name': str(
             record.get('supplierName') or record.get('payerName') or ''
         ),
@@ -229,12 +215,12 @@ def invoice_field_defaults_from_legacy(record: dict) -> dict:
         'payer_oib': str(record.get('payerOib') or ''),
         'category': str(record.get('category') or ''),
         'description': str(record.get('description') or ''),
-        'amount': _decimal_amount(record.get('amount')),
-        'vat_rate': _decimal_amount(record.get('vatRate')),
-        'total': _decimal_amount(record.get('total')),
+        'amount': decimal_amount(record.get('amount')),
+        'vat_rate': decimal_amount(record.get('vatRate')),
+        'total': decimal_amount(record.get('total')),
         'status': str(record.get('status') or ''),
-        'paid_amount': _decimal_amount(record.get('paidAmount')),
-        'paid_at': _parse_iso_date(record.get('paidAt')),
+        'paid_amount': decimal_amount(record.get('paidAmount')),
+        'paid_at': parse_iso_date(record.get('paidAt')),
         'linked_source': copy.deepcopy(linked_source),
         'notes': str(record.get('notes') or ''),
         'direction': str(record.get('direction') or ''),

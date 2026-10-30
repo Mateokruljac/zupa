@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import copy
-from datetime import date
 
+from core.utils import (
+    _iso_or_empty as iso_or_empty,
+    _parse_iso_date as parse_iso_date,
+)
 from ured.models import (
     Announcement,
     OfficeTask,
@@ -12,25 +15,11 @@ from ured.models import (
 )
 
 
-def _parse_iso_date(value) -> date | None:
-    raw = str(value or '').strip()
-    if not raw:
-        return None
-    try:
-        return date.fromisoformat(raw[:10])
-    except ValueError:
-        return None
-
-
-def _iso_or_empty(value: date | None) -> str:
-    return value.isoformat() if value else ''
-
-
 def office_task_as_legacy_record(task: OfficeTask) -> dict:
     return {
         'id': task.public_identifier,
         'title': task.title or '',
-        'due': _iso_or_empty(task.due_date),
+        'due': iso_or_empty(task.due_date),
         'priority': task.priority or 'srednja',
         'done': bool(task.is_done),
         'category': task.category or '',
@@ -40,7 +29,7 @@ def office_task_as_legacy_record(task: OfficeTask) -> dict:
 def office_task_field_defaults_from_legacy(record: dict) -> dict:
     return {
         'title': str(record.get('title') or ''),
-        'due_date': _parse_iso_date(record.get('due')),
+        'due_date': parse_iso_date(record.get('due')),
         'priority': str(record.get('priority') or 'srednja'),
         'is_done': bool(record.get('done')),
         'category': str(record.get('category') or ''),
@@ -52,7 +41,7 @@ def calendar_event_as_legacy_record(event: ParishCalendarEvent) -> dict:
     return {
         'id': event.public_identifier,
         'title': event.title or '',
-        'date': _iso_or_empty(event.event_date),
+        'date': iso_or_empty(event.event_date),
         'place': event.place or '',
         'type': event.event_type or '',
     }
@@ -61,7 +50,7 @@ def calendar_event_as_legacy_record(event: ParishCalendarEvent) -> dict:
 def calendar_event_field_defaults_from_legacy(record: dict) -> dict:
     return {
         'title': str(record.get('title') or ''),
-        'event_date': _parse_iso_date(record.get('date')),
+        'event_date': parse_iso_date(record.get('date')),
         'place': str(record.get('place') or ''),
         'event_type': str(record.get('type') or ''),
         'payload': {},

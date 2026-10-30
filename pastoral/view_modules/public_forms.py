@@ -1,6 +1,7 @@
 import uuid
 
 from django.contrib import messages
+from django.db import transaction
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
@@ -25,6 +26,23 @@ PUBLIC_FORM_LABELS = {
     'prijava-vjencanje': 'Prijava za vjenčanje',
 }
 PUBLIC_FORMS = set(PUBLIC_FORM_LABELS)
+
+
+def _store_public_submission(parish_data_service, submission_payload: dict) -> None:
+    """Atomski dodaje prijavu bez gubitka paralelno zaprimljene prijave.
+
+    ``ParishDataService.save`` usklađuje više ORM kolekcija iz jednog legacy
+    dicta. Zaključavanje parish retka zato mora obuhvatiti load + insert + save,
+    dok se slanje e-maila namjerno odvija tek nakon uspješnog commita.
+    """
+    with transaction.atomic():
+        parish_data_service.lock_for_update()
+        parish_data = parish_data_service.load()
+        parish_data.setdefault('publicSubmissions', []).insert(
+            0,
+            submission_payload,
+        )
+        parish_data_service.save(parish_data)
 
 
 def public_index_view(request):
@@ -57,13 +75,8 @@ def public_form_view(request, form: str):
         public_form = form_class(request.POST, **form_kwargs)
         if public_form.is_valid():
             submission_payload = build_submission_payload(form, public_form)
-            parish_data = parish_data_service.load()
             submission_payload['id'] = f'ps_{uuid.uuid4().hex[:8]}'
-            parish_data.setdefault('publicSubmissions', []).insert(
-                0,
-                submission_payload,
-            )
-            parish_data_service.save(parish_data)
+            _store_public_submission(parish_data_service, submission_payload)
 
             email_was_sent, email_result = dispatch_public_submission_email(
                 form,

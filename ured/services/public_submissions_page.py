@@ -453,6 +453,10 @@ def public_submissions_context(parish_data: dict, request) -> dict:
         for submission in all_submissions
         if submission.get('status') == 'nova'
     ]
+    try:
+        import_year = int(request.GET.get('year') or date.today().year)
+    except (TypeError, ValueError):
+        import_year = date.today().year
     return {
         'submission_rows': visible_submissions,
         'selected_submission': selected_submission,
@@ -481,5 +485,5 @@ def public_submissions_context(parish_data: dict, request) -> dict:
             for submission in all_submissions
             if submission.get('formType') or submission.get('type')
         }),
-        'import_year': int(request.GET.get('year') or date.today().year),
+        'import_year': import_year,
     }

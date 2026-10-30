@@ -13,7 +13,11 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from core.models import OPEN_ENDED_VALID_TO, close_current_scd2_rows, upsert_current_scd2
-from core.utils import _decimal_amount
+from core.utils import (
+    _decimal_amount as decimal_amount,
+    _iso_or_empty as iso_or_empty,
+    _parse_iso_date as parse_iso_date,
+)
 from sakramenti.models import EventParticipant, SacramentalEvent
 from sakramenti.services.family_card_sacraments import (
     sacrament_labels_by_person_id,
@@ -32,19 +36,6 @@ from zupa_vjernici.services.person_identity import (
     split_person_name,
 )
 
-
-def _parse_iso_date(value) -> date | None:
-    raw = str(value or '').strip()
-    if not raw:
-        return None
-    try:
-        return date.fromisoformat(raw[:10])
-    except ValueError:
-        return None
-
-
-def _iso_or_empty(value: date | None) -> str:
-    return value.isoformat() if value else ''
 
 def _string_or_empty(value) -> str:
     if value is None:
@@ -126,7 +117,7 @@ def _event_field_for_person(person, event_type: str, field_name: str) -> str:
         return ''
     event = participant.event
     if field_name == 'date':
-        return _iso_or_empty(event.event_date)
+        return iso_or_empty(event.event_date)
     if field_name == 'place':
         return event.place_name or ''
     return ''
@@ -170,9 +161,9 @@ def contribution_as_legacy_record(contribution: HouseholdContribution) -> dict:
         'categoryLabel': contribution_category_label(category),
         'luknoPaid': bool(contribution.lukno_paid),
         'luknoAmount': float(contribution.lukno_amount or 0),
-        'luknoPaidAt': _iso_or_empty(contribution.lukno_paid_at),
+        'luknoPaidAt': iso_or_empty(contribution.lukno_paid_at),
         'churchDonation': float(contribution.church_donation or 0),
-        'donationDate': _iso_or_empty(contribution.donation_date),
+        'donationDate': iso_or_empty(contribution.donation_date),
         'notes': contribution.notes or '',
     }
 
@@ -230,7 +221,7 @@ def household_as_legacy_record(household: Household) -> dict:
         'preferredMass': household.preferred_mass or '',
         'pastoralNotes': household.pastoral_notes or '',
         'originPlace': household.origin_place or '',
-        'lastVisit': _iso_or_empty(household.last_visit_on),
+        'lastVisit': iso_or_empty(household.last_visit_on),
         'tags': list(household.tags or []),
         'husband': spouse_as_legacy_record(husband),
         'wife': spouse_as_legacy_record(wife),
@@ -265,7 +256,7 @@ def household_field_defaults_from_legacy(record: dict, street=None) -> dict:
         'preferred_mass': str(record.get('preferredMass') or ''),
         'pastoral_notes': str(record.get('pastoralNotes') or ''),
         'origin_place': str(record.get('originPlace') or ''),
-        'last_visit_on': _parse_iso_date(record.get('lastVisit')),
+        'last_visit_on': parse_iso_date(record.get('lastVisit')),
         'tags': list(record.get('tags') or [])
         if isinstance(record.get('tags'), list)
         else [],
@@ -431,7 +422,7 @@ def _apply_spouse_record(
             ).first()
         )
         if event:
-            event.event_date = _parse_iso_date(spouse_record.get('baptismDate'))
+            event.event_date = parse_iso_date(spouse_record.get('baptismDate'))
             event.place_name = str(spouse_record.get('baptismPlace') or '')[:200]
             event.save(update_fields=['event_date', 'place_name', 'updated_at'])
     if person and (spouse_record.get('weddingChurch') or spouse_record.get('weddingCivil')):
@@ -563,16 +554,16 @@ def sync_household_nested_records(household: Household, record: dict) -> None:
                 'year': year_value,
                 'category': category,
                 'lukno_paid': bool(contribution_record.get('luknoPaid')),
-                'lukno_amount': _decimal_amount(
+                'lukno_amount': decimal_amount(
                     contribution_record.get('luknoAmount')
                 ),
-                'lukno_paid_at': _parse_iso_date(
+                'lukno_paid_at': parse_iso_date(
                     contribution_record.get('luknoPaidAt')
                 ),
-                'church_donation': _decimal_amount(
+                'church_donation': decimal_amount(
                     contribution_record.get('churchDonation')
                 ),
-                'donation_date': _parse_iso_date(
+                'donation_date': parse_iso_date(
                     contribution_record.get('donationDate')
                 ),
                 'notes': str(contribution_record.get('notes') or ''),
@@ -586,7 +577,7 @@ def sync_household_nested_records(household: Household, record: dict) -> None:
 def visit_as_legacy_record(visit: PastoralVisit) -> dict:
     return {
         'id': visit.public_identifier,
-        'scheduled': _iso_or_empty(visit.scheduled_on),
+        'scheduled': iso_or_empty(visit.scheduled_on),
         'type': visit.visit_type or '',
         'person': visit.person_name or '',
         'familyId': visit.family_public_identifier or '',
@@ -602,7 +593,7 @@ def visit_field_defaults_from_legacy(record: dict, household=None) -> dict:
     return {
         'household': household,
         'family_public_identifier': str(record.get('familyId') or ''),
-        'scheduled_on': _parse_iso_date(record.get('scheduled')),
+        'scheduled_on': parse_iso_date(record.get('scheduled')),
         'is_done': bool(record.get('done')),
         'visit_type': str(record.get('type') or ''),
         'person_name': str(record.get('person') or ''),

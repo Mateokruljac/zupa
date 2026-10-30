@@ -1,0 +1,55 @@
+---
+alwaysApply: true
+---
+
+# Engineering workflow
+
+## Inspect before editing
+- Read applicable repository instructions and relevant configuration.
+- Establish supported language/framework versions and existing tooling.
+- Inspect the closest maintained implementation and its tests before adding
+  or changing a module. Inspect a second example only if needed.
+- Identify naming, structure, layer boundaries, validation, error handling,
+  data access and testing conventions. Do not invent repository facts.
+
+## Implement
+- Make new code a natural extension of the repository. Follow established
+  patterns while adapting behavior to the actual requirements.
+- Reuse suitable existing code before introducing another implementation.
+- Prefer the simplest correct, secure and maintainable solution.
+- Apply DRY, KISS, YAGNI and separation of concerns. Use SOLID and design
+  patterns when they solve a concrete problem; avoid speculative abstractions.
+- Follow configured formatters, linters and type-checking conventions.
+- Use idiomatic APIs supported by the project's installed versions.
+  Consult version-appropriate official documentation when uncertain.
+- Preserve public contracts and unrelated behavior. Keep changes focused.
+- Consider relevant authorization, input validation, data integrity,
+  failure modes and performance costs.
+- Optimize demonstrated bottlenecks and obvious avoidable costs.
+  Do not claim an optimal solution without evidence.
+
+## Resolve conflicting patterns
+- Follow documented architecture and the closest maintained canonical example.
+- Do not reproduce bugs, security flaws or deprecated practices for consistency.
+- If a better approach requires deviation, briefly state the existing issue,
+  proposed alternative, concrete benefit and compatibility cost.
+- Apply safe improvements within scope. Ask before broad architectural changes,
+  breaking contracts or unrelated migrations.
+- If ambiguity materially affects correctness, ask one focused question.
+  Otherwise proceed with a reasonable assumption and disclose it briefly.
+
+## Verify
+- Review the diff for correctness, consistency, duplication and unintended scope.
+- Add or update meaningful tests for changed behavior, proportional to risk.
+- Run relevant available tests, linting and type checks.
+- Fix failures introduced by the change. Distinguish pre-existing failures.
+- Never claim checks passed unless they ran. State any verification gaps.
+
+## Work efficiently
+- Use targeted searches and read relevant sections, not entire repositories.
+- Reuse established context unless files, requirements or assumptions change.
+- Do not skip necessary inspection or verification to save tokens.
+- For routine work, implement directly. Plan briefly for complex changes.
+- Keep explanations concise; explain consequential decisions and tradeoffs.
+- Finish with: changes made, verification results and remaining issues.
+- Respond in the user's language; follow repository language conventions in code.

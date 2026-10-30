@@ -59,7 +59,12 @@ ROLE_PERMISSIONS = {
 
 
 def role_permissions(role: str) -> list[str]:
-    return ROLE_PERMISSIONS.get(role, ROLE_PERMISSIONS['zupnik'])
+    """Vraća module poznate ulozi; nepoznata uloga nema implicitne ovlasti.
+
+    Polje korisnika ima Django choices, ali obrambeni fallback mora biti
+    najmanje privilegiran zbog starih podataka i mogućih ručnih upisa.
+    """
+    return ROLE_PERMISSIONS.get(role, [])
 
 
 def can_access_page(page: str, role: str) -> bool:
@@ -67,7 +72,7 @@ def can_access_page(page: str, role: str) -> bool:
         return True
     module = PAGE_TO_MODULE.get(page)
     if not module:
-        return True
+        return False
     return module in role_permissions(role)
 
 

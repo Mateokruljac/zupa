@@ -55,7 +55,18 @@ def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[di
         })
 
     for fam in data.get('families') or []:
-        row = next((c for c in fam.get('contributions') or [] if c.get('year') == year), None)
+        row = next(
+            (
+                contribution
+                for contribution in fam.get('contributions') or []
+                if contribution.get('year') == year
+                and (
+                    (contribution.get('category') or 'lukno').strip()
+                    or 'lukno'
+                ) == 'lukno'
+            ),
+            None,
+        )
         if row and not row.get('luknoPaid'):
             items.append({
                 'id': f"lukno_{fam.get('id')}_{year}",

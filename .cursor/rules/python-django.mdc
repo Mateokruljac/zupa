@@ -1,0 +1,27 @@
+---
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Python and Django
+
+- Follow the supported Python/Django versions and repository tooling.
+  Use idiomatic Python and PEP 8 where project configuration leaves choices open.
+- Inspect the closest Django app before creating a model or module.
+  Match its organization of models, managers/querysets, forms/serializers,
+  views, services, URLs, admin and tests where applicable.
+- Place business logic according to established responsibilities.
+  Do not introduce service/repository layers or move logic into signals
+  without a concrete need.
+- Reuse shared models, mixins, validators and queryset methods when suitable.
+  Do not force unrelated domain behavior into a shared abstraction.
+- Enforce validation and data integrity at appropriate boundaries;
+  use database constraints where required.
+- Verify permissions, object-level access and tenant isolation when applicable.
+- Handle atomic operations and concurrency risks explicitly when relevant.
+- Review schema and data migrations for existing data, compatibility,
+  reversibility where feasible and deployment impact.
+- Check ORM access patterns for N+1 queries, unnecessary evaluation and
+  excessive loading. Use select_related/prefetch_related when justified.
+- Add indexes based on query patterns and constraints, considering write costs.
+- Test affected behavior and relevant validation, permission and integrity cases.

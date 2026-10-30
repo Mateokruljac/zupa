@@ -7,6 +7,11 @@ from core.models import OPEN_ENDED_VALID_TO
 from zupa_vjernici.forms import StreetForm
 from zupa_vjernici.models import Street
 from zupa_vjernici.services.api_action_handlers.streets import upsert_street
+from zupa_vjernici.services.api_action_handlers.families import (
+    delete_contribution,
+    delete_family_member,
+    upsert_contribution,
+)
 from zupa_vjernici.services.family_card import family_card_snapshot
 from zupa_vjernici.services.membership_timeline import build_membership_timeline
 from zupa_vjernici.services.street_records import (
@@ -129,6 +134,48 @@ class FamilyCardSnapshotTests(unittest.TestCase):
         )
         self.assertEqual(card['luknoStatus'], 'none')
         self.assertEqual(card['contributions'][0]['categoryLabel'], 'Obiteljski dar')
+
+
+class FamilyContributionMutationTests(unittest.TestCase):
+    def setUp(self):
+        self.parish_data = {
+            'families': [{
+                'id': 'fam1',
+                'members': [{'id': 'member1'}],
+                'contributions': [{'id': 'payment1', 'year': 2026}],
+            }],
+        }
+
+    def test_zero_amount_is_not_replaced_with_default_amount(self):
+        result = upsert_contribution(
+            self.parish_data,
+            {
+                'family_id': 'fam1',
+                'year': 2026,
+                'category': 'lukno',
+                'amount': 0,
+                'paid_at': '2026-10-29',
+            },
+        )
+
+        self.assertTrue(result['ok'])
+        self.assertEqual(result['item']['luknoAmount'], 0)
+
+    def test_missing_member_delete_is_reported_as_not_found(self):
+        result = delete_family_member(
+            self.parish_data,
+            {'family_id': 'fam1', 'member_id': 'missing'},
+        )
+
+        self.assertEqual(result, {'ok': False, 'error': 'not_found'})
+
+    def test_missing_contribution_delete_is_reported_as_not_found(self):
+        result = delete_contribution(
+            self.parish_data,
+            {'family_id': 'fam1', 'contribution_id': 'missing'},
+        )
+
+        self.assertEqual(result, {'ok': False, 'error': 'not_found'})
 
 
 class MembershipTimelineTests(unittest.TestCase):

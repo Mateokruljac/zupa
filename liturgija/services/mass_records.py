@@ -5,7 +5,11 @@ import copy
 import uuid
 from datetime import timedelta
 
-from core.utils import _decimal_amount, _iso_or_empty, _parse_iso_date
+from core.utils import (
+    _decimal_amount as decimal_amount,
+    _iso_or_empty as iso_or_empty,
+    _parse_iso_date as parse_iso_date,
+)
 from liturgija.models import (
     BulletinIssue,
     MassException,
@@ -30,8 +34,8 @@ def mass_schedule_slot_as_legacy_record(slot: MassScheduleSlot) -> dict:
         'weekdays': list(slot.weekdays or []),
         'location': slot.location or '',
         'notes': slot.notes or '',
-        'validFrom': _iso_or_empty(slot.valid_from),
-        'validUntil': _iso_or_empty(slot.valid_until),
+        'validFrom': iso_or_empty(slot.valid_from),
+        'validUntil': iso_or_empty(slot.valid_until),
     }
     if slot.no_mass:
         record['noMass'] = True
@@ -42,7 +46,7 @@ def mass_intention_as_legacy_record(intention: MassIntention) -> dict:
     """Red tablice nakane → dict za JS (`id` = PK)."""
     return {
         'id': str(intention.id),
-        'date': _iso_or_empty(intention.intention_date),
+        'date': iso_or_empty(intention.intention_date),
         'massTime': intention.mass_time or '',
         'intentionFor': intention.intention_for or '',
         'stipend': float(intention.stipend or 0),
@@ -55,7 +59,7 @@ def mass_exception_as_legacy_record(exception: MassException) -> dict:
     """Iznimka (otkaz) → dict za JS (`id` = PK)."""
     return {
         'id': str(exception.id),
-        'date': _iso_or_empty(exception.exception_date),
+        'date': iso_or_empty(exception.exception_date),
         'cancelAll': bool(exception.cancel_all),
         'cancelTimes': list(exception.cancel_times or []),
         'note': exception.note or '',
@@ -67,8 +71,8 @@ def bulletin_issue_as_legacy_record(issue: BulletinIssue) -> dict:
     layout = issue.layout if isinstance(issue.layout, dict) else {}
     return {
         'id': str(issue.id),
-        'weekStart': _iso_or_empty(issue.week_start),
-        'weekEnd': _iso_or_empty(issue.week_end),
+        'weekStart': iso_or_empty(issue.week_start),
+        'weekEnd': iso_or_empty(issue.week_end),
         'title': issue.title or '',
         'status': issue.status or BulletinIssue.Status.PUBLISHED,
         'layoutSnapshot': copy.deepcopy(layout),
@@ -112,8 +116,8 @@ def mass_schedule_slot_field_defaults_from_legacy(record: dict) -> dict:
         'weekdays': _weekdays_list(record.get('weekdays')),
         'location': str(record.get('location') or ''),
         'notes': str(record.get('notes') or ''),
-        'valid_from': _parse_iso_date(record.get('validFrom')),
-        'valid_until': _parse_iso_date(record.get('validUntil')),
+        'valid_from': parse_iso_date(record.get('validFrom')),
+        'valid_until': parse_iso_date(record.get('validUntil')),
         'no_mass': bool(record.get('noMass')),
     }
 
@@ -121,10 +125,10 @@ def mass_schedule_slot_field_defaults_from_legacy(record: dict) -> dict:
 def mass_intention_field_defaults_from_legacy(record: dict) -> dict:
     """JS dict → kwargs za ``MassIntention``."""
     return {
-        'intention_date': _parse_iso_date(record.get('date')),
+        'intention_date': parse_iso_date(record.get('date')),
         'mass_time': str(record.get('massTime') or ''),
         'intention_for': str(record.get('intentionFor') or ''),
-        'stipend': _decimal_amount(record.get('stipend')),
+        'stipend': decimal_amount(record.get('stipend')),
         'is_paid': bool(record.get('paid')),
         'notes': str(record.get('notes') or ''),
     }
@@ -134,7 +138,7 @@ def mass_exception_field_defaults_from_legacy(record: dict) -> dict:
     """JS dict → kwargs za iznimku mise."""
     cancel_times = record.get('cancelTimes')
     return {
-        'exception_date': _parse_iso_date(record.get('date')),
+        'exception_date': parse_iso_date(record.get('date')),
         'cancel_all': bool(record.get('cancelAll')),
         'cancel_times': list(cancel_times) if isinstance(cancel_times, list) else [],
         'note': str(record.get('note') or ''),
@@ -149,8 +153,8 @@ def bulletin_issue_field_defaults_from_legacy(record: dict) -> dict:
     status = str(record.get('status') or BulletinIssue.Status.PUBLISHED)
     if status not in BulletinIssue.Status.values:
         status = BulletinIssue.Status.PUBLISHED
-    week_start = _parse_iso_date(record.get('weekStart'))
-    week_end = _parse_iso_date(record.get('weekEnd'))
+    week_start = parse_iso_date(record.get('weekStart'))
+    week_end = parse_iso_date(record.get('weekEnd'))
     if week_start is not None and week_end is None:
         week_end = week_start + timedelta(days=6)
     return {

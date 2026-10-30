@@ -207,11 +207,16 @@ def delete_family_member(parish_data: dict, action_payload: dict) -> dict:
     family_member_id = (
         action_payload.get('id') or action_payload.get('member_id')
     )
+    if not family_member_id:
+        return {'ok': False, 'error': 'not_found'}
+    member_count = len(family.get('members') or [])
     family['members'] = [
         family_member
         for family_member in family.get('members') or []
         if family_member.get('id') != family_member_id
     ]
+    if len(family['members']) == member_count:
+        return {'ok': False, 'error': 'not_found'}
     synchronize_parishioners(parish_data)
     return {'ok': True}
 
@@ -234,12 +239,14 @@ def upsert_contribution(parish_data: dict, action_payload: dict) -> dict:
         or action_payload.get('contributionId')
         or ''
     ).strip()
-    amount = float(
-        action_payload.get('amount')
-        or action_payload.get('lukno_amount')
-        or action_payload.get('luknoAmount')
-        or DEFAULT_ANNUAL_CONTRIBUTION_AMOUNT
-    )
+    amount_value = action_payload.get('amount')
+    if amount_value in (None, ''):
+        amount_value = action_payload.get('lukno_amount')
+    if amount_value in (None, ''):
+        amount_value = action_payload.get('luknoAmount')
+    if amount_value in (None, ''):
+        amount_value = DEFAULT_ANNUAL_CONTRIBUTION_AMOUNT
+    amount = float(amount_value)
     paid_at = normalize_date_value(
         action_payload.get('paid_at')
         or action_payload.get('paidAt')
@@ -308,16 +315,23 @@ def delete_contribution(parish_data: dict, action_payload: dict) -> dict:
         or ''
     ).strip()
     if contribution_id:
+        contribution_count = len(family.get('contributions') or [])
         family['contributions'] = [
             contribution
             for contribution in family.get('contributions') or []
             if contribution.get('id') != contribution_id
         ]
+        if len(family['contributions']) == contribution_count:
+            return {'ok': False, 'error': 'not_found'}
         return {'ok': True}
-    contribution_year = int(action_payload.get('year'))
+    try:
+        contribution_year = int(action_payload.get('year'))
+    except (TypeError, ValueError):
+        return {'ok': False, 'error': 'not_found'}
     category = normalize_contribution_category(
         action_payload.get('category'),
     )
+    contribution_count = len(family.get('contributions') or [])
     family['contributions'] = [
         contribution
         for contribution in family.get('contributions') or []
@@ -328,6 +342,8 @@ def delete_contribution(parish_data: dict, action_payload: dict) -> dict:
             ) == category
         )
     ]
+    if len(family['contributions']) == contribution_count:
+        return {'ok': False, 'error': 'not_found'}
     return {'ok': True}
 
 

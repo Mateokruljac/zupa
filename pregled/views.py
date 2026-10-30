@@ -1,6 +1,7 @@
 """HTTP viewovi za Pregled (nadzorna ploča)."""
 from __future__ import annotations
 
+from django.db import transaction
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
@@ -20,9 +21,13 @@ def dashboard(request):
         if action_name == 'toggle_task':
             from ured.api_actions import toggle_task
 
-            parish_data = parish_data_service.load()
-            toggle_task(parish_data, {'id': request.POST.get('task_id')})
-            parish_data_service.save(parish_data)
+            # Dashboard je izvan zajedničkog page dispatcher-a, pa ovdje
+            # izričito zaključavamo isti parish red prije read-modify-writea.
+            with transaction.atomic():
+                parish_data_service.lock_for_update()
+                parish_data = parish_data_service.load()
+                toggle_task(parish_data, {'id': request.POST.get('task_id')})
+                parish_data_service.save(parish_data)
             return redirect('pastoral:page', page='kalendar')
 
     parish_data = parish_data_service.load()
