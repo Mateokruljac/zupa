@@ -5,6 +5,7 @@ import calendar
 from datetime import date
 
 from liturgija.services.liturgical import get_day, get_month_days
+from ured.services.reminders_page import reminders_page_context
 
 
 def _integer_query_parameter(request, parameter_name: str, default_value: int) -> int:
@@ -118,6 +119,11 @@ def calendar_page_context(parish_data: dict, request) -> dict:
     today = date.today()
     calendar_year, calendar_month = _selected_calendar_period(request, today)
     selected_date = _selected_calendar_date(request, today)
+    calendar_view = request.GET.get('view', 'calendar')
+    if calendar_view not in {'calendar', 'tasks', 'reminders'}:
+        calendar_view = 'calendar'
+    if request.GET.get('task') and 'view' not in request.GET:
+        calendar_view = 'tasks'
 
     liturgical_month_days = get_month_days(
         calendar_year,
@@ -171,7 +177,7 @@ def calendar_page_context(parish_data: dict, request) -> dict:
     selected_day_events = events_by_date.get(selected_date, [])
     selected_day_tasks = tasks_by_date.get(selected_date, [])
 
-    return {
+    context = {
         'rows': visible_tasks,
         'parish_events': parish_events,
         'cal_year': calendar_year,
@@ -222,4 +228,7 @@ def calendar_page_context(parish_data: dict, request) -> dict:
                 )
             ),
         },
+        'calendar_view': calendar_view,
     }
+    context.update(reminders_page_context(parish_data, request))
+    return context

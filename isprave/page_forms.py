@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from isprave.forms import RegistryBookForm, RegistryRecordForm
+from isprave.forms import BaptismRegistryForm, FuneralRegistryForm, MarriageRegistryForm, RegistryBookForm, RegistryRecordForm
 
 if TYPE_CHECKING:
     from pastoral.services.data import ParishDataService
@@ -20,10 +20,24 @@ def attach_registry_book_forms(
     selected_registry_book = page_context.get('selected_registry_book_view')
     selected_registry_year = page_context.get('selected_registry_year')
     if selected_registry_book and selected_registry_year:
-        page_context['registry_record_form'] = RegistryRecordForm(
-            registry_type=selected_registry_book.get('type', 'ostalo'),
-            selected_year=selected_registry_year,
-        )
+        registry_type = selected_registry_book.get('type', 'ostalo')
+        if registry_type == 'krštenja':
+            page_context['registry_record_form'] = BaptismRegistryForm(
+                selected_year=selected_registry_year,
+            )
+        elif registry_type == 'vjenčanja':
+            page_context['registry_record_form'] = MarriageRegistryForm(
+                selected_year=selected_registry_year,
+            )
+        elif registry_type == 'umrli':
+            page_context['registry_record_form'] = FuneralRegistryForm(
+                selected_year=selected_registry_year,
+            )
+        else:
+            page_context['registry_record_form'] = RegistryRecordForm(
+                registry_type=registry_type,
+                selected_year=selected_registry_year,
+            )
     selected_book_id = request.GET.get('book')
     if not selected_book_id:
         return

@@ -21,7 +21,6 @@ EVENT_TYPE_BY_REGISTRY_TYPE = {
     RegisterBook.RegistryType.BAPTISMS: SacramentalEvent.EventType.BAPTISM,
     RegisterBook.RegistryType.MARRIAGES: SacramentalEvent.EventType.MARRIAGE,
     RegisterBook.RegistryType.DECEASED: SacramentalEvent.EventType.FUNERAL,
-    RegisterBook.RegistryType.CONFIRMATIONS: SacramentalEvent.EventType.CONFIRMATION,
 }
 
 

@@ -6,11 +6,7 @@ import re
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from sakramenti.models import (
-    EventParticipant,
-    FormationCandidate,
-    SacramentalEvent,
-)
+from sakramenti.models import SacramentalEvent
 from django_multitenant.schema import with_tenant_schema
 from pastoral.models import Parish
 from isprave.models import (
@@ -23,7 +19,6 @@ from isprave.models import (
 EVENT_TYPE_BY_REGISTRY_TYPE = {
     RegisterBook.RegistryType.MARRIAGES: SacramentalEvent.EventType.MARRIAGE,
     RegisterBook.RegistryType.DECEASED: SacramentalEvent.EventType.FUNERAL,
-    RegisterBook.RegistryType.CONFIRMATIONS: SacramentalEvent.EventType.CONFIRMATION,
 }
 
 
@@ -38,73 +33,12 @@ def _entry_number_from_reference(entry_reference: str, registry_year: int) -> in
 
 
 @with_tenant_schema
-def _confirmation_event(
-    parish: Parish,
-    candidate_identifier: str,
-    actor=None,
-) -> SacramentalEvent:
-    candidate = FormationCandidate.objects.select_related(
-        'program_year', 'sacramental_event'
-    ).get(
-        program_year__parish=parish,
-        program_year__program_type='confirmation',
-        public_identifier=candidate_identifier,
-    )
-    program_year = candidate.program_year
-    event = candidate.sacramental_event
-    authenticated_actor = actor if getattr(actor, 'is_authenticated', False) else None
-    if event is None:
-        event = SacramentalEvent.objects.create(
-            parish=parish,
-            public_identifier=candidate.public_identifier,
-            event_type=SacramentalEvent.EventType.CONFIRMATION,
-            event_date=program_year.ceremony_date,
-            celebrating_parish=parish,
-            minister_name=program_year.celebrant_name,
-            liturgical_tradition=parish.default_liturgical_tradition,
-            canonical_tradition=parish.canonical_tradition_for_events(),
-            status=SacramentalEvent.Status.DRAFT,
-            source=SacramentalEvent.Source.MANUAL,
-            created_by=authenticated_actor,
-            updated_by=authenticated_actor,
-        )
-        EventParticipant.objects.create(
-            parish=parish,
-            event=event,
-            person=candidate.person,
-            role=EventParticipant.Role.RECIPIENT,
-            historical_name=candidate.historical_name,
-            display_order=0,
-        )
-        if candidate.sponsor_name:
-            EventParticipant.objects.create(
-                parish=parish,
-                event=event,
-                role=EventParticipant.Role.GODPARENT,
-                historical_name=candidate.sponsor_name,
-                display_order=10,
-            )
-        candidate.sacramental_event = event
-        candidate.save(update_fields=('sacramental_event', 'updated_at'))
-    else:
-        event.event_date = program_year.ceremony_date
-        event.minister_name = program_year.celebrant_name
-        event.updated_by = authenticated_actor
-        event.save(update_fields=(
-            'event_date', 'minister_name', 'updated_by', 'updated_at',
-        ))
-    return event
-
-
-@with_tenant_schema
 def _event_for_registry_record(
     parish: Parish,
     registry_type: str,
     source_identifier: str,
     actor=None,
 ) -> SacramentalEvent:
-    if registry_type == RegisterBook.RegistryType.CONFIRMATIONS:
-        return _confirmation_event(parish, source_identifier, actor=actor)
     event_type = EVENT_TYPE_BY_REGISTRY_TYPE.get(registry_type)
     if event_type is None:
         raise ValidationError('Ova vrsta knjige nema sakramentalni događaj.')
@@ -148,7 +82,13 @@ def synchronize_registry_entry(
         source_identifier,
         actor=actor,
     )
-    if event.event_date and event.event_date.year != registry_year:
+    registry_record_date = event.event_date
+    if registry_type == RegisterBook.RegistryType.DECEASED:
+        funeral_details = getattr(event, 'funeral_details', None)
+        registry_record_date = (
+            funeral_details.death_date if funeral_details else event.event_date
+        )
+    if registry_record_date and registry_record_date.year != registry_year:
         raise ValidationError('Datum sakramentalnog događaja ne pripada odabranoj godini.')
 
     register_book_year, _ = RegisterBookYear.objects.get_or_create(
@@ -190,7 +130,7 @@ def synchronize_registry_entry(
             template_version=register_book.template_version,
             entry_number=entry_number,
             entry_reference=normalized_reference,
-            entry_date=event.event_date,
+            entry_date=registry_record_date,
             status=RegisterEntry.Status.DRAFT,
             created_by=authenticated_actor,
             updated_by=authenticated_actor,
@@ -201,18 +141,18 @@ def synchronize_registry_entry(
         register_entry.template_version = register_book.template_version
         register_entry.entry_number = entry_number
         register_entry.entry_reference = normalized_reference
-        register_entry.entry_date = event.event_date
+        register_entry.entry_date = registry_record_date
         register_entry.updated_by = authenticated_actor
         register_entry.save()
 
     if entry_number and register_book_year.next_entry_number <= entry_number:
         register_book_year.next_entry_number = entry_number + 1
         register_book_year.save(update_fields=('next_entry_number',))
-    if event.event_date and (
+    if registry_record_date and (
         register_book.last_entry_date is None
-        or event.event_date >= register_book.last_entry_date
+        or registry_record_date >= register_book.last_entry_date
     ):
-        register_book.last_entry_date = event.event_date
+        register_book.last_entry_date = registry_record_date
         register_book.last_entry_reference = normalized_reference
         register_book.save(update_fields=(
             'last_entry_date', 'last_entry_reference', 'updated_at',

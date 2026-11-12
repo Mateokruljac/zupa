@@ -281,6 +281,7 @@ def _synchronize_register_entry(
             template_version=template_version,
             entry_number=entry_number,
             entry_reference=entry_reference,
+            page_number=str(baptism_record.get('physicalPage') or ''),
             entry_date=baptism_date,
             status=RegisterEntry.Status.DRAFT,
             created_by=actor if getattr(actor, 'is_authenticated', False) else None,
@@ -291,6 +292,7 @@ def _synchronize_register_entry(
         register_entry.template_version = template_version
         register_entry.entry_number = entry_number
         register_entry.entry_reference = entry_reference
+        register_entry.page_number = str(baptism_record.get('physicalPage') or '')
         register_entry.entry_date = baptism_date
         if register_entry.status == RegisterEntry.Status.CANCELLED:
             register_entry.status = RegisterEntry.Status.DRAFT
@@ -299,7 +301,8 @@ def _synchronize_register_entry(
         )
         register_entry.save(update_fields=(
             'register_book_year', 'template_version', 'entry_number',
-            'entry_reference', 'entry_date', 'status', 'updated_by', 'updated_at',
+            'entry_reference', 'page_number', 'entry_date', 'status',
+            'updated_by', 'updated_at',
         ))
     if entry_number and register_book_year.next_entry_number <= entry_number:
         register_book_year.next_entry_number = entry_number + 1
@@ -341,6 +344,7 @@ def synchronize_baptism_record(
         )
 
     event.event_date = parse_iso_date(baptism_record.get('baptismDate'))
+    event.place_name = baptism_record.get('baptismPlace') or ''
     event.minister_name = baptism_record.get('celebrant') or ''
     event.liturgical_tradition = parish.default_liturgical_tradition
     event.canonical_tradition = parish.canonical_tradition_for_events()
@@ -348,7 +352,7 @@ def synchronize_baptism_record(
         event.status = SacramentalEvent.Status.DRAFT
     event.updated_by = actor if getattr(actor, 'is_authenticated', False) else None
     event.save(update_fields=(
-        'event_date', 'minister_name', 'liturgical_tradition',
+        'event_date', 'place_name', 'minister_name', 'liturgical_tradition',
         'canonical_tradition', 'status', 'updated_by', 'updated_at',
     ))
 
@@ -361,16 +365,58 @@ def synchronize_baptism_record(
         parish, event, EventParticipant.Role.GODPARENT,
         baptism_record.get('godparents', ''), 20,
     )
-    baptism_details, _ = BaptismDetails.objects.get_or_create(event=event)
-    baptism_details.godparent_certificate_received = bool(
-        baptism_record.get('godparentCertReceived', False)
-    )
-    baptism_details.operational_status = baptism_record.get('status') or 'upis'
-    baptism_details.stipend = baptism_stipend_amount(baptism_record)
-    baptism_details.stipend_paid = bool(baptism_record.get('stipendPaid', False))
+    baptism_details = BaptismDetails.objects.filter(event=event).first()
+    if baptism_details is None:
+        baptism_details = BaptismDetails(event=event)
+    child_name = split_person_name(baptism_record.get('childName')) or ('', '')
+    godparent_name = split_person_name(baptism_record.get('godparents')) or ('', '')
+    minister_name = split_person_name(baptism_record.get('celebrant')) or ('', '')
+    legacy_parents = str(baptism_record.get('parents') or '').split('/', maxsplit=1)
+    father_name = split_person_name(legacy_parents[0]) or ('', '')
+    mother_name = split_person_name(
+        legacy_parents[1] if len(legacy_parents) > 1 else ''
+    ) or ('', '')
+    detail_values = {
+        'entry_number': baptism_record.get('entryNumber'),
+        'birth_date': parse_iso_date(baptism_record.get('birthDate')),
+        'baptism_date': parse_iso_date(baptism_record.get('baptismDate')),
+        'child_first_name': baptism_record.get('childFirstName') or child_name[0],
+        'child_last_name': baptism_record.get('childLastName') or child_name[1],
+        'child_sex': baptism_record.get('childSex') or BaptismDetails.ChildSex.SON,
+        'baptism_place': baptism_record.get('baptismPlace') or '',
+        'identifier_type': baptism_record.get('identifierType') or None,
+        'identifier_value': baptism_record.get('identifierValue') or None,
+        'father_first_name': baptism_record.get('fatherFirstName') or father_name[0],
+        'father_last_name': baptism_record.get('fatherLastName') or father_name[1],
+        'father_religion': baptism_record.get('fatherReligion') or '',
+        'mother_first_name': baptism_record.get('motherFirstName') or mother_name[0],
+        'mother_last_name': baptism_record.get('motherLastName') or mother_name[1],
+        'mother_religion': baptism_record.get('motherReligion') or '',
+        'parents_canonically_married': baptism_record.get('parentsCanonicallyMarried', True),
+        'residence_address': baptism_record.get('residenceAddress') or '',
+        'godparent_first_name': baptism_record.get('godparentFirstName') or godparent_name[0],
+        'godparent_last_name': baptism_record.get('godparentLastName') or godparent_name[1],
+        'minister_first_name': baptism_record.get('ministerFirstName') or minister_name[0],
+        'minister_last_name': baptism_record.get('ministerLastName') or minister_name[1],
+        'minister_role': baptism_record.get('ministerRole') or '',
+        'confirmation_date': parse_iso_date(baptism_record.get('confirmationDate')),
+        'confirmation_place': baptism_record.get('confirmationPlace') or None,
+        'confirmation_parish': baptism_record.get('confirmationParish') or None,
+        'marriage_date': parse_iso_date(baptism_record.get('marriageDate')),
+        'marriage_parish': baptism_record.get('marriageParish') or None,
+        'spouse_first_name': baptism_record.get('spouseFirstName') or None,
+        'spouse_last_name': baptism_record.get('spouseLastName') or None,
+        'notes': baptism_record.get('notes') or None,
+        'physical_page': baptism_record.get('physicalPage') or None,
+        'godparent_certificate_received': bool(baptism_record.get('godparentCertReceived', False)),
+        'operational_status': baptism_record.get('status') or 'upis',
+        'stipend': baptism_stipend_amount(baptism_record),
+        'stipend_paid': bool(baptism_record.get('stipendPaid', False)),
+    }
+    for field_name, field_value in detail_values.items():
+        setattr(baptism_details, field_name, field_value)
     baptism_details.save(update_fields=(
-        'godparent_certificate_received',
-        'operational_status', 'stipend', 'stipend_paid',
+        tuple(detail_values) if baptism_details.pk else None
     ))
     _synchronize_register_entry(
         parish, event, baptism_record, register_book,
@@ -579,17 +625,60 @@ def relational_baptisms_as_legacy_dictionaries(parish: Parish) -> list[dict]:
         register_entry = getattr(event, 'register_entry', None)
         records.append({
             'id': event.public_identifier,
-            'childName': participant_names.get(EventParticipant.Role.RECIPIENT, ''),
+            'entryNumber': baptism_details.entry_number,
+            'childFirstName': baptism_details.child_first_name,
+            'childLastName': baptism_details.child_last_name,
+            'childName': ' '.join(filter(None, (
+                baptism_details.child_first_name, baptism_details.child_last_name
+            ))) or participant_names.get(EventParticipant.Role.RECIPIENT, ''),
             'birthDate': (
-                recipient.date_of_birth.isoformat()
+                baptism_details.birth_date.isoformat()
+                if baptism_details.birth_date
+                else recipient.date_of_birth.isoformat()
                 if recipient and recipient.date_of_birth
                 else ''
             ),
-            'baptismDate': event.event_date.isoformat() if event.event_date else '',
+            'baptismDate': (
+                baptism_details.baptism_date.isoformat()
+                if baptism_details.baptism_date
+                else event.event_date.isoformat() if event.event_date else ''
+            ),
+            'childSex': baptism_details.child_sex,
+            'baptismPlace': baptism_details.baptism_place,
+            'identifierType': baptism_details.identifier_type or '',
+            'identifierValue': baptism_details.identifier_value or '',
+            'fatherFirstName': baptism_details.father_first_name,
+            'fatherLastName': baptism_details.father_last_name,
+            'fatherReligion': baptism_details.father_religion,
+            'motherFirstName': baptism_details.mother_first_name,
+            'motherLastName': baptism_details.mother_last_name,
+            'motherReligion': baptism_details.mother_religion,
+            'parentsCanonicallyMarried': baptism_details.parents_canonically_married,
             'parents': participant_names.get(EventParticipant.Role.PARENT, ''),
+            'residenceAddress': baptism_details.residence_address,
+            'godparentFirstName': baptism_details.godparent_first_name,
+            'godparentLastName': baptism_details.godparent_last_name,
             'godparents': participant_names.get(EventParticipant.Role.GODPARENT, ''),
+            'ministerFirstName': baptism_details.minister_first_name,
+            'ministerLastName': baptism_details.minister_last_name,
+            'ministerRole': baptism_details.minister_role,
             'celebrant': event.minister_name,
             'registryNo': register_entry.entry_reference if register_entry else '',
+            'confirmationDate': (
+                baptism_details.confirmation_date.isoformat()
+                if baptism_details.confirmation_date else ''
+            ),
+            'confirmationPlace': baptism_details.confirmation_place or '',
+            'confirmationParish': baptism_details.confirmation_parish or '',
+            'marriageDate': (
+                baptism_details.marriage_date.isoformat()
+                if baptism_details.marriage_date else ''
+            ),
+            'marriageParish': baptism_details.marriage_parish or '',
+            'spouseFirstName': baptism_details.spouse_first_name or '',
+            'spouseLastName': baptism_details.spouse_last_name or '',
+            'notes': baptism_details.notes or '',
+            'physicalPage': baptism_details.physical_page or '',
             'status': baptism_details.operational_status,
             'gift': financial_amount,
             'stipend': financial_amount,
@@ -614,8 +703,18 @@ def select_baptism_records_for_read(
 
     relational_records = relational_baptisms_as_legacy_dictionaries(parish)
     comparison_fields = (
-        'childName', 'birthDate', 'baptismDate', 'parents', 'godparents',
-        'celebrant', 'registryNo', 'status', 'godparentCertReceived',
+        'entryNumber', 'childFirstName', 'childLastName', 'childName',
+        'birthDate', 'baptismDate', 'childSex', 'baptismPlace',
+        'identifierType', 'identifierValue', 'fatherFirstName',
+        'fatherLastName', 'fatherReligion', 'motherFirstName',
+        'motherLastName', 'motherReligion', 'parentsCanonicallyMarried',
+        'parents', 'residenceAddress', 'godparentFirstName',
+        'godparentLastName', 'godparents', 'ministerFirstName',
+        'ministerLastName', 'ministerRole', 'celebrant', 'registryNo',
+        'confirmationDate', 'confirmationPlace', 'confirmationParish',
+        'marriageDate', 'marriageParish', 'spouseFirstName',
+        'spouseLastName', 'notes', 'physicalPage', 'status',
+        'godparentCertReceived',
     )
     legacy_by_identifier = {
         str(record.get('id')): record
@@ -642,8 +741,18 @@ def select_baptism_records_for_read(
 
 def compare_legacy_and_relational_baptisms(parish: Parish) -> dict:
     comparison_fields = (
-        'childName', 'birthDate', 'baptismDate', 'parents', 'godparents',
-        'celebrant', 'registryNo', 'status', 'godparentCertReceived',
+        'entryNumber', 'childFirstName', 'childLastName', 'childName',
+        'birthDate', 'baptismDate', 'childSex', 'baptismPlace',
+        'identifierType', 'identifierValue', 'fatherFirstName',
+        'fatherLastName', 'fatherReligion', 'motherFirstName',
+        'motherLastName', 'motherReligion', 'parentsCanonicallyMarried',
+        'parents', 'residenceAddress', 'godparentFirstName',
+        'godparentLastName', 'godparents', 'ministerFirstName',
+        'ministerLastName', 'ministerRole', 'celebrant', 'registryNo',
+        'confirmationDate', 'confirmationPlace', 'confirmationParish',
+        'marriageDate', 'marriageParish', 'spouseFirstName',
+        'spouseLastName', 'notes', 'physicalPage', 'status',
+        'godparentCertReceived',
     )
     legacy_records = {
         str(record.get('id')): record

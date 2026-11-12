@@ -4598,7 +4598,7 @@ textarea.form-control {
 
 .theme-mode-toggle {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
 }
 
@@ -6035,6 +6035,41 @@ body.onboarding-modal-mode {
 .reminders-inbox {
   margin: 0;
   padding: 0;
+}
+
+.calendar-workspace-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 5px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface);
+}
+.calendar-workspace-tabs a {
+  display: inline-flex;
+  flex: 1 0 max-content;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px 16px;
+  border-radius: 9px;
+  color: var(--text-muted);
+  font-size: .82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.calendar-workspace-tabs a:hover { background: var(--surface-elevated); color: var(--text); }
+.calendar-workspace-tabs a.is-active { background: var(--primary); color: #fff; }
+.calendar-workspace-tabs a span {
+  min-width: 22px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  text-align: center;
+  font-size: .7rem;
 }
 
 .reminders-page-card {
@@ -12776,6 +12811,7 @@ body.family-filters-open .family-list-card {
   color: var(--text);
   box-shadow: 0 30px 90px rgba(20, 18, 16, .28);
 }
+.sacrament-record-dialog--wide { width: min(900px, calc(100vw - 28px)); }
 
 .sacrament-record-dialog::backdrop { background: rgba(20, 18, 16, .56); backdrop-filter: blur(3px); }
 .sacrament-record-dialog__form { display: flex; max-height: calc(100vh - 28px); flex-direction: column; }
@@ -13103,6 +13139,79 @@ body.family-filters-open .family-list-card {
 .registry-record-form-card { width: min(100%, 900px); margin-inline: auto; }
 .registry-records-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 
+.baptism-registry-tabs { display: grid; gap: 20px; }
+.baptism-registry-tabs__list {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-elevated) 85%, var(--bg));
+}
+.baptism-registry-tabs__list [role="tab"] {
+  display: inline-flex;
+  flex: 1 0 max-content;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 8px 13px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: .78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.baptism-registry-tabs__list [role="tab"]:hover { color: var(--text); background: var(--surface); }
+.baptism-registry-tabs__list [role="tab"][aria-selected="true"] {
+  border-color: var(--border);
+  background: var(--surface-elevated);
+  color: var(--primary);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--text) 8%, transparent);
+}
+.baptism-registry-tabs__list [role="tab"].has-errors { color: var(--danger); }
+.baptism-registry-tabs__error {
+  display: inline-grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: .68rem;
+}
+.baptism-registry-tabs__error[hidden] { display: none; }
+.baptism-registry-tabs__panel { display: grid; gap: 20px; }
+.baptism-registry-tabs__panel[hidden] { display: none; }
+.baptism-registry-tabs__panel > header { padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.baptism-registry-tabs__panel h3 { margin: 0; color: var(--text); font-size: 1rem; }
+.baptism-registry-tabs__panel header p { margin: 5px 0 0; color: var(--text-muted); font-size: .78rem; }
+.baptism-registry-tabs__stack { display: grid; gap: 17px; }
+.baptism-registry-tabs__row { display: grid; gap: 17px 20px; }
+.baptism-registry-tabs__row--two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.baptism-registry-tabs__row--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.baptism-registry-tabs__nav { display: flex; justify-content: space-between; gap: 8px; padding-top: 4px; }
+.funeral-sacraments-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.funeral-sacraments-grid label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  color: var(--text);
+  font-size: .82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.funeral-sacraments-grid input { width: 18px; height: 18px; accent-color: var(--primary); }
+
 .registry-record-dialog {
   width: min(620px, calc(100vw - 28px));
   max-height: calc(100dvh - 36px);
@@ -13113,6 +13222,23 @@ body.family-filters-open .family-list-card {
   background: var(--surface);
   color: var(--text);
   box-shadow: 0 26px 80px rgba(30, 24, 22, .25);
+}
+.registry-record-dialog--baptism { width: min(960px, calc(100vw - 28px)); }
+.registry-record-create-dialog > .registry-record-create-form { padding: 20px; }
+.registry-record-create-dialog > header {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  background: var(--surface);
+}
+.registry-record-create-dialog .registry-book-form__actions {
+  position: sticky;
+  z-index: 2;
+  bottom: -20px;
+  margin: 4px -20px -20px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .registry-record-dialog::backdrop { background: rgba(28, 23, 22, .48); backdrop-filter: blur(2px); }
@@ -13146,6 +13272,12 @@ body.family-filters-open .family-list-card {
   .registry-record-details { grid-template-columns: minmax(0, 1fr); }
   .registry-book-form__actions { align-items: stretch; flex-direction: column-reverse; }
   .registry-book-form__actions .btn { width: 100%; }
+  .baptism-registry-tabs__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+  .baptism-registry-tabs__list [role="tab"] { min-width: 0; white-space: normal; }
+  .baptism-registry-tabs__row--two,
+  .baptism-registry-tabs__row--three { grid-template-columns: minmax(0, 1fr); }
+  .funeral-sacraments-grid { grid-template-columns: minmax(0, 1fr); }
+  .baptism-registry-tabs__nav .btn { width: auto; }
 }
 
 /* ==========================================================================

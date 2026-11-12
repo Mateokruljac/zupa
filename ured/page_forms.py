@@ -16,7 +16,6 @@ if TYPE_CHECKING:
 
 URED_PAGE_SLUGS = frozenset({
     'kalendar',
-    'podsjetnici',
     'vijeca',
     'postavke',
     'javne-prijave',

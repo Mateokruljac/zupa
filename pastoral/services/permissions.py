@@ -23,7 +23,7 @@ MODULES = {
     },
     'ured': {
         'label': 'Župni ured',
-        'pages': ['podsjetnici', 'vijeca', 'kalendar', 'javne-prijave'],
+        'pages': ['kalendar', 'podsjetnici', 'vijeca', 'javne-prijave'],
     },
     'postavke': {'label': 'Postavke', 'pages': ['postavke']},
 }
@@ -100,9 +100,8 @@ NAV = [
     {'type': 'link', 'page': 'potvrde', 'icon': '📜', 'label': 'Dokumenti i potvrde'},
     {'type': 'link', 'page': 'maticne-knjige', 'icon': '📖', 'label': 'Matične knjige'},
     {'type': 'label', 'text': 'Župni ured'},
-    {'type': 'link', 'page': 'podsjetnici', 'icon': '🔔', 'label': 'Podsjetnici'},
     {'type': 'link', 'page': 'vijeca', 'icon': '👥', 'label': 'Vijeća ŽPV/ŽEV'},
-    {'type': 'link', 'page': 'kalendar', 'icon': '📅', 'label': 'Događaji i zadaci'},
+    {'type': 'link', 'page': 'kalendar', 'icon': '📅', 'label': 'Kalendar i obveze'},
     {'type': 'link', 'page': 'javne-prijave', 'icon': '📝', 'label': 'Javne prijave'},
     {'type': 'link', 'page': 'postavke', 'icon': '⚙', 'label': 'Postavke'},
 ]
@@ -117,6 +116,7 @@ KNOWN_NAV_PAGES = NAV_PAGES | FINANCE_PAGES
 
 NAV_PAGE_ALIASES = {
     'obitelji-izvjestaj': 'obitelji',
+    'podsjetnici': 'kalendar',
 }
 
 

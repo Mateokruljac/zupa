@@ -83,9 +83,6 @@
 
   function resolveColorScheme(pref) {
     if (global.PastoralThemeInit?.resolve) return global.PastoralThemeInit.resolve(pref);
-    if (pref === "system") {
-      return global.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    }
     return pref === "dark" ? "dark" : "light";
   }
 
@@ -96,9 +93,9 @@
 
   function applyColorScheme(pref) {
     const root = document.documentElement;
-    const scheme = pref || root.dataset.colorSchemePref || "light";
+    const scheme = resolveColorScheme(pref || root.dataset.colorSchemePref || "light");
     root.dataset.colorSchemePref = scheme;
-    root.dataset.colorScheme = resolveColorScheme(scheme);
+    root.dataset.colorScheme = scheme;
     global.PastoralThemeInit?.applyEarly?.(scheme);
   }
 
@@ -247,11 +244,10 @@
   }
 
   function renderModeToggleHtml(settings) {
-    const pref = settings.colorScheme || document.documentElement.dataset.colorSchemePref || "light";
+    const pref = resolveColorScheme(settings.colorScheme || document.documentElement.dataset.colorSchemePref || "light");
     const modes = [
       { id: "light", label: "Svijetlo", icon: "☀" },
       { id: "dark", label: "Tamno", icon: "☾" },
-      { id: "system", label: "Sustav", icon: "◐" },
     ];
     return `
       <div class="theme-mode-section">
@@ -388,7 +384,7 @@
       btn.addEventListener("click", () => {
         const scheme = btn.dataset.colorScheme;
         setColorScheme({ colorScheme: scheme }, mount);
-        const labels = { light: "Svijetli način", dark: "Tamni način", system: "Način prema sustavu" };
+        const labels = { light: "Svijetli način", dark: "Tamni način" };
         showThemeToast(labels[scheme] || "Način prikaza promijenjen");
       });
     });
@@ -482,28 +478,12 @@
     placeInTopbar(mount);
   }
 
-  let systemSchemeListenerBound = false;
-
-  function bindSystemSchemeListener() {
-    if (systemSchemeListenerBound) return;
-    systemSchemeListenerBound = true;
-    global.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
-      if (document.documentElement.dataset.colorSchemePref !== "system") return;
-      applyColorScheme("system");
-      const P = global.PastoralParish;
-      if (P) applyFromSettings(P.loadSettings());
-      const mount = document.getElementById("theme-picker-root");
-      updateQuickModeBtn(mount);
-    });
-  }
-
   /** @param {{ fixed?: boolean }} opts — fixed samo login / stranice bez app-shell */
   function initThemePicker(opts = {}) {
     const P = global.PastoralParish;
     if (!P) return;
     const settings = P.loadSettings();
     applyFromSettings(settings);
-    bindSystemSchemeListener();
 
     const useFixed = !!opts.fixed;
     let mount = document.getElementById("theme-picker-root");

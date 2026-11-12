@@ -36,7 +36,7 @@ def collect_reminders(data: dict, *, include_dismissed: bool = False) -> list[di
             'category': 'zadatak',
             'title': t.get('title', 'Zadatak'),
             'sub': f"{t.get('category', '')} · rok {due or '—'}",
-            'href': f"kalendar?task={t.get('id', '')}",
+            'href': f"kalendar?view=tasks&task={t.get('id', '')}",
             'due': due or today,
         })
 

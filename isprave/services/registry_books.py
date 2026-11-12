@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+from isprave.forms import (
+    BaptismRegistryForm,
+    FuneralRegistryForm,
+    MarriageRegistryForm,
+    baptism_registry_initial,
+    funeral_registry_initial,
+    marriage_registry_initial,
+)
+
 
 REGISTRY_TYPE_PRESENTATION = {
     'krštenja': {
-        'label': 'Matica krštenih',
+        'label': 'Matica rođenih i krštenih',
         'icon': '✦',
         'person_label': 'Krštenik',
         'related_people_label': 'Roditelji',
@@ -21,12 +30,6 @@ REGISTRY_TYPE_PRESENTATION = {
         'icon': '✝',
         'person_label': 'Pokojnik',
         'related_people_label': 'Groblje',
-    },
-    'krizma': {
-        'label': 'Matica krizmanih',
-        'icon': '◆',
-        'person_label': 'Krizmanik',
-        'related_people_label': 'Kum/ka',
     },
     'ostalo': {
         'label': 'Ostala matična knjiga',
@@ -61,14 +64,20 @@ def _baptism_records(parish_data: dict) -> list[dict]:
     records = []
     for baptism in parish_data.get('baptisms', []):
         baptism_date = baptism.get('baptismDate', '')
+        baptism_year = _year_from_date(baptism_date)
         records.append({
             'id': baptism.get('id', ''),
-            'year': _year_from_date(baptism_date),
+            'year': baptism_year,
             'registry_number': baptism.get('registryNo', ''),
             'date': baptism_date,
             'person': baptism.get('childName', ''),
             'related_people': baptism.get('parents', ''),
             'status': baptism.get('status', ''),
+            'edit_form': BaptismRegistryForm(
+                initial=baptism_registry_initial(baptism),
+                selected_year=baptism_year or 1900,
+                auto_id=f"registry_{baptism.get('id', 'record')}_%s",
+            ),
             'edit_fields': [
                 _edit_field('subject_name', 'Krštenik', baptism.get('childName')),
                 _edit_field('record_date', 'Datum krštenja', baptism_date, field_type='date'),
@@ -79,12 +88,33 @@ def _baptism_records(parish_data: dict) -> list[dict]:
                 _edit_field('status', 'Status', baptism.get('status')),
             ],
             'details': [
-                _detail('Krštenik', baptism.get('childName')),
+                _detail('Ime djeteta', baptism.get('childFirstName')),
+                _detail('Prezime djeteta', baptism.get('childLastName')),
+                _detail(
+                    'Sin ili kći',
+                    {'son': 'Sin', 'daughter': 'Kći'}.get(baptism.get('childSex')),
+                ),
                 _detail('Datum rođenja', baptism.get('birthDate'), is_date=True),
                 _detail('Datum krštenja', baptism_date, is_date=True),
-                _detail('Roditelji', baptism.get('parents')),
-                _detail('Kumovi', baptism.get('godparents')),
-                _detail('Slavitelj', baptism.get('celebrant')),
+                _detail('Mjesto krštenja', baptism.get('baptismPlace')),
+                _detail('JMBG / OIB', baptism.get('identifierValue')),
+                _detail('Otac', ' '.join(filter(None, (baptism.get('fatherFirstName'), baptism.get('fatherLastName'))))),
+                _detail('Vjera oca', baptism.get('fatherReligion')),
+                _detail('Majka', ' '.join(filter(None, (baptism.get('motherFirstName'), baptism.get('motherLastName'))))),
+                _detail('Vjera majke', baptism.get('motherReligion')),
+                _detail('Roditelji kanonski vjenčani', 'Da' if baptism.get('parentsCanonicallyMarried', True) else 'Ne'),
+                _detail('Adresa prebivališta', baptism.get('residenceAddress')),
+                _detail('Kum / kuma', baptism.get('godparents')),
+                _detail('Krstitelj', baptism.get('celebrant')),
+                _detail('Služba krstitelja', baptism.get('ministerRole')),
+                _detail('Datum potvrde', baptism.get('confirmationDate'), is_date=True),
+                _detail('Mjesto potvrde', baptism.get('confirmationPlace')),
+                _detail('Župa potvrde', baptism.get('confirmationParish')),
+                _detail('Datum ženidbe', baptism.get('marriageDate'), is_date=True),
+                _detail('Župa ženidbe', baptism.get('marriageParish')),
+                _detail('Supružnik', ' '.join(filter(None, (baptism.get('spouseFirstName'), baptism.get('spouseLastName'))))),
+                _detail('Naknadni upisi i bilješke', baptism.get('notes')),
+                _detail('Stranica u fizičkoj matici', baptism.get('physicalPage')),
                 _detail('Matični broj', baptism.get('registryNo')),
                 _detail('Status', baptism.get('status')),
             ],
@@ -104,6 +134,11 @@ def _wedding_records(parish_data: dict) -> list[dict]:
             'person': wedding.get('couple', ''),
             'related_people': wedding.get('witnesses', ''),
             'status': wedding.get('status', ''),
+            'edit_form': MarriageRegistryForm(
+                initial=marriage_registry_initial(wedding),
+                selected_year=_year_from_date(wedding_date) or 1900,
+                auto_id=f"marriage_{wedding.get('id', 'record')}_%s",
+            ),
             'edit_fields': [
                 _edit_field('subject_name', 'Mladenci', wedding.get('couple')),
                 _edit_field('record_date', 'Datum vjenčanja', wedding_date, field_type='date'),
@@ -113,11 +148,16 @@ def _wedding_records(parish_data: dict) -> list[dict]:
                 _edit_field('status', 'Status', wedding.get('status')),
             ],
             'details': [
-                _detail('Mladenci', wedding.get('couple')),
+                _detail('Zaručnik', wedding.get('groomName')),
+                _detail('Zaručnica', wedding.get('brideName')),
                 _detail('Datum vjenčanja', wedding_date, is_date=True),
-                _detail('Crkva', wedding.get('church')),
-                _detail('Svjedoci', wedding.get('witnesses')),
-                _detail('Slavitelj', wedding.get('celebrant')),
+                _detail('Mjesto vjenčanja', wedding.get('marriagePlace') or wedding.get('church')),
+                _detail('Svjedok zaručnika', wedding.get('groomSponsor')),
+                _detail('Svjedok zaručnice', wedding.get('brideSponsor')),
+                _detail('Vjenčatelj', wedding.get('celebrant')),
+                _detail('Služba vjenčatelja', wedding.get('officiantRole')),
+                _detail('Napomene', wedding.get('notes')),
+                _detail('Stranica u fizičkoj knjizi', wedding.get('physicalPage')),
                 _detail('Matični broj', wedding.get('registryNo')),
                 _detail('Status', wedding.get('status')),
             ],
@@ -129,14 +169,21 @@ def _funeral_records(parish_data: dict) -> list[dict]:
     records = []
     for funeral in parish_data.get('funerals', []):
         funeral_date = funeral.get('funeralDate', '')
+        death_date = funeral.get('deathDate', '')
+        record_year = _year_from_date(death_date) or _year_from_date(funeral_date)
         records.append({
             'id': funeral.get('id', ''),
-            'year': _year_from_date(funeral_date),
+            'year': record_year,
             'registry_number': funeral.get('registryNo', ''),
             'date': funeral_date,
             'person': funeral.get('deceased', ''),
             'related_people': funeral.get('cemetery', ''),
             'status': funeral.get('status', ''),
+            'edit_form': FuneralRegistryForm(
+                initial=funeral_registry_initial(funeral),
+                selected_year=record_year or 1900,
+                auto_id=f"funeral_{funeral.get('id', 'record')}_%s",
+            ),
             'edit_fields': [
                 _edit_field('subject_name', 'Pokojnik', funeral.get('deceased')),
                 _edit_field('record_date', 'Datum sprovoda', funeral_date, field_type='date'),
@@ -146,55 +193,31 @@ def _funeral_records(parish_data: dict) -> list[dict]:
                 _edit_field('status', 'Status', funeral.get('status')),
             ],
             'details': [
-                _detail('Pokojnik', funeral.get('deceased')),
-                _detail('Datum smrti', funeral.get('deathDate'), is_date=True),
-                _detail('Datum sprovoda', funeral_date, is_date=True),
-                _detail('Groblje', funeral.get('cemetery')),
-                _detail('Slavitelj', funeral.get('celebrant')),
+                _detail('Ime', funeral.get('firstName')),
+                _detail('Prezime', funeral.get('lastName')),
+                _detail('Spol', {'male': 'Muško', 'female': 'Žensko'}.get(funeral.get('sex'))),
+                _detail('Datum smrti', death_date, is_date=True),
+                _detail('Mjesto smrti', funeral.get('deathPlace')),
+                _detail('Datum rođenja', funeral.get('birthDate'), is_date=True),
+                _detail('Mjesto rođenja', funeral.get('birthPlace')),
+                _detail('JMBG / OIB', funeral.get('identifierValue')),
+                _detail('Adresa', funeral.get('residenceAddress')),
+                _detail('Supružnik', ' '.join(filter(None, (funeral.get('spouseFirstName'), funeral.get('spouseLastName'))))),
+                _detail('Otac', ' '.join(filter(None, (funeral.get('fatherFirstName'), funeral.get('fatherLastName'))))),
+                _detail('Majka', ' '.join(filter(None, (funeral.get('motherFirstName'), funeral.get('motherLastName'))))),
+                _detail('Ispovijed', 'Da' if funeral.get('receivedConfession') else 'Ne'),
+                _detail('Bolesničko pomazanje', 'Da' if funeral.get('receivedAnointing') else 'Ne'),
+                _detail('Pričest', 'Da' if funeral.get('receivedCommunion') else 'Ne'),
+                _detail('Mjesto pokopa', funeral.get('burialPlace') or funeral.get('cemetery')),
+                _detail('Datum pokopa', funeral.get('burialDate') or funeral_date, is_date=True),
+                _detail('Crkveni službenik', funeral.get('celebrant')),
+                _detail('Uzrok smrti', funeral.get('causeOfDeath')),
+                _detail('Bilješke', funeral.get('notes')),
+                _detail('Stranica u fizičkoj knjizi', funeral.get('physicalPage')),
                 _detail('Matični broj', funeral.get('registryNo')),
                 _detail('Status', funeral.get('status')),
             ],
         })
-    return records
-
-
-def _confirmation_records(parish_data: dict) -> list[dict]:
-    records = []
-    for confirmation_group in parish_data.get('confirmations', []):
-        ceremony_date = confirmation_group.get('ceremonyDate', '')
-        confirmation_year = (
-            _year_from_date(ceremony_date) or confirmation_group.get('year')
-        )
-        for candidate in confirmation_group.get('candidates', []):
-            records.append({
-                'id': candidate.get('id', ''),
-                'year': confirmation_year,
-                'registry_number': candidate.get('registryNo', ''),
-                'date': ceremony_date,
-                'person': candidate.get('name', ''),
-                'related_people': candidate.get('sponsor', ''),
-                'status': candidate.get('status', ''),
-                'edit_fields': [
-                    _edit_field('subject_name', 'Krizmanik', candidate.get('name')),
-                    _edit_field('record_date', 'Datum krizme', ceremony_date, field_type='date'),
-                    _edit_field('birth_date', 'Datum rođenja', candidate.get('birthDate'), field_type='date'),
-                    _edit_field('baptism_date', 'Datum krštenja', candidate.get('baptized'), field_type='date'),
-                    _edit_field('sponsors', 'Kum/ka', candidate.get('sponsor')),
-                    _edit_field('celebrant', 'Biskup / slavitelj', confirmation_group.get('bishop')),
-                    _edit_field('status', 'Status', candidate.get('status')),
-                ],
-                'details': [
-                    _detail('Krizmanik', candidate.get('name')),
-                    _detail('Datum rođenja', candidate.get('birthDate'), is_date=True),
-                    _detail('Datum krizme', ceremony_date, is_date=True),
-                    _detail('Datum krštenja', candidate.get('baptized'), is_date=True),
-                    _detail('Kum/ka', candidate.get('sponsor')),
-                    _detail('Skupina', candidate.get('group')),
-                    _detail('Biskup / slavitelj', confirmation_group.get('bishop')),
-                    _detail('Matični broj', candidate.get('registryNo')),
-                    _detail('Status', candidate.get('status')),
-                ],
-            })
     return records
 
 
@@ -243,7 +266,6 @@ def _records_for_type(
         'krštenja': _baptism_records,
         'vjenčanja': _wedding_records,
         'umrli': _funeral_records,
-        'krizma': _confirmation_records,
     }
     record_builder = record_builders.get(registry_type)
     if record_builder:
@@ -252,7 +274,11 @@ def _records_for_type(
 
 
 def registry_books_page_context(parish_data: dict, request) -> dict:
-    registry_books = parish_data.get('registryBooks', [])
+    registry_books = [
+        registry_book
+        for registry_book in parish_data.get('registryBooks', [])
+        if registry_book.get('type', 'ostalo') in REGISTRY_TYPE_PRESENTATION
+    ]
     selected_registry_book_id = request.GET.get('registry', '')
     selected_registry_book = next(
         (

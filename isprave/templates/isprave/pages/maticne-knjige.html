@@ -1,5 +1,5 @@
 {% extends "pastoral/base.html" %}
-{% load pastoral_tags %}
+{% load static pastoral_tags %}
 
 {% block content %}
 <section id="book-form-card" class="card registry-book-form-card" {% if not selected_book %}hidden{% endif %}>
@@ -131,35 +131,58 @@
   {% endif %}
 </section>
 {% else %}
+{% if selected_registry_book_view.type == 'krštenja' or selected_registry_book_view.type == 'vjenčanja' or selected_registry_book_view.type == 'umrli' %}
+<dialog id="registry-record-form-card" class="registry-record-dialog registry-record-dialog--baptism registry-record-create-dialog">
+{% else %}
 <section id="registry-record-form-card" class="card registry-record-form-card" hidden>
+{% endif %}
   <header class="registry-section-header">
     <div>
       <p class="card-label">{{ registry_type_presentation.label }} · {{ selected_registry_year }}.</p>
       <h2 class="section-title">Novi matični zapis</h2>
       <p class="card-sub">Unesite podatke koji pripadaju odabranoj godini.</p>
     </div>
+    {% if selected_registry_book_view.type == 'krštenja' or selected_registry_book_view.type == 'vjenčanja' or selected_registry_book_view.type == 'umrli' %}
+    <form method="dialog"><button class="btn btn-ghost btn-sm" aria-label="Zatvori obrazac">×</button></form>
+    {% endif %}
   </header>
-  <form method="post" class="registry-book-form">
+  <form method="post" class="registry-book-form registry-record-create-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="add_registry_record">
     <input type="hidden" name="book_id" value="{{ selected_registry_book_view.id }}">
     <input type="hidden" name="registry_year" value="{{ selected_registry_year }}">
     {{ registry_record_form.non_field_errors }}
+    {% if selected_registry_book_view.type == 'krštenja' %}
+    {% include "isprave/partials/baptism_registry_tabs.html" with form=registry_record_form tab_id="new-baptism" %}
+    {% elif selected_registry_book_view.type == 'vjenčanja' %}
+    {% include "isprave/partials/marriage_registry_tabs.html" with form=registry_record_form tab_id="new-marriage" %}
+    {% elif selected_registry_book_view.type == 'umrli' %}
+    {% include "isprave/partials/funeral_registry_tabs.html" with form=registry_record_form tab_id="new-funeral" %}
+    {% else %}
     <div class="registry-book-form__grid">
       {% for field in registry_record_form %}
-      <div class="registry-book-form__field {% if field.name == 'subject_name' %}registry-book-form__field--wide{% endif %}">
+      <div class="registry-book-form__field {% if field.name == 'subject_name' or field.name == 'notes' or field.name == 'residence_address' %}registry-book-form__field--wide{% endif %}">
         {{ field.label_tag }}
         {{ field }}
         {{ field.errors }}
       </div>
       {% endfor %}
     </div>
+    {% endif %}
     <footer class="registry-book-form__actions">
+      {% if selected_registry_book_view.type == 'krštenja' or selected_registry_book_view.type == 'vjenčanja' or selected_registry_book_view.type == 'umrli' %}
+      <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Odustani</button>
+      {% else %}
       <button type="button" class="btn btn-ghost" onclick="document.getElementById('registry-record-form-card').hidden=true">Odustani</button>
+      {% endif %}
       <button type="submit" class="btn btn-primary">Spremi zapis</button>
     </footer>
   </form>
+{% if selected_registry_book_view.type == 'krštenja' or selected_registry_book_view.type == 'vjenčanja' or selected_registry_book_view.type == 'umrli' %}
+</dialog>
+{% else %}
 </section>
+{% endif %}
 
 <section class="card registry-records-card">
   <header class="registry-section-header registry-section-header--records">
@@ -169,7 +192,11 @@
     </div>
     <div class="registry-records-actions">
       <a href="?registry={{ selected_registry_book_view.id }}" class="btn btn-ghost btn-sm">Promijeni godinu</a>
+      {% if selected_registry_book_view.type == 'krštenja' or selected_registry_book_view.type == 'vjenčanja' or selected_registry_book_view.type == 'umrli' %}
+      <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('registry-record-form-card').showModal()">+ Novi zapis</button>
+      {% else %}
       <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('registry-record-form-card').hidden=false">+ Novi zapis</button>
+      {% endif %}
     </div>
   </header>
   {% if registry_records %}
@@ -191,7 +218,7 @@
     </table>
   </div>
   {% for registry_record in registry_records %}
-  <dialog id="registry-record-{{ registry_record.id }}" class="registry-record-dialog">
+  <dialog id="registry-record-{{ registry_record.id }}" class="registry-record-dialog{% if selected_registry_book_view.type == 'krštenja' or selected_registry_book_view.type == 'vjenčanja' or selected_registry_book_view.type == 'umrli' %} registry-record-dialog--baptism{% endif %}">
     <header>
       <div><p class="card-label">Detalji zapisa</p><h2>{{ registry_record.person|default:"Matični zapis" }}</h2></div>
       <form method="dialog"><button class="btn btn-ghost btn-sm" aria-label="Zatvori detalje">×</button></form>
@@ -202,6 +229,16 @@
       <input type="hidden" name="book_id" value="{{ selected_registry_book_view.id }}">
       <input type="hidden" name="registry_year" value="{{ selected_registry_year }}">
       <input type="hidden" name="record_id" value="{{ registry_record.id }}">
+      {% if selected_registry_book_view.type == 'krštenja' %}
+      {{ registry_record.edit_form.non_field_errors }}
+      {% include "isprave/partials/baptism_registry_tabs.html" with form=registry_record.edit_form tab_id=registry_record.id %}
+      {% elif selected_registry_book_view.type == 'vjenčanja' %}
+      {{ registry_record.edit_form.non_field_errors }}
+      {% include "isprave/partials/marriage_registry_tabs.html" with form=registry_record.edit_form tab_id=registry_record.id %}
+      {% elif selected_registry_book_view.type == 'umrli' %}
+      {{ registry_record.edit_form.non_field_errors }}
+      {% include "isprave/partials/funeral_registry_tabs.html" with form=registry_record.edit_form tab_id=registry_record.id %}
+      {% else %}
       <div class="registry-book-form__grid">
         {% for edit_field in registry_record.edit_fields %}
         <div class="registry-book-form__field{% if edit_field.name == 'subject_name' %} registry-book-form__field--wide{% endif %}">
@@ -210,6 +247,7 @@
         </div>
         {% endfor %}
       </div>
+      {% endif %}
       <footer class="registry-book-form__actions">
         <button type="button" class="btn btn-ghost" onclick="this.closest('dialog').close()">Odustani</button>
         <button type="submit" class="btn btn-primary">Spremi promjene</button>
@@ -223,4 +261,8 @@
 </section>
 {% endif %}
 {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/baptism-registry-tabs.js' %}"></script>
 {% endblock %}

@@ -268,10 +268,15 @@ def page_url(page):
 
 @register.simple_tag
 def reminder_link(href):
-    """URL za podsjetnik — slug s opcionalnim query stringom."""
+    """URL za podsjetnik — slug s opcionalnim query stringom i fragmentom."""
     if not href:
         return reverse('pastoral:app')
-    if '?' in href:
-        slug, qs = href.split('?', 1)
-        return f"{reverse('pastoral:page', kwargs={'page': slug})}?{qs}"
-    return reverse('pastoral:page', kwargs={'page': href})
+    path_and_query, fragment_separator, fragment = str(href).partition('#')
+    slug, query_separator, query_string = path_and_query.partition('?')
+    slug = slug.replace('pages/', '').replace('.html', '')
+    resolved_url = reverse('pastoral:page', kwargs={'page': slug})
+    if query_separator:
+        resolved_url = f'{resolved_url}?{query_string}'
+    if fragment_separator:
+        resolved_url = f'{resolved_url}#{fragment}'
+    return resolved_url

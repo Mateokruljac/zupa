@@ -1000,17 +1000,6 @@ DEMO_PARISH_DATA = json.loads(r"""
       "custodian": "župni ured",
       "status": "u župi",
       "notes": ""
-    },
-    {
-      "id": "rk4",
-      "type": "krizma",
-      "title": "Knjiga krizmanika",
-      "location": "Župni arhiv",
-      "lastEntry": "2025-05-18",
-      "lastNo": "2025/41",
-      "custodian": "župni ured",
-      "status": "u župi",
-      "notes": "Digitalna evidencija usklađena s knjigom 2025"
     }
   ],
   "pastoralCouncil": {

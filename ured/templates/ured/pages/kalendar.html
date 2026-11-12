@@ -3,6 +3,13 @@
 {% load static %}
 
 {% block content %}
+<nav class="calendar-workspace-tabs" aria-label="Prikaz kalendara i obveza">
+  <a href="?view=calendar&amp;year={{ cal_year }}&amp;month={{ cal_month }}&amp;date={{ filter_date }}" class="{% if calendar_view == 'calendar' %}is-active{% endif %}">Kalendar <span>{{ calendar_stats.month_events }}</span></a>
+  <a href="?view=tasks&amp;year={{ cal_year }}&amp;month={{ cal_month }}&amp;date={{ filter_date }}&amp;tasks={{ task_status_filter }}" class="{% if calendar_view == 'tasks' %}is-active{% endif %}">Zadaci <span>{{ calendar_stats.open_tasks }}</span></a>
+  <a href="?view=reminders&amp;year={{ cal_year }}&amp;month={{ cal_month }}&amp;date={{ filter_date }}" class="{% if calendar_view == 'reminders' %}is-active{% endif %}">Podsjetnici <span>{{ reminder_count }}</span></a>
+</nav>
+
+{% if calendar_view == 'calendar' %}
 <div class="calendar-workspace">
   <section class="card calendar-month-card">
     <header class="calendar-month-header">
@@ -61,14 +68,16 @@
 {% if calendar_conflicts %}
 <aside class="calendar-conflict-notice"><strong>{{ calendar_conflicts|length }} preklapanje termina i prostora</strong><span>Provjerite događaje prije objave rasporeda.</span></aside>
 {% endif %}
+{% endif %}
 
+{% if calendar_view == 'tasks' %}
 <section class="card calendar-tasks-card">
   <header class="calendar-section-header">
     <div><p class="card-label">Obveze župnog ureda</p><h2 class="section-title">Zadaci</h2><small>{{ calendar_stats.open_tasks }} otvoreno · {{ calendar_stats.overdue_tasks }} nakon roka</small></div>
     <nav class="calendar-task-filters" aria-label="Filtriranje zadataka">
-      <a href="?year={{ cal_year }}&month={{ cal_month }}&date={{ filter_date }}&tasks=open" class="btn btn-sm {% if task_status_filter == 'open' %}btn-primary{% else %}btn-ghost{% endif %}">Otvoreni</a>
-      <a href="?year={{ cal_year }}&month={{ cal_month }}&date={{ filter_date }}&tasks=done" class="btn btn-sm {% if task_status_filter == 'done' %}btn-primary{% else %}btn-ghost{% endif %}">Završeni</a>
-      <a href="?year={{ cal_year }}&month={{ cal_month }}&date={{ filter_date }}&tasks=all" class="btn btn-sm {% if task_status_filter == 'all' %}btn-primary{% else %}btn-ghost{% endif %}">Svi</a>
+      <a href="?view=tasks&amp;year={{ cal_year }}&month={{ cal_month }}&date={{ filter_date }}&tasks=open" class="btn btn-sm {% if task_status_filter == 'open' %}btn-primary{% else %}btn-ghost{% endif %}">Otvoreni</a>
+      <a href="?view=tasks&amp;year={{ cal_year }}&month={{ cal_month }}&date={{ filter_date }}&tasks=done" class="btn btn-sm {% if task_status_filter == 'done' %}btn-primary{% else %}btn-ghost{% endif %}">Završeni</a>
+      <a href="?view=tasks&amp;year={{ cal_year }}&month={{ cal_month }}&date={{ filter_date }}&tasks=all" class="btn btn-sm {% if task_status_filter == 'all' %}btn-primary{% else %}btn-ghost{% endif %}">Svi</a>
       <button type="button" class="btn btn-primary btn-sm" data-record-dialog="task-record-dialog">+ Zadatak</button>
     </nav>
   </header>
@@ -83,7 +92,7 @@
           <td>{{ parish_task.due|hr_date }}</td>
           <td>{% if parish_task.done %}<span class="badge badge-done">završeno</span>{% else %}<span class="badge">otvoreno</span>{% endif %}</td>
           <td class="calendar-task-actions">
-            <a href="?year={{ cal_year }}&month={{ cal_month }}&date={{ filter_date }}&tasks={{ task_status_filter }}&task={{ parish_task.id }}" class="btn btn-ghost btn-sm">Uredi</a>
+            <a href="?view=tasks&amp;year={{ cal_year }}&month={{ cal_month }}&date={{ filter_date }}&tasks={{ task_status_filter }}&task={{ parish_task.id }}" class="btn btn-ghost btn-sm">Uredi</a>
             <form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle_task"><input type="hidden" name="task_id" value="{{ parish_task.id }}"><button type="submit" class="btn btn-ghost btn-sm">{% if parish_task.done %}Ponovno otvori{% else %}Završi{% endif %}</button></form>
           </td>
         </tr>
@@ -92,6 +101,39 @@
     </table>
   </div>
 </section>
+{% endif %}
+
+{% if calendar_view == 'reminders' %}
+<section class="card reminders-page-card">
+  <header class="reminders-page-header">
+    <div>
+      <p class="card-label">Automatski izvedene obveze</p>
+      <h2 class="section-title">Podsjetnici</h2>
+      <p class="card-sub">Obveze koje traže provjeru ili postupanje, izvedene iz evidencija župe.</p>
+    </div>
+    <div class="reminders-page-summary" aria-label="Sažetak podsjetnika">
+      <span><strong>{{ reminder_count }}</strong> otvoreno</span>
+      <span class="reminders-page-summary__urgent"><strong>{{ high_priority_reminder_count }}</strong> hitno</span>
+    </div>
+  </header>
+  <form method="get" class="reminders-filter-form">
+    <input type="hidden" name="view" value="reminders">
+    <label class="reminders-search-field"><span>Pretraži</span><input type="search" name="search" value="{{ reminder_search_term }}" placeholder="Naziv, osoba ili obveza"></label>
+    <label><span>Prioritet</span><select name="priority"><option value="all" {% if selected_reminder_priority == 'all' %}selected{% endif %}>Svi prioriteti</option><option value="visoka" {% if selected_reminder_priority == 'visoka' %}selected{% endif %}>Hitno</option><option value="srednja" {% if selected_reminder_priority == 'srednja' %}selected{% endif %}>Redovno</option></select></label>
+    <label><span>Područje</span><select name="category"><option value="all" {% if selected_reminder_category == 'all' %}selected{% endif %}>Sva područja</option>{% for reminder_category in reminder_categories %}<option value="{{ reminder_category }}" {% if selected_reminder_category == reminder_category %}selected{% endif %}>{{ reminder_category|capfirst }}</option>{% endfor %}</select></label>
+    <button type="submit" class="btn btn-primary">Prikaži</button>
+    {% if reminder_search_term or selected_reminder_priority != 'all' or selected_reminder_category != 'all' %}<a href="?view=reminders" class="btn btn-ghost">Očisti</a>{% endif %}
+  </form>
+  <div class="reminders-inbox">
+    {% for reminder in reminders %}
+    <article class="reminders-item reminders-item--{{ reminder.priority }}">
+      <a href="{% reminder_link reminder.href %}" class="reminders-item-main"><span class="badge">{{ reminder.category }}</span><strong>{{ reminder.title }}</strong><small>{{ reminder.sub|default:"Otvori povezani zapis za više informacija." }}</small></a>
+      <div class="reminders-item-meta">{% if reminder.priority == 'visoka' %}<span class="badge badge-urgent">Hitno</span>{% else %}<span class="badge">Redovno</span>{% endif %}{% if reminder.due %}<small>Rok {{ reminder.due|hr_date }}</small>{% endif %}<a href="{% reminder_link reminder.href %}" class="btn btn-ghost btn-sm">Otvori</a></div>
+    </article>
+    {% empty %}<p class="empty-state">Nema podsjetnika koji odgovaraju odabranim filtrima.</p>{% endfor %}
+  </div>
+</section>
+{% endif %}
 
 <dialog id="task-record-dialog" class="family-record-dialog calendar-record-dialog" data-record-dialog-root {% if selected_task %}data-record-dialog-open{% endif %}>
   <form method="post" class="family-record-dialog__form">
@@ -102,7 +144,7 @@
     <div class="family-record-form-grid calendar-record-form-grid">{{ task_form.as_p }}</div>
     <footer>
       {% if selected_task %}<button type="submit" name="action" value="delete_task" class="btn btn-danger calendar-record-delete" formnovalidate data-swal-confirm="Obrisati ovaj zadatak?" data-swal-title="Obrisati zadatak?" data-swal-confirm-label="Obriši">Obriši</button>{% endif %}
-      <a href="?year={{ cal_year }}&month={{ cal_month }}&date={{ filter_date }}&tasks={{ task_status_filter }}" class="btn btn-ghost">Odustani</a>
+      <a href="?view=tasks&amp;year={{ cal_year }}&month={{ cal_month }}&date={{ filter_date }}&tasks={{ task_status_filter }}" class="btn btn-ghost">Odustani</a>
       <button type="submit" class="btn btn-primary">{% if selected_task %}Spremi promjene{% else %}Dodaj zadatak{% endif %}</button>
     </footer>
   </form>

@@ -216,7 +216,6 @@ class RegisterBook(SCD1):
         BAPTISMS = 'krštenja', 'Krštenja'
         MARRIAGES = 'vjenčanja', 'Vjenčanja'
         DECEASED = 'umrli', 'Umrli'
-        CONFIRMATIONS = 'krizma', 'Krizma'
         OTHER = 'ostalo', 'Ostalo'
 
     class Status(models.TextChoices):

@@ -53,6 +53,7 @@ THEME_COLOR_KEYS = frozenset({
 
 REMOVED_PAGE_REDIRECTS = {
     'zadaci': 'kalendar',
+    'podsjetnici': 'kalendar',
     'poruke': 'dashboard',
     'korisnici': 'dashboard',
     'sigurnost': 'dashboard',
@@ -161,7 +162,10 @@ def admin_page_view(request, page: str):
             return redirect('pastoral:app')
         if request.method == 'GET':
             redirect_url = reverse('pastoral:page', kwargs={'page': target})
-            query_string = request.GET.urlencode()
+            query_parameters = request.GET.copy()
+            if page == 'podsjetnici':
+                query_parameters['view'] = 'reminders'
+            query_string = query_parameters.urlencode()
             if query_string:
                 redirect_url = f'{redirect_url}?{query_string}'
             return redirect(redirect_url)
@@ -227,7 +231,7 @@ def save_theme_view(request):
         return JsonResponse({'ok': False, 'error': 'invalid_theme'}, status=400)
     if (
         'colorScheme' in payload
-        and payload['colorScheme'] not in {'light', 'dark', 'system'}
+        and payload['colorScheme'] not in {'light', 'dark'}
     ):
         return JsonResponse({'ok': False, 'error': 'invalid_theme'}, status=400)
     if (

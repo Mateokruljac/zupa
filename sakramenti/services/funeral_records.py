@@ -54,6 +54,13 @@ def _parse_amount(raw_value) -> Decimal:
         raise ValidationError({'stipend': 'Unesite ispravan iznos.'}) from error
 
 
+def _split_name(value) -> tuple[str, str]:
+    parts = str(value or '').strip().split()
+    if len(parts) > 1:
+        return ' '.join(parts[:-1]), parts[-1]
+    return (parts[0], '') if parts else ('', '')
+
+
 @with_tenant_schema
 def relational_funerals_as_dictionaries(parish: Parish) -> list[dict]:
     funeral_events = exclude_family_card_events(
@@ -80,10 +87,36 @@ def relational_funerals_as_dictionaries(parish: Parish) -> list[dict]:
         )
         funeral_records.append({
             'id': funeral_event.public_identifier,
-            'deceased': recipient.historical_name if recipient else '',
+            'entryNumber': register_entry.entry_number if register_entry else funeral_details.entry_number,
+            'physicalPage': funeral_details.physical_page or '',
+            'deceased': ' '.join(filter(None, (funeral_details.first_name, funeral_details.last_name))) or (recipient.historical_name if recipient else ''),
+            'firstName': funeral_details.first_name,
+            'lastName': funeral_details.last_name,
             'deathDate': _date_as_text(funeral_details.death_date),
-            'funeralDate': _date_as_text(funeral_event.event_date),
-            'celebrant': funeral_event.minister_name,
+            'deathPlace': funeral_details.death_place,
+            'sex': funeral_details.sex,
+            'birthPlace': funeral_details.birth_place,
+            'birthDate': _date_as_text(funeral_details.birth_date),
+            'identifierType': funeral_details.identifier_type or '',
+            'identifierValue': funeral_details.identifier_value or '',
+            'spouseFirstName': funeral_details.spouse_first_name or '',
+            'spouseLastName': funeral_details.spouse_last_name or '',
+            'fatherFirstName': funeral_details.father_first_name,
+            'fatherLastName': funeral_details.father_last_name,
+            'motherFirstName': funeral_details.mother_first_name,
+            'motherLastName': funeral_details.mother_last_name,
+            'residenceAddress': funeral_details.residence_address,
+            'receivedConfession': funeral_details.received_confession,
+            'receivedAnointing': funeral_details.received_anointing,
+            'receivedCommunion': funeral_details.received_communion,
+            'burialPlace': funeral_details.burial_place or funeral_event.place_name,
+            'burialDate': _date_as_text(funeral_details.burial_date or funeral_event.event_date),
+            'funeralDate': _date_as_text(funeral_details.burial_date or funeral_event.event_date),
+            'ministerFirstName': funeral_details.minister_first_name,
+            'ministerLastName': funeral_details.minister_last_name,
+            'celebrant': ' '.join(filter(None, (funeral_details.minister_first_name, funeral_details.minister_last_name))) or funeral_event.minister_name,
+            'causeOfDeath': funeral_details.cause_of_death or '',
+            'notes': funeral_details.notes or '',
             'massPlanned': funeral_details.mass_planned,
             'massDate': _date_as_text(funeral_details.mass_date),
             'massTime': _time_as_text(funeral_details.mass_time),
@@ -127,7 +160,11 @@ def _synchronize_recipient(
 @with_tenant_schema
 def _synchronize_funeral(parish: Parish, funeral_record: dict) -> SacramentalEvent:
     public_identifier = str(funeral_record.get('id') or '').strip()
-    deceased_name = str(funeral_record.get('deceased') or '').strip()
+    legacy_deceased_name = str(funeral_record.get('deceased') or '').strip()
+    legacy_first_name, legacy_last_name = _split_name(legacy_deceased_name)
+    first_name = str(funeral_record.get('firstName') or legacy_first_name).strip()
+    last_name = str(funeral_record.get('lastName') or legacy_last_name).strip()
+    deceased_name = ' '.join(filter(None, (first_name, last_name)))
     if not public_identifier:
         raise ValidationError('Pogreb nema stabilni identifikator.')
     if not deceased_name:
@@ -142,14 +179,25 @@ def _synchronize_funeral(parish: Parish, funeral_record: dict) -> SacramentalEve
             'source': SacramentalEvent.Source.MANUAL,
         },
     )
-    funeral_event.event_date = _parse_optional_date(
-        funeral_record.get('funeralDate'), 'funeralDate'
+    burial_date = _parse_optional_date(
+        funeral_record.get('burialDate') or funeral_record.get('funeralDate'),
+        'burialDate',
     )
+    burial_place = str(
+        funeral_record.get('burialPlace') or funeral_record.get('cemetery') or ''
+    ).strip()
+    legacy_minister = _split_name(funeral_record.get('celebrant'))
+    minister_first_name = str(funeral_record.get('ministerFirstName') or legacy_minister[0]).strip()
+    minister_last_name = str(funeral_record.get('ministerLastName') or legacy_minister[1]).strip()
+    minister_name = ' '.join(filter(None, (minister_first_name, minister_last_name))) or str(
+        funeral_record.get('celebrant') or ''
+    ).strip()
+    funeral_event.event_date = burial_date
     funeral_event.place_name = str(
-        funeral_record.get('cemetery') or ''
+        burial_place
     ).strip()
     funeral_event.minister_name = str(
-        funeral_record.get('celebrant') or ''
+        minister_name
     ).strip()
     funeral_event.liturgical_tradition = parish.default_liturgical_tradition
     funeral_event.canonical_tradition = parish.canonical_tradition_for_events()
@@ -158,30 +206,46 @@ def _synchronize_funeral(parish: Parish, funeral_record: dict) -> SacramentalEve
     funeral_event.save()
 
     _synchronize_recipient(parish, funeral_event, deceased_name)
-    FuneralDetails.objects.update_or_create(
-        event=funeral_event,
-        defaults={
-            'death_date': _parse_optional_date(
-                funeral_record.get('deathDate'), 'deathDate'
-            ),
-            'cemetery_location': str(
-                funeral_record.get('cemeteryLocation') or ''
-            ).strip(),
-            'family_contact': str(
-                funeral_record.get('familyContact') or ''
-            ).strip(),
-            'mass_planned': bool(funeral_record.get('massPlanned', False)),
-            'mass_date': _parse_optional_date(
-                funeral_record.get('massDate'), 'massDate'
-            ),
-            'mass_time': _parse_optional_time(funeral_record.get('massTime')),
-            'operational_status': str(
-                funeral_record.get('status') or 'planirano'
-            ).strip(),
-            'stipend': _parse_amount(funeral_record.get('stipend')),
-            'stipend_paid': bool(funeral_record.get('stipendPaid', False)),
-        },
-    )
+    funeral_details = FuneralDetails.objects.filter(event=funeral_event).first()
+    if funeral_details is None:
+        funeral_details = FuneralDetails(event=funeral_event)
+    entry_number = funeral_record.get('entryNumber')
+    funeral_details.entry_number = int(entry_number) if str(entry_number or '').isdigit() else None
+    funeral_details.physical_page = str(funeral_record.get('physicalPage') or '').strip() or None
+    funeral_details.death_date = _parse_optional_date(funeral_record.get('deathDate'), 'deathDate')
+    funeral_details.death_place = str(funeral_record.get('deathPlace') or '').strip()
+    funeral_details.first_name = first_name or deceased_name
+    funeral_details.last_name = last_name
+    funeral_details.sex = str(funeral_record.get('sex') or '').strip() or None
+    funeral_details.birth_place = str(funeral_record.get('birthPlace') or '').strip()
+    funeral_details.birth_date = _parse_optional_date(funeral_record.get('birthDate'), 'birthDate')
+    funeral_details.identifier_type = str(funeral_record.get('identifierType') or '').strip() or None
+    funeral_details.identifier_value = str(funeral_record.get('identifierValue') or '').strip() or None
+    funeral_details.spouse_first_name = str(funeral_record.get('spouseFirstName') or '').strip() or None
+    funeral_details.spouse_last_name = str(funeral_record.get('spouseLastName') or '').strip() or None
+    funeral_details.father_first_name = str(funeral_record.get('fatherFirstName') or '').strip()
+    funeral_details.father_last_name = str(funeral_record.get('fatherLastName') or '').strip()
+    funeral_details.mother_first_name = str(funeral_record.get('motherFirstName') or '').strip()
+    funeral_details.mother_last_name = str(funeral_record.get('motherLastName') or '').strip()
+    funeral_details.residence_address = str(funeral_record.get('residenceAddress') or '').strip()
+    funeral_details.received_confession = bool(funeral_record.get('receivedConfession', False))
+    funeral_details.received_anointing = bool(funeral_record.get('receivedAnointing', False))
+    funeral_details.received_communion = bool(funeral_record.get('receivedCommunion', False))
+    funeral_details.burial_place = burial_place
+    funeral_details.burial_date = burial_date
+    funeral_details.minister_first_name = minister_first_name
+    funeral_details.minister_last_name = minister_last_name
+    funeral_details.cause_of_death = str(funeral_record.get('causeOfDeath') or '').strip() or None
+    funeral_details.notes = str(funeral_record.get('notes') or '').strip() or None
+    funeral_details.cemetery_location = str(funeral_record.get('cemeteryLocation') or '').strip()
+    funeral_details.family_contact = str(funeral_record.get('familyContact') or '').strip()
+    funeral_details.mass_planned = bool(funeral_record.get('massPlanned', False))
+    funeral_details.mass_date = _parse_optional_date(funeral_record.get('massDate'), 'massDate')
+    funeral_details.mass_time = _parse_optional_time(funeral_record.get('massTime'))
+    funeral_details.operational_status = str(funeral_record.get('status') or 'planirano').strip()
+    funeral_details.stipend = _parse_amount(funeral_record.get('stipend'))
+    funeral_details.stipend_paid = bool(funeral_record.get('stipendPaid', False))
+    funeral_details.save()
     return funeral_event
 
 

@@ -21,16 +21,14 @@
   }
 
   function resolve(pref) {
-    if (pref === "system") {
-      return global.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    }
     return pref === "dark" ? "dark" : "light";
   }
 
   function applyEarly(pref) {
     const root = document.documentElement;
-    root.dataset.colorSchemePref = pref;
-    root.dataset.colorScheme = resolve(pref);
+    const scheme = resolve(pref);
+    root.dataset.colorSchemePref = scheme;
+    root.dataset.colorScheme = scheme;
   }
 
   const publicSite = document.documentElement.hasAttribute("data-public-site");

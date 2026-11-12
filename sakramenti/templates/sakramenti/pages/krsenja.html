@@ -15,11 +15,11 @@
   {% if filters.q or filters.period != 'all' %}<a href="{% page_url 'krsenja' %}" class="btn btn-ghost">Poništi</a>{% endif %}
 </form>
 
-<section id="add-baptism-form" class="card sacrament-entry-card"{% if not baptism_form.errors %} hidden{% endif %}>
-  <header class="sacrament-entry-card__header"><span class="sacrament-entry-card__icon" aria-hidden="true">✦</span><div><p class="card-label">Evidencija sakramenta</p><h2 class="section-title">Novo krštenje</h2><p class="card-sub">Unesite podatke potrebne za pripravu, slavlje i kasniji upis u maticu.</p></div></header>
-  <form method="post" class="sacrament-entry-form">
+<dialog id="add-baptism-form" class="sacrament-record-dialog sacrament-record-dialog--wide"{% if baptism_form.errors %} data-sacrament-dialog-open{% endif %}>
+  <form method="post" class="sacrament-record-dialog__form sacrament-entry-form">
     {% csrf_token %}<input type="hidden" name="action" value="add_baptism">{{ baptism_form.non_field_errors }}
-    <div class="sacrament-entry-form__grid">
+    <header><div><p class="card-label">Evidencija sakramenta</p><h2>Novo krštenje</h2><p class="card-sub">Unesite podatke potrebne za pripravu, slavlje i kasniji upis u maticu.</p></div><button type="button" class="dialog-close" data-sacrament-dialog-close aria-label="Zatvori">×</button></header>
+    <div class="sacrament-entry-form__grid sacrament-record-dialog__body">
       <div class="sacrament-entry-form__field sacrament-entry-form__field--wide">{{ baptism_form.child_name.label_tag }}{{ baptism_form.child_name }}{{ baptism_form.child_name.errors }}</div>
       <div class="sacrament-entry-form__field">{{ baptism_form.birth_date.label_tag }}{{ baptism_form.birth_date }}{{ baptism_form.birth_date.errors }}</div>
       <div class="sacrament-entry-form__field">{{ baptism_form.baptism_date.label_tag }}{{ baptism_form.baptism_date }}{{ baptism_form.baptism_date.errors }}</div>
@@ -31,9 +31,9 @@
       <div class="sacrament-entry-form__field">{{ baptism_form.status.label_tag }}{{ baptism_form.status }}{{ baptism_form.status.errors }}</div>
       <div class="sacrament-entry-form__field">{{ baptism_form.stipend.label_tag }}{{ baptism_form.stipend }}{{ baptism_form.stipend.errors }}</div>
     </div>
-    <footer class="sacrament-entry-form__actions"><button type="button" class="btn btn-ghost" onclick="document.getElementById('add-baptism-form').hidden=true">Odustani</button><button type="submit" class="btn btn-primary">Spremi krštenje</button></footer>
+    <footer><button type="button" class="btn btn-ghost" data-sacrament-dialog-close>Odustani</button><button type="submit" class="btn btn-primary">Spremi krštenje</button></footer>
   </form>
-</section>
+</dialog>
 
 <section class="card family-list-card">
   <header class="family-list-header">
@@ -43,7 +43,7 @@
     </div>
     <div class="family-list-actions">
       {% if pagination.total %}<span class="badge">{{ pagination.total }} u prikazu</span>{% endif %}
-      <button type="button" class="btn btn-primary btn-sm" onclick="document.getElementById('add-baptism-form').hidden=false">+ Krštenje</button>
+      <button type="button" class="btn btn-primary btn-sm" data-sacrament-dialog="add-baptism-form">+ Krštenje</button>
     </div>
   </header>
   <div class="table-wrap"><table class="data-table">

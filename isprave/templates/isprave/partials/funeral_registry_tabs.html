@@ -1,0 +1,52 @@
+<div class="baptism-registry-tabs" data-registry-tabs>
+  <div class="baptism-registry-tabs__list" role="tablist" aria-label="Dijelovi zapisa umrlog">
+    <button type="button" role="tab" id="{{ tab_id }}-person-tab" aria-controls="{{ tab_id }}-person-panel" aria-selected="true" tabindex="0" data-tab-target="{{ tab_id }}-person-panel">Osoba i upis <span class="baptism-registry-tabs__error" hidden>!</span></button>
+    <button type="button" role="tab" id="{{ tab_id }}-family-tab" aria-controls="{{ tab_id }}-family-panel" aria-selected="false" tabindex="-1" data-tab-target="{{ tab_id }}-family-panel">Obitelj <span class="baptism-registry-tabs__error" hidden>!</span></button>
+    <button type="button" role="tab" id="{{ tab_id }}-death-tab" aria-controls="{{ tab_id }}-death-panel" aria-selected="false" tabindex="-1" data-tab-target="{{ tab_id }}-death-panel">Smrt <span class="baptism-registry-tabs__error" hidden>!</span></button>
+    <button type="button" role="tab" id="{{ tab_id }}-sacraments-tab" aria-controls="{{ tab_id }}-sacraments-panel" aria-selected="false" tabindex="-1" data-tab-target="{{ tab_id }}-sacraments-panel">Sakramenti <span class="baptism-registry-tabs__error" hidden>!</span></button>
+    <button type="button" role="tab" id="{{ tab_id }}-burial-tab" aria-controls="{{ tab_id }}-burial-panel" aria-selected="false" tabindex="-1" data-tab-target="{{ tab_id }}-burial-panel">Pokop i bilješke <span class="baptism-registry-tabs__error" hidden>!</span></button>
+  </div>
+  <section id="{{ tab_id }}-person-panel" class="baptism-registry-tabs__panel" role="tabpanel" aria-labelledby="{{ tab_id }}-person-tab" data-tab-panel>
+    <header><h3>Osoba i matični upis</h3><p>Identitet osobe te oznake fizičke knjige.</p></header>
+    <div class="registry-book-form__grid">
+      {% include "isprave/partials/registry_form_field.html" with field=form.entry_number %}{% include "isprave/partials/registry_form_field.html" with field=form.physical_page %}
+      {% include "isprave/partials/registry_form_field.html" with field=form.first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.last_name %}
+      {% include "isprave/partials/registry_form_field.html" with field=form.sex %}{% include "isprave/partials/registry_form_field.html" with field=form.birth_date %}
+      {% include "isprave/partials/registry_form_field.html" with field=form.birth_place %}{% include "isprave/partials/registry_form_field.html" with field=form.identifier_type %}
+      {% include "isprave/partials/registry_form_field.html" with field=form.identifier_value %}{% include "isprave/partials/registry_form_field.html" with field=form.residence_address %}
+    </div>
+    <div class="baptism-registry-tabs__nav"><button type="button" class="btn btn-ghost btn-sm" data-tab-next>Dalje: Obitelj</button></div>
+  </section>
+  <section id="{{ tab_id }}-family-panel" class="baptism-registry-tabs__panel" role="tabpanel" aria-labelledby="{{ tab_id }}-family-tab" data-tab-panel hidden>
+    <header><h3>Obitelj</h3><p>Supružnik je opcionalan; podaci o roditeljima dio su matičnog zapisa.</p></header>
+    <div class="baptism-registry-tabs__stack">
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.spouse_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.spouse_last_name %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.father_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.father_last_name %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.mother_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.mother_last_name %}</div>
+    </div>
+    <div class="baptism-registry-tabs__nav"><button type="button" class="btn btn-ghost btn-sm" data-tab-previous>Natrag</button><button type="button" class="btn btn-ghost btn-sm" data-tab-next>Dalje: Smrt</button></div>
+  </section>
+  <section id="{{ tab_id }}-death-panel" class="baptism-registry-tabs__panel" role="tabpanel" aria-labelledby="{{ tab_id }}-death-tab" data-tab-panel hidden>
+    <header><h3>Podaci o smrti</h3><p>Datum i mjesto smrti te poznati uzrok.</p></header>
+    <div class="baptism-registry-tabs__row baptism-registry-tabs__row--three">{% include "isprave/partials/registry_form_field.html" with field=form.death_date %}{% include "isprave/partials/registry_form_field.html" with field=form.death_place %}{% include "isprave/partials/registry_form_field.html" with field=form.cause_of_death %}</div>
+    <div class="baptism-registry-tabs__nav"><button type="button" class="btn btn-ghost btn-sm" data-tab-previous>Natrag</button><button type="button" class="btn btn-ghost btn-sm" data-tab-next>Dalje: Sakramenti</button></div>
+  </section>
+  <section id="{{ tab_id }}-sacraments-panel" class="baptism-registry-tabs__panel" role="tabpanel" aria-labelledby="{{ tab_id }}-sacraments-tab" data-tab-panel hidden>
+    <header><h3>Proviđen sakramentima</h3><p>Označite sakramente koje je osoba primila.</p></header>
+    <div class="funeral-sacraments-grid">
+      <label>{{ form.received_confession }} <span>{{ form.received_confession.label }}</span></label>
+      <label>{{ form.received_anointing }} <span>{{ form.received_anointing.label }}</span></label>
+      <label>{{ form.received_communion }} <span>{{ form.received_communion.label }}</span></label>
+    </div>
+    <div class="baptism-registry-tabs__nav"><button type="button" class="btn btn-ghost btn-sm" data-tab-previous>Natrag</button><button type="button" class="btn btn-ghost btn-sm" data-tab-next>Dalje: Pokop</button></div>
+  </section>
+  <section id="{{ tab_id }}-burial-panel" class="baptism-registry-tabs__panel" role="tabpanel" aria-labelledby="{{ tab_id }}-burial-tab" data-tab-panel hidden>
+    <header><h3>Pokop i bilješke</h3><p>Podaci o pokopu i crkvenom službeniku.</p></header>
+    <div class="registry-book-form__grid">
+      {% include "isprave/partials/registry_form_field.html" with field=form.burial_place %}{% include "isprave/partials/registry_form_field.html" with field=form.burial_date %}
+      {% include "isprave/partials/registry_form_field.html" with field=form.minister_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.minister_last_name %}
+      {% include "isprave/partials/registry_form_field.html" with field=form.notes wide=True %}
+    </div>
+    <div class="baptism-registry-tabs__nav"><button type="button" class="btn btn-ghost btn-sm" data-tab-previous>Natrag</button></div>
+  </section>
+</div>

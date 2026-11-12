@@ -37,8 +37,8 @@ def build_podsjetnici_context(
 
 @register_page(
     'kalendar',
-    title='Događaji i zadaci',
-    subtitle='Župni kalendar, liturgija i obaveze ureda',
+    title='Kalendar i obveze',
+    subtitle='Događaji, zadaci i automatski podsjetnici župnog ureda',
 )
 def build_kalendar_context(request, parish_data: dict, parish_data_service: ParishDataService) -> dict:
     return calendar_page_context(parish_data, request)

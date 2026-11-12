@@ -1,0 +1,59 @@
+<div class="baptism-registry-tabs" data-registry-tabs>
+  <div class="baptism-registry-tabs__list" role="tablist" aria-label="Dijelovi zapisa vjenčanja">
+    <button type="button" role="tab" id="{{ tab_id }}-entry-tab" aria-controls="{{ tab_id }}-entry-panel" aria-selected="true" tabindex="0" data-tab-target="{{ tab_id }}-entry-panel">Upis i vjenčanje <span class="baptism-registry-tabs__error" hidden>!</span></button>
+    <button type="button" role="tab" id="{{ tab_id }}-groom-tab" aria-controls="{{ tab_id }}-groom-panel" aria-selected="false" tabindex="-1" data-tab-target="{{ tab_id }}-groom-panel">Zaručnik <span class="baptism-registry-tabs__error" hidden>!</span></button>
+    <button type="button" role="tab" id="{{ tab_id }}-bride-tab" aria-controls="{{ tab_id }}-bride-panel" aria-selected="false" tabindex="-1" data-tab-target="{{ tab_id }}-bride-panel">Zaručnica <span class="baptism-registry-tabs__error" hidden>!</span></button>
+    <button type="button" role="tab" id="{{ tab_id }}-parents-tab" aria-controls="{{ tab_id }}-parents-panel" aria-selected="false" tabindex="-1" data-tab-target="{{ tab_id }}-parents-panel">Roditelji <span class="baptism-registry-tabs__error" hidden>!</span></button>
+    <button type="button" role="tab" id="{{ tab_id }}-witnesses-tab" aria-controls="{{ tab_id }}-witnesses-panel" aria-selected="false" tabindex="-1" data-tab-target="{{ tab_id }}-witnesses-panel">Svjedoci i vjenčatelj <span class="baptism-registry-tabs__error" hidden>!</span></button>
+    <button type="button" role="tab" id="{{ tab_id }}-notes-tab" aria-controls="{{ tab_id }}-notes-panel" aria-selected="false" tabindex="-1" data-tab-target="{{ tab_id }}-notes-panel">Napomene <span class="baptism-registry-tabs__error" hidden>!</span></button>
+  </div>
+  <section id="{{ tab_id }}-entry-panel" class="baptism-registry-tabs__panel" role="tabpanel" aria-labelledby="{{ tab_id }}-entry-tab" data-tab-panel>
+    <header><h3>Upis i vjenčanje</h3><p>Oznake fizičke matice te datum i mjesto vjenčanja.</p></header>
+    <div class="registry-book-form__grid">{% include "isprave/partials/registry_form_field.html" with field=form.entry_number %}{% include "isprave/partials/registry_form_field.html" with field=form.physical_page %}{% include "isprave/partials/registry_form_field.html" with field=form.marriage_date %}{% include "isprave/partials/registry_form_field.html" with field=form.marriage_place %}</div>
+    <div class="baptism-registry-tabs__nav"><span></span><button type="button" class="btn btn-ghost btn-sm" data-tab-next>Dalje: Zaručnik</button></div>
+  </section>
+  <section id="{{ tab_id }}-groom-panel" class="baptism-registry-tabs__panel" role="tabpanel" aria-labelledby="{{ tab_id }}-groom-tab" data-tab-panel hidden>
+    <header><h3>Podaci o zaručniku</h3><p>Osobni, krsni i prebivališni podaci.</p></header>
+    <div class="baptism-registry-tabs__stack">
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.groom_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.groom_last_name %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--three">{% include "isprave/partials/registry_form_field.html" with field=form.groom_birth_date %}{% include "isprave/partials/registry_form_field.html" with field=form.groom_birth_place %}{% include "isprave/partials/registry_form_field.html" with field=form.groom_oib %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--three">{% include "isprave/partials/registry_form_field.html" with field=form.groom_religion %}{% include "isprave/partials/registry_form_field.html" with field=form.groom_baptism_date %}{% include "isprave/partials/registry_form_field.html" with field=form.groom_baptism_parish %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.groom_baptism_parish_address %}{% include "isprave/partials/registry_form_field.html" with field=form.groom_residence_address %}</div>
+    </div>
+    <div class="baptism-registry-tabs__nav"><button type="button" class="btn btn-ghost btn-sm" data-tab-previous>Natrag</button><button type="button" class="btn btn-ghost btn-sm" data-tab-next>Dalje: Zaručnica</button></div>
+  </section>
+  <section id="{{ tab_id }}-bride-panel" class="baptism-registry-tabs__panel" role="tabpanel" aria-labelledby="{{ tab_id }}-bride-tab" data-tab-panel hidden>
+    <header><h3>Podaci o zaručnici</h3><p>Osobni, krsni i prebivališni podaci.</p></header>
+    <div class="baptism-registry-tabs__stack">
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.bride_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.bride_last_name %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--three">{% include "isprave/partials/registry_form_field.html" with field=form.bride_birth_date %}{% include "isprave/partials/registry_form_field.html" with field=form.bride_birth_place %}{% include "isprave/partials/registry_form_field.html" with field=form.bride_oib %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--three">{% include "isprave/partials/registry_form_field.html" with field=form.bride_religion %}{% include "isprave/partials/registry_form_field.html" with field=form.bride_baptism_date %}{% include "isprave/partials/registry_form_field.html" with field=form.bride_baptism_parish %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.bride_baptism_parish_address %}{% include "isprave/partials/registry_form_field.html" with field=form.bride_residence_address %}</div>
+    </div>
+    <div class="baptism-registry-tabs__nav"><button type="button" class="btn btn-ghost btn-sm" data-tab-previous>Natrag</button><button type="button" class="btn btn-ghost btn-sm" data-tab-next>Dalje: Roditelji</button></div>
+  </section>
+  <section id="{{ tab_id }}-parents-panel" class="baptism-registry-tabs__panel" role="tabpanel" aria-labelledby="{{ tab_id }}-parents-tab" data-tab-panel hidden>
+    <header><h3>Roditelji zaručnika i zaručnice</h3><p>Za majke se upisuje djevojačko prezime.</p></header>
+    <div class="baptism-registry-tabs__stack">
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.groom_father_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.groom_father_last_name %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.groom_mother_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.groom_mother_maiden_name %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.bride_father_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.bride_father_last_name %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.bride_mother_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.bride_mother_maiden_name %}</div>
+    </div>
+    <div class="baptism-registry-tabs__nav"><button type="button" class="btn btn-ghost btn-sm" data-tab-previous>Natrag</button><button type="button" class="btn btn-ghost btn-sm" data-tab-next>Dalje: Svjedoci</button></div>
+  </section>
+  <section id="{{ tab_id }}-witnesses-panel" class="baptism-registry-tabs__panel" role="tabpanel" aria-labelledby="{{ tab_id }}-witnesses-tab" data-tab-panel hidden>
+    <header><h3>Svjedoci i vjenčatelj</h3><p>Svaki svjedok evidentiran je prema zaručniku ili zaručnici kojoj pripada.</p></header>
+    <div class="baptism-registry-tabs__stack">
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.groom_witness_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.groom_witness_last_name %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--two">{% include "isprave/partials/registry_form_field.html" with field=form.bride_witness_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.bride_witness_last_name %}</div>
+      <div class="baptism-registry-tabs__row baptism-registry-tabs__row--three">{% include "isprave/partials/registry_form_field.html" with field=form.officiant_first_name %}{% include "isprave/partials/registry_form_field.html" with field=form.officiant_last_name %}{% include "isprave/partials/registry_form_field.html" with field=form.officiant_role %}</div>
+    </div>
+    <div class="baptism-registry-tabs__nav"><button type="button" class="btn btn-ghost btn-sm" data-tab-previous>Natrag</button><button type="button" class="btn btn-ghost btn-sm" data-tab-next>Dalje: Napomene</button></div>
+  </section>
+  <section id="{{ tab_id }}-notes-panel" class="baptism-registry-tabs__panel" role="tabpanel" aria-labelledby="{{ tab_id }}-notes-tab" data-tab-panel hidden>
+    <header><h3>Napomene</h3><p>Ženidbeni navještaji, dopuštenja, dispenze i ostale napomene.</p></header>
+    <div class="registry-book-form__grid">{% include "isprave/partials/registry_form_field.html" with field=form.notes wide=True %}</div>
+    <div class="baptism-registry-tabs__nav"><button type="button" class="btn btn-ghost btn-sm" data-tab-previous>Natrag</button></div>
+  </section>
+</div>
